@@ -23,9 +23,9 @@ import { randomUUID } from 'crypto';
 const prisma = new PrismaClient();
 
 // ── Config ────────────────────────────────────────────────────
-const ORG_COUNT       = 200;
-const TOTAL_EMPLOYEES = 10_000;
-const TOTAL_ADMINS    = 500;
+const ORG_COUNT       = 500;
+const TOTAL_EMPLOYEES = 50_000;
+const TOTAL_ADMINS    = 1_000;
 const DAYS_OF_HISTORY = 30;
 const BATCH_SIZE      = 500;
 
