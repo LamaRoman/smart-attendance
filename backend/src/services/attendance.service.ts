@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { parseQRPayload, verifyQRSignature, verifyTOTPCode } from '../lib/crypto';
+import { parseQRPayload, verifyQRSignature } from '../lib/crypto';
 import { adToBS } from '../lib/nepali-date';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
 import { createLogger } from '../logger';
@@ -10,6 +10,7 @@ import {
   ManualAttendanceInput,
 } from '../schemas/attendance.schema';
 import { notificationService } from './notification.service';
+import { payrollService } from './payroll.service';
 
 const log = createLogger('attendance-service');
 
@@ -51,9 +52,9 @@ function validateTimestamp(raw: string, fieldName: string): Date {
 }
 
 export class AttendanceService {
-  /**
-   * Public QR scan — uses employee ID instead of auth
-   */
+
+  // ======== QR / mobile scans ========
+
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
       where: { employeeId: input.employeeId },
@@ -111,10 +112,6 @@ export class AttendanceService {
     return { ...result, message, user: { firstName: user.firstName, lastName: user.lastName, employeeId: user.employeeId } };
   }
 
-  /**
-   * Authenticated QR scan
-   */
-
   async mobileCheckin(input: { employeeId: string; latitude: number; longitude: number }, ipAddress?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
       where: { employeeId: input.employeeId },
@@ -128,7 +125,6 @@ export class AttendanceService {
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
       throw new ValidationError('Account is inactive');
     }
-    // Check org allows mobile check-in
     const org = await prisma.organization.findUnique({
       where: { id: user.organizationId! },
       select: { attendanceMode: true, geofenceEnabled: true, officeLat: true, officeLng: true, geofenceRadius: true },
@@ -137,7 +133,6 @@ export class AttendanceService {
     if (org.attendanceMode === 'QR_ONLY') {
       throw new ValidationError('Mobile check-in is not enabled for this organization. Please use QR scan.');
     }
-    // Geofence is mandatory for mobile check-in
     if (!org.geofenceEnabled || !org.officeLat || !org.officeLng) {
       throw new ValidationError('Geofencing must be enabled for mobile check-in. Contact your administrator.');
     }
@@ -199,9 +194,8 @@ export class AttendanceService {
     return { ...result, message };
   }
 
-  /**
-   * Manual clock in/out by admin
-   */
+  // ======== Admin manual operations ========
+
   async manualAttendance(input: ManualAttendanceInput, currentUser: JWTPayload) {
     const user = await prisma.user.findUnique({
       where: { id: input.userId },
@@ -241,7 +235,6 @@ export class AttendanceService {
         include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
       });
 
-      // Check for late arrival and notify admin (non-blocking)
       this.checkAndNotifyLateArrival(input.userId, user.organizationId!, now, record.id).catch(err => {
         log.error({ err }, 'Late arrival check failed');
       });
@@ -285,8 +278,180 @@ export class AttendanceService {
   }
 
   /**
-   * Get current clock-in status for a user
+   * Admin edits an existing attendance record.
+   * After saving, flags payroll NEEDS_RECALCULATION if a payslip exists for the month.
    */
+  async editAttendance(
+    recordId: string,
+    input: { checkInTime?: string; checkOutTime?: string; note: string; markPresent?: boolean },
+    currentUser: JWTPayload
+  ) {
+    // FIX H-08: org always enforced — SUPER_ADMIN must have an org in context
+    if (!currentUser.organizationId) {
+      throw new ValidationError('Organization context required to edit attendance records', 'ORG_REQUIRED');
+    }
+
+    const record = await prisma.attendanceRecord.findFirst({
+      where: {
+        id: recordId,
+        organizationId: currentUser.organizationId,
+      },
+    });
+
+    if (!record) {
+      throw new NotFoundError('Attendance record not found');
+    }
+
+    const updateData: Record<string, unknown> = {
+      modifiedBy: currentUser.userId,
+      modifiedAt: new Date(),
+      modificationNote: input.note,
+    };
+
+    if (!record.originalCheckIn) {
+      updateData.originalCheckIn = record.checkInTime;
+    }
+    if (!record.originalCheckOut && record.checkOutTime) {
+      updateData.originalCheckOut = record.checkOutTime;
+    }
+
+    let resolvedCheckIn: Date = record.checkInTime;
+    if (input.checkInTime) {
+      resolvedCheckIn = validateTimestamp(input.checkInTime, 'checkInTime');
+      updateData.checkInTime = resolvedCheckIn;
+    }
+
+    if (input.checkOutTime) {
+      const resolvedCheckOut = validateTimestamp(input.checkOutTime, 'checkOutTime');
+      if (resolvedCheckOut <= resolvedCheckIn) {
+        throw new ValidationError('checkOutTime must be after checkInTime', 'INVALID_TIME_RANGE');
+      }
+      updateData.checkOutTime = resolvedCheckOut;
+      updateData.status = 'CHECKED_OUT';
+      updateData.duration = Math.round((resolvedCheckOut.getTime() - resolvedCheckIn.getTime()) / (1000 * 60));
+    }
+
+    const updated = await prisma.attendanceRecord.update({
+      where: { id: recordId },
+      data: updateData,
+      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+    });
+
+    log.info({ recordId, adminId: currentUser.userId, note: input.note }, 'Attendance record edited by admin');
+
+    // Flag payroll for this BS month (non-blocking)
+    const bs = adToBS(resolvedCheckIn);
+    this.flagPayrollAfterAttendanceChange(
+      record.userId,
+      record.organizationId,
+      bs.year,
+      bs.month,
+      currentUser.userId,
+      recordId,
+      `Admin edited attendance record ${recordId}: ${input.note}`
+    );
+
+    return updated;
+  }
+
+  /**
+   * Admin creates a manual present entry for an absent employee.
+   * Returns payrollWarning in the response if a payslip was flagged for recalculation.
+   */
+  async markPresent(
+    input: { userId: string; date: string; checkInTime: string; checkOutTime?: string; note: string },
+    currentUser: JWTPayload
+  ) {
+    const employee = await prisma.user.findFirst({
+      where: { id: input.userId, organizationId: currentUser.organizationId },
+    });
+
+    if (!employee) {
+      throw new NotFoundError('Employee not found');
+    }
+
+    // FIX H-06 / H-07: Validate timestamps
+    const checkIn = validateTimestamp(input.checkInTime, 'checkInTime');
+
+    let checkOut: Date | null = null;
+    if (input.checkOutTime) {
+      checkOut = validateTimestamp(input.checkOutTime, 'checkOutTime');
+      if (checkOut <= checkIn) {
+        throw new ValidationError('checkOutTime must be after checkInTime', 'INVALID_TIME_RANGE');
+      }
+    }
+
+    const dateStart = new Date(input.date);
+    dateStart.setHours(0, 0, 0, 0);
+    const dateEnd = new Date(input.date);
+    dateEnd.setHours(23, 59, 59, 999);
+
+    if (isNaN(dateStart.getTime())) {
+      throw new ValidationError('date is not a valid date', 'INVALID_DATE');
+    }
+
+    const existing = await prisma.attendanceRecord.findFirst({
+      where: {
+        userId: input.userId,
+        organizationId: currentUser.organizationId ?? undefined,
+        checkInTime: { gte: dateStart, lte: dateEnd },
+        isActive: true,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictError('Attendance record already exists for this date');
+    }
+
+    const duration = checkOut ? Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60)) : null;
+    const bs = adToBS(checkIn);
+
+    const record = await prisma.attendanceRecord.create({
+      data: {
+        userId: input.userId,
+        organizationId: currentUser.organizationId!,
+        checkInTime: checkIn,
+        checkOutTime: checkOut,
+        checkInMethod: 'MANUAL',
+        checkOutMethod: checkOut ? 'MANUAL' : undefined,
+        duration,
+        status: checkOut ? 'CHECKED_OUT' : 'CHECKED_IN',
+        isManualEntry: true,
+        modifiedBy: currentUser.userId,
+        modifiedAt: new Date(),
+        modificationNote: input.note,
+        notes: 'Manual entry: ' + input.note,
+        bsYear: bs.year,
+        bsMonth: bs.month,
+        bsDay: bs.day,
+      },
+      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+    });
+
+    log.info({ userId: input.userId, adminId: currentUser.userId, date: input.date, note: input.note }, 'Employee marked present by admin');
+
+    // Check if payslip already exists for this month and flag it
+    const payrollFlag = await payrollService.flagPayrollNeedsRecalculation(
+      input.userId,
+      currentUser.organizationId!,
+      bs.year,
+      bs.month,
+      currentUser.userId,
+      record.id,
+      `Admin marked employee present for ${input.date}: ${input.note}`
+    );
+
+    return {
+      record,
+      // Frontend can show a banner when this is non-null
+      payrollWarning: payrollFlag.flagged
+        ? `A payslip for ${bs.year}/${bs.month} already existed (was: ${payrollFlag.previousStatus}). It has been flagged for recalculation — please regenerate it before the next payroll run.`
+        : null,
+    };
+  }
+
+  // ======== Read methods ========
+
   async getStatus(userId: string) {
     const openRecord = await prisma.attendanceRecord.findFirst({
       where: { userId, status: 'CHECKED_IN' },
@@ -309,9 +474,6 @@ export class AttendanceService {
     return { isClockedIn: false, record: null, currentDuration: null };
   }
 
-  /**
-   * Get attendance records for current user
-   */
   async getMyAttendance(userId: string, limit: number, offset: number) {
     const where = { userId };
 
@@ -334,9 +496,6 @@ export class AttendanceService {
     return { records, pagination: { total, limit, offset, hasMore: offset + records.length < total } };
   }
 
-  /**
-   * List all attendance records (admin) — org-scoped
-   */
   async listAttendance(currentUser: JWTPayload, limit: number, offset: number, filters: { userId?: string; status?: string }) {
     const where: Record<string, unknown> = {};
 
@@ -425,7 +584,6 @@ export class AttendanceService {
   private async checkDailyLimit(userId: string) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
@@ -471,17 +629,12 @@ export class AttendanceService {
 
       const diffMs = checkInTime.getTime() - workStart.getTime();
       const minutesLate = Math.floor(diffMs / 60000);
-
       const threshold = org.lateThresholdMinutes || 10;
+
       if (minutesLate > threshold) {
         const userName = `${user.firstName} ${user.lastName}`;
         await notificationService.createLateArrivalNotification(
-          organizationId,
-          userId,
-          userName,
-          minutesLate,
-          checkInTime,
-          attendanceId
+          organizationId, userId, userName, minutesLate, checkInTime, attendanceId
         );
         log.info({ userId, userName, minutesLate, checkInTime }, 'Late arrival notification created');
       }
@@ -490,9 +643,7 @@ export class AttendanceService {
     }
   }
 
-  // FIX C-11: Wrap in serializable transaction to prevent race conditions.
-  // Two concurrent scans will now serialize — only one can create a CLOCK_IN;
-  // the second will see the first's record and perform CLOCK_OUT instead.
+  // FIX C-11: Serializable transaction prevents duplicate CLOCK_IN race conditions
   private async performClockAction(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
     return await prisma.$transaction(async (tx) => {
       const openRecord = await tx.attendanceRecord.findFirst({
@@ -534,7 +685,6 @@ export class AttendanceService {
           include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
         });
 
-        // Note: late arrival check is non-transactional (notification only, non-critical)
         this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => {
           log.error({ err }, 'Late arrival check failed');
         });
@@ -542,6 +692,21 @@ export class AttendanceService {
         return { action: 'CLOCK_IN' as const, record };
       }
     }, { isolationLevel: 'Serializable' });
+  }
+
+  // Fire-and-forget payroll flag — errors logged, never thrown to caller
+  private flagPayrollAfterAttendanceChange(
+    userId: string,
+    organizationId: string,
+    bsYear: number,
+    bsMonth: number,
+    triggeredBy: string,
+    attendanceRecordId: string,
+    reason: string
+  ) {
+    payrollService.flagPayrollNeedsRecalculation(
+      userId, organizationId, bsYear, bsMonth, triggeredBy, attendanceRecordId, reason
+    ).catch(err => log.error({ err }, 'Failed to flag payroll after attendance correction'));
   }
 
   private async logAudit(data: {
@@ -562,154 +727,6 @@ export class AttendanceService {
     } catch (err) {
       log.error({ err, data }, 'Failed to write audit log');
     }
-  }
-
-  /**
-   * Admin edits an attendance record
-   */
-  async editAttendance(
-    recordId: string,
-    input: { checkInTime?: string; checkOutTime?: string; note: string; markPresent?: boolean },
-    currentUser: JWTPayload
-  ) {
-    // FIX H-08: SUPER_ADMIN with null organizationId previously bypassed the org filter
-    // (Prisma ignores `undefined` in where clauses). Now we require SUPER_ADMIN to
-    // always operate within a specific org — they must not silently touch all orgs.
-    if (!currentUser.organizationId) {
-      throw new ValidationError('Organization context required to edit attendance records', 'ORG_REQUIRED');
-    }
-
-    const record = await prisma.attendanceRecord.findFirst({
-      where: {
-        id: recordId,
-        organizationId: currentUser.organizationId, // always scoped — never undefined
-      },
-    });
-
-    if (!record) {
-      throw new NotFoundError('Attendance record not found');
-    }
-
-    // FIX H-06 / H-07: Validate all supplied timestamps
-    const updateData: Record<string, unknown> = {
-      modifiedBy: currentUser.userId,
-      modifiedAt: new Date(),
-      modificationNote: input.note,
-    };
-
-    if (!record.originalCheckIn) {
-      updateData.originalCheckIn = record.checkInTime;
-    }
-    if (!record.originalCheckOut && record.checkOutTime) {
-      updateData.originalCheckOut = record.checkOutTime;
-    }
-
-    let resolvedCheckIn: Date = record.checkInTime;
-    if (input.checkInTime) {
-      resolvedCheckIn = validateTimestamp(input.checkInTime, 'checkInTime');
-      updateData.checkInTime = resolvedCheckIn;
-    }
-
-    if (input.checkOutTime) {
-      const resolvedCheckOut = validateTimestamp(input.checkOutTime, 'checkOutTime');
-
-      // FIX H-06: checkOut must be after checkIn
-      if (resolvedCheckOut <= resolvedCheckIn) {
-        throw new ValidationError('checkOutTime must be after checkInTime', 'INVALID_TIME_RANGE');
-      }
-
-      updateData.checkOutTime = resolvedCheckOut;
-      updateData.status = 'CHECKED_OUT';
-      updateData.duration = Math.round((resolvedCheckOut.getTime() - resolvedCheckIn.getTime()) / (1000 * 60));
-    }
-
-    const updated = await prisma.attendanceRecord.update({
-      where: { id: recordId },
-      data: updateData,
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-    });
-
-    log.info({ recordId, adminId: currentUser.userId, note: input.note }, 'Attendance record edited by admin');
-    return updated;
-  }
-
-  /**
-   * Admin creates a manual present entry for an absent employee
-   */
-  async markPresent(
-    input: { userId: string; date: string; checkInTime: string; checkOutTime?: string; note: string },
-    currentUser: JWTPayload
-  ) {
-    const employee = await prisma.user.findFirst({
-      where: { id: input.userId, organizationId: currentUser.organizationId },
-    });
-
-    if (!employee) {
-      throw new NotFoundError('Employee not found');
-    }
-
-    // FIX H-06 / H-07: Validate timestamps before using them
-    const checkIn = validateTimestamp(input.checkInTime, 'checkInTime');
-
-    let checkOut: Date | null = null;
-    if (input.checkOutTime) {
-      checkOut = validateTimestamp(input.checkOutTime, 'checkOutTime');
-
-      // checkOut must be after checkIn
-      if (checkOut <= checkIn) {
-        throw new ValidationError('checkOutTime must be after checkInTime', 'INVALID_TIME_RANGE');
-      }
-    }
-
-    const dateStart = new Date(input.date);
-    dateStart.setHours(0, 0, 0, 0);
-    const dateEnd = new Date(input.date);
-    dateEnd.setHours(23, 59, 59, 999);
-
-    if (isNaN(dateStart.getTime())) {
-      throw new ValidationError('date is not a valid date', 'INVALID_DATE');
-    }
-
-    const existing = await prisma.attendanceRecord.findFirst({
-      where: {
-        userId: input.userId,
-        organizationId: currentUser.organizationId ?? undefined,
-        checkInTime: { gte: dateStart, lte: dateEnd },
-        isActive: true,
-      },
-    });
-
-    if (existing) {
-      throw new ConflictError('Attendance record already exists for this date');
-    }
-
-    const duration = checkOut ? Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60)) : null;
-    const bs = adToBS(checkIn);
-
-    const record = await prisma.attendanceRecord.create({
-      data: {
-        userId: input.userId,
-        organizationId: currentUser.organizationId!,
-        checkInTime: checkIn,
-        checkOutTime: checkOut,
-        checkInMethod: 'MANUAL',
-        checkOutMethod: checkOut ? 'MANUAL' : undefined,
-        duration,
-        status: checkOut ? 'CHECKED_OUT' : 'CHECKED_IN',
-        isManualEntry: true,
-        modifiedBy: currentUser.userId,
-        modifiedAt: new Date(),
-        modificationNote: input.note,
-        notes: 'Manual entry: ' + input.note,
-        bsYear: bs.year,
-        bsMonth: bs.month,
-        bsDay: bs.day,
-      },
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-    });
-
-    log.info({ userId: input.userId, adminId: currentUser.userId, date: input.date, note: input.note }, 'Employee marked present by admin');
-    return record;
   }
 }
 

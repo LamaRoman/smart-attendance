@@ -129,6 +129,7 @@ model Organization {
   leaves            Leave[]
   paySettings       EmployeePaySettings[]
   payrollRecords    PayrollRecord[]
+  payrollAuditLogs  PayrollAuditLog[]
   systemConfigs     SystemConfig[]
   totpDevices       TOTPDevice[]
 
@@ -945,4 +946,31 @@ model PasswordResetToken {
   @@index([token])
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// ============================================================
+// PAYROLL AUDIT LOG — tracks every generate, regenerate, status change,
+// and payroll flag triggered by attendance corrections
+// ============================================================
+model PayrollAuditLog {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  payrollRecordId    String?
+  employeeUserId     String?
+  action             String   // GENERATED | REGENERATED | STATUS_CHANGED | FLAGGED_NEEDS_RECALCULATION | VOIDED
+  fromStatus         String?
+  toStatus           String?
+  triggeredBy        String   // userId of the admin who triggered this
+  reason             String?
+  attendanceRecordId String?  // populated when triggered by an attendance correction
+  bsYear             Int?
+  bsMonth            Int?
+  createdAt          DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([payrollRecordId])
+  @@index([employeeUserId])
+  @@map("payroll_audit_logs")
 }
