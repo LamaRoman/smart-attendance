@@ -16,6 +16,9 @@ const log = createLogger('attendance-service');
 const SCAN_COOLDOWN_MINUTES = 2;
 const MAX_DAILY_SCANS = 4;
 
+// FIX H-07: Maximum how far back an admin can edit attendance records
+const MAX_EDIT_WINDOW_DAYS = 90;
+
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -25,6 +28,26 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c2 = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c2;
+}
+
+// FIX H-06 / H-07: Validate admin-supplied timestamps
+function validateTimestamp(raw: string, fieldName: string): Date {
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) {
+    throw new ValidationError(`${fieldName} is not a valid date`, 'INVALID_DATE');
+  }
+  const now = new Date();
+  if (d > now) {
+    throw new ValidationError(`${fieldName} cannot be in the future`, 'FUTURE_DATE');
+  }
+  const cutoff = new Date(now.getTime() - MAX_EDIT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  if (d < cutoff) {
+    throw new ValidationError(
+      `${fieldName} cannot be more than ${MAX_EDIT_WINDOW_DAYS} days in the past`,
+      'DATE_TOO_OLD'
+    );
+  }
+  return d;
 }
 
 export class AttendanceService {
@@ -467,52 +490,58 @@ export class AttendanceService {
     }
   }
 
+  // FIX C-11: Wrap in serializable transaction to prevent race conditions.
+  // Two concurrent scans will now serialize — only one can create a CLOCK_IN;
+  // the second will see the first's record and perform CLOCK_OUT instead.
   private async performClockAction(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
-    const openRecord = await prisma.attendanceRecord.findFirst({
-      where: { userId, status: 'CHECKED_IN' },
-    });
-
-    if (openRecord) {
-      const checkOutTime = new Date();
-      const durationMinutes = Math.floor(
-        (checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000
-      );
-
-      const record = await prisma.attendanceRecord.update({
-        where: { id: openRecord.id },
-        data: {
-          checkOutTime,
-          checkOutMethod: method,
-          duration: durationMinutes,
-          status: 'CHECKED_OUT',
-        },
-        include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+    return await prisma.$transaction(async (tx) => {
+      const openRecord = await tx.attendanceRecord.findFirst({
+        where: { userId, status: 'CHECKED_IN' },
       });
 
-      return { action: 'CLOCK_OUT' as const, record };
-    } else {
-      const now = new Date();
-      const bs = adToBS(now);
+      if (openRecord) {
+        const checkOutTime = new Date();
+        const durationMinutes = Math.floor(
+          (checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000
+        );
 
-      const record = await prisma.attendanceRecord.create({
-        data: {
-          userId,
-          organizationId,
-          checkInMethod: method,
-          status: 'CHECKED_IN',
-          bsYear: bs.year,
-          bsMonth: bs.month,
-          bsDay: bs.day,
-        },
-        include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-      });
+        const record = await tx.attendanceRecord.update({
+          where: { id: openRecord.id },
+          data: {
+            checkOutTime,
+            checkOutMethod: method,
+            duration: durationMinutes,
+            status: 'CHECKED_OUT',
+          },
+          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+        });
 
-      this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => {
-        log.error({ err }, 'Late arrival check failed');
-      });
+        return { action: 'CLOCK_OUT' as const, record };
+      } else {
+        const now = new Date();
+        const bs = adToBS(now);
 
-      return { action: 'CLOCK_IN' as const, record };
-    }
+        const record = await tx.attendanceRecord.create({
+          data: {
+            userId,
+            organizationId,
+            checkInMethod: method,
+            status: 'CHECKED_IN',
+            bsYear: bs.year,
+            bsMonth: bs.month,
+            bsDay: bs.day,
+          },
+          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+        });
+
+        // Note: late arrival check is non-transactional (notification only, non-critical)
+        this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => {
+          log.error({ err }, 'Late arrival check failed');
+        });
+
+        return { action: 'CLOCK_IN' as const, record };
+      }
+    }, { isolationLevel: 'Serializable' });
   }
 
   private async logAudit(data: {
@@ -538,16 +567,31 @@ export class AttendanceService {
   /**
    * Admin edits an attendance record
    */
-  async editAttendance(recordId: string, input: { checkInTime?: string; checkOutTime?: string; note: string; markPresent?: boolean }, currentUser: JWTPayload) {
+  async editAttendance(
+    recordId: string,
+    input: { checkInTime?: string; checkOutTime?: string; note: string; markPresent?: boolean },
+    currentUser: JWTPayload
+  ) {
+    // FIX H-08: SUPER_ADMIN with null organizationId previously bypassed the org filter
+    // (Prisma ignores `undefined` in where clauses). Now we require SUPER_ADMIN to
+    // always operate within a specific org — they must not silently touch all orgs.
+    if (!currentUser.organizationId) {
+      throw new ValidationError('Organization context required to edit attendance records', 'ORG_REQUIRED');
+    }
+
     const record = await prisma.attendanceRecord.findFirst({
-      where: { id: recordId, organizationId: currentUser.organizationId ?? undefined },
+      where: {
+        id: recordId,
+        organizationId: currentUser.organizationId, // always scoped — never undefined
+      },
     });
 
     if (!record) {
       throw new NotFoundError('Attendance record not found');
     }
 
-    const updateData: any = {
+    // FIX H-06 / H-07: Validate all supplied timestamps
+    const updateData: Record<string, unknown> = {
       modifiedBy: currentUser.userId,
       modifiedAt: new Date(),
       modificationNote: input.note,
@@ -560,16 +604,23 @@ export class AttendanceService {
       updateData.originalCheckOut = record.checkOutTime;
     }
 
+    let resolvedCheckIn: Date = record.checkInTime;
     if (input.checkInTime) {
-      updateData.checkInTime = new Date(input.checkInTime);
+      resolvedCheckIn = validateTimestamp(input.checkInTime, 'checkInTime');
+      updateData.checkInTime = resolvedCheckIn;
     }
 
     if (input.checkOutTime) {
-      updateData.checkOutTime = new Date(input.checkOutTime);
+      const resolvedCheckOut = validateTimestamp(input.checkOutTime, 'checkOutTime');
+
+      // FIX H-06: checkOut must be after checkIn
+      if (resolvedCheckOut <= resolvedCheckIn) {
+        throw new ValidationError('checkOutTime must be after checkInTime', 'INVALID_TIME_RANGE');
+      }
+
+      updateData.checkOutTime = resolvedCheckOut;
       updateData.status = 'CHECKED_OUT';
-      const checkIn = input.checkInTime ? new Date(input.checkInTime) : record.checkInTime;
-      const checkOut = new Date(input.checkOutTime);
-      updateData.duration = Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60));
+      updateData.duration = Math.round((resolvedCheckOut.getTime() - resolvedCheckIn.getTime()) / (1000 * 60));
     }
 
     const updated = await prisma.attendanceRecord.update({
@@ -585,7 +636,10 @@ export class AttendanceService {
   /**
    * Admin creates a manual present entry for an absent employee
    */
-  async markPresent(input: { userId: string; date: string; checkInTime: string; checkOutTime?: string; note: string }, currentUser: JWTPayload) {
+  async markPresent(
+    input: { userId: string; date: string; checkInTime: string; checkOutTime?: string; note: string },
+    currentUser: JWTPayload
+  ) {
     const employee = await prisma.user.findFirst({
       where: { id: input.userId, organizationId: currentUser.organizationId },
     });
@@ -594,10 +648,27 @@ export class AttendanceService {
       throw new NotFoundError('Employee not found');
     }
 
+    // FIX H-06 / H-07: Validate timestamps before using them
+    const checkIn = validateTimestamp(input.checkInTime, 'checkInTime');
+
+    let checkOut: Date | null = null;
+    if (input.checkOutTime) {
+      checkOut = validateTimestamp(input.checkOutTime, 'checkOutTime');
+
+      // checkOut must be after checkIn
+      if (checkOut <= checkIn) {
+        throw new ValidationError('checkOutTime must be after checkInTime', 'INVALID_TIME_RANGE');
+      }
+    }
+
     const dateStart = new Date(input.date);
     dateStart.setHours(0, 0, 0, 0);
     const dateEnd = new Date(input.date);
     dateEnd.setHours(23, 59, 59, 999);
+
+    if (isNaN(dateStart.getTime())) {
+      throw new ValidationError('date is not a valid date', 'INVALID_DATE');
+    }
 
     const existing = await prisma.attendanceRecord.findFirst({
       where: {
@@ -612,10 +683,7 @@ export class AttendanceService {
       throw new ConflictError('Attendance record already exists for this date');
     }
 
-    const checkIn = new Date(input.checkInTime);
-    const checkOut = input.checkOutTime ? new Date(input.checkOutTime) : null;
     const duration = checkOut ? Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60)) : null;
-
     const bs = adToBS(checkIn);
 
     const record = await prisma.attendanceRecord.create({
