@@ -22,17 +22,26 @@ function toNum(val: Decimal | number | null | undefined): number {
   return parseFloat(val.toString());
 }
 
-// Nepal TDS calculation — reads slabs from DB, falls back to defaults
-async function calculateNepalTDS(annualIncome: number, isMarried: boolean = false): Promise<number> {
-  // Try to load slabs from DB
-  let config: any = null;
-  try {
-    const dbConfig = await prisma.systemConfig.findFirst({
-      where: { key: 'tds_slabs' },
-      orderBy: { updatedAt: 'desc' },
-    });
-    if (dbConfig) config = JSON.parse(dbConfig.value);
-  } catch (e) { /* fall back to defaults */ }
+// FIX C-09: Validate TDS slab config loaded from DB before using it.
+// Previously raw DB values were used directly in tax calculations — a
+// super admin CSRF attack could set rate: -100 to add money to net salary.
+function validateTDSConfig(config: any): boolean {
+  if (!config) return false;
+  if (typeof config.firstSlabRate !== 'number' || config.firstSlabRate < 0 || config.firstSlabRate > 50) return false;
+  if (!Array.isArray(config.slabs)) return false;
+  for (const slab of config.slabs) {
+    if (typeof slab.rate !== 'number' || slab.rate < 0 || slab.rate > 50) return false;
+    if (slab.limit !== 0 && (typeof slab.limit !== 'number' || slab.limit <= 0)) return false;
+  }
+  return true;
+}
+
+// FIX H-04: Accept pre-fetched tdsConfig as a parameter instead of querying
+// the DB once per employee. Previously called inside the employee loop causing
+// N identical DB queries per payroll run (200 employees = 200 queries).
+function calculateNepalTDS(annualIncome: number, isMarried: boolean = false, tdsConfig: any): number {
+  // Only use DB config if it passes validation (FIX C-09)
+  const config = validateTDSConfig(tdsConfig) ? tdsConfig : null;
 
   const firstSlabRate = (config?.firstSlabRate ?? 1) / 100;
   const firstSlab = isMarried
@@ -47,7 +56,6 @@ async function calculateNepalTDS(annualIncome: number, isMarried: boolean = fals
     { limit: 0, rate: 39 },
   ];
 
-  // Build slab array
   const slabs = [
     { limit: firstSlab, rate: firstSlabRate },
     ...dbSlabs.map((s: any) => ({
@@ -114,7 +122,6 @@ export class PayrollService {
 
     if (!user) throw new NotFoundError('User not found');
 
-    // Org isolation
     if (currentUser.role !== 'SUPER_ADMIN' && user.organizationId !== currentUser.organizationId) {
       throw new NotFoundError('User not found');
     }
@@ -159,31 +166,53 @@ export class PayrollService {
    */
   async generatePayroll(input: GeneratePayrollInput, currentUser: JWTPayload) {
     const { bsYear, bsMonth } = input;
-    const organizationId = currentUser.organizationId!;
+
+    // FIX H-05: Always require a valid organizationId for payroll generation,
+    // even for super admins. Previously when currentUser.organizationId was null
+    // (super admin without org), the org filter was silently removed and payroll
+    // records were created with organizationId: null, corrupting data.
+    const organizationId = input.organizationId || currentUser.organizationId;
+    if (!organizationId) {
+      throw new ValidationError('organizationId is required for payroll generation');
+    }
+
+    // Verify the org exists
+    const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+    if (!org) throw new NotFoundError('Organization not found');
+
+    // Non-super-admins can only generate payroll for their own org
+    if (currentUser.role !== 'SUPER_ADMIN' && organizationId !== currentUser.organizationId) {
+      throw new ValidationError('Access denied to this organization');
+    }
 
     const { start: adStart, end: adEnd } = getBSMonthADRange(bsYear, bsMonth);
     const adYear = adStart.getFullYear();
     const adMonth = adStart.getMonth() + 1;
 
-    // Get holidays
     const holidayDates = await holidayService.getHolidayDatesForMonth(bsYear, bsMonth, organizationId);
     const holidaysInMonth = holidayDates.length;
     const daysInMonth = getDaysInBSMonth(bsYear, bsMonth);
     const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates);
 
-    // Get employees with pay settings in this org
-    const where: Record<string, unknown> = {
-      isActive: true,
-      role: 'EMPLOYEE',
-      paySettings: { isNot: null },
-    };
-
-    if (currentUser.role !== 'SUPER_ADMIN') {
-      where.organizationId = organizationId;
-    }
+    // FIX H-04: Fetch TDS config ONCE before the employee loop.
+    // Previously calculateNepalTDS() queried the DB inside the loop — 
+    // 200 employees = 200 identical queries per payroll run.
+    let tdsConfig: any = null;
+    try {
+      const dbConfig = await prisma.systemConfig.findFirst({
+        where: { key: 'tds_slabs' },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (dbConfig) tdsConfig = JSON.parse(dbConfig.value);
+    } catch (e) { /* fall back to hardcoded defaults */ }
 
     const employees = await prisma.user.findMany({
-      where,
+      where: {
+        isActive: true,
+        role: 'EMPLOYEE',
+        organizationId, // FIX H-05: always filter by org, never remove this
+        paySettings: { isNot: null },
+      },
       include: { paySettings: true },
     });
 
@@ -206,19 +235,16 @@ export class PayrollService {
 
       const { daysPresent, overtimeHours } = await this.getDaysPresent(emp.id, adStart, adEnd);
       const { paidDays: paidLeaveDays, unpaidDays: unpaidLeaveDays } = await this.getApprovedLeaves(emp.id, adStart, adEnd);
-      // Effective present = actual attendance + paid leaves
       const effectivePresent = Math.min(workingDaysInMonth, daysPresent + paidLeaveDays);
       const daysAbsent = Math.max(0, workingDaysInMonth - effectivePresent);
 
       const totalAllowances = dearnessAllowance + transportAllowance + medicalAllowance + otherAllowances;
-      // Only deduct for days that are neither attended nor on paid leave
       const absenceDeduction = workingDaysInMonth > 0
         ? Math.round((basicSalary / workingDaysInMonth) * daysAbsent * 100) / 100
         : 0;
       const overtimePay = Math.round(overtimeHours * overtimeRatePerHour * 100) / 100;
       const grossSalary = Math.round((basicSalary + totalAllowances + overtimePay - absenceDeduction) * 100) / 100;
 
-      // SSF (Social Security Fund)
       let employeeSsf = 0;
       let employerSsf = 0;
       if (s.ssfEnabled) {
@@ -226,7 +252,6 @@ export class PayrollService {
         employerSsf = Math.round(basicSalary * (employerSsfRate / 100) * 100) / 100;
       }
 
-      // PF (Provident Fund)
       let employeePf = 0;
       let employerPf = 0;
       if (s.pfEnabled) {
@@ -236,21 +261,16 @@ export class PayrollService {
         employerPf = Math.round(basicSalary * (pfEmployerRate / 100) * 100) / 100;
       }
 
-      // CIT (Citizen Investment Trust) - fixed amount, tax-deductible
       const citDeduction = s.citEnabled ? toNum(s.citAmount) : 0;
-
-      // Advance/Loan deduction
       const advanceDeduct = toNum(s.advanceDeduction);
-
-      // Dashain Bonus — 1 month basic salary, paid in Ashwin (month 6)
       const dashainBonus = bsMonth === 6 ? basicSalary : 0;
 
-      // TDS (Tax Deducted at Source)
-      // Taxable = gross - employee SSF - employee PF - CIT (all are tax-deductible)
+      // FIX H-04: Pass pre-fetched tdsConfig instead of querying DB per employee
+      // FIX C-09: validateTDSConfig() inside calculateNepalTDS() blocks invalid slab data
       let tds = 0;
       if (s.tdsEnabled) {
         const annualTaxable = (grossSalary + dashainBonus - employeeSsf - employeePf - citDeduction) * 12;
-        tds = await calculateNepalTDS(annualTaxable, s.isMarried);
+        tds = calculateNepalTDS(annualTaxable, s.isMarried, tdsConfig);
       }
 
       const totalDeductions = Math.round((absenceDeduction + employeeSsf + employeePf + citDeduction + advanceDeduct + tds) * 100) / 100;
@@ -258,7 +278,7 @@ export class PayrollService {
 
       const payrollData = {
         userId: emp.id,
-        organizationId: emp.organizationId!,
+        organizationId,
         year: adYear,
         month: adMonth,
         bsYear,
@@ -293,20 +313,17 @@ export class PayrollService {
         status: 'DRAFT' as const,
       };
 
-      const existing = await prisma.payrollRecord.findUnique({
-        where: { userId_bsYear_bsMonth: { userId: emp.id, bsYear, bsMonth } },
+      // FIX C-10: Replace the check-then-create pattern with a single atomic upsert
+      // wrapped in a transaction. Previously two concurrent requests could both pass
+      // the findUnique check and both create records, causing duplicate salary entries.
+      const record = await prisma.$transaction(async (tx) => {
+        return tx.payrollRecord.upsert({
+          where: { userId_bsYear_bsMonth: { userId: emp.id, bsYear, bsMonth } },
+          update: payrollData,
+          create: payrollData,
+          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+        });
       });
-
-      const record = existing
-        ? await prisma.payrollRecord.update({
-            where: { id: existing.id },
-            data: payrollData,
-            include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-          })
-        : await prisma.payrollRecord.create({
-            data: payrollData,
-            include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-          });
 
       payrollRecords.push(this.mapPayrollRecord(record));
     }
@@ -358,12 +375,31 @@ export class PayrollService {
 
   /**
    * Update payroll record status
+   * FIX C-08: Added organizationId to where clause to prevent cross-org manipulation.
+   * Previously only filtered by record ID — an org admin who knew another org's
+   * record ID could mark it as PAID.
    */
-  async updateStatus(recordId: string, status: string) {
+  async updateStatus(recordId: string, status: string, currentUser: JWTPayload) {
     const updateData: Record<string, unknown> = { status };
     if (status === 'PROCESSED') updateData.processedAt = new Date();
     if (status === 'APPROVED') updateData.approvedAt = new Date();
     if (status === 'PAID') updateData.paidAt = new Date();
+
+    // Build where clause with org isolation
+    const where: Record<string, unknown> = { id: recordId };
+
+    // Super admins can update any record, but only if organizationId is passed explicitly
+    if (currentUser.role !== 'SUPER_ADMIN') {
+      if (!currentUser.organizationId) {
+        throw new ValidationError('No organization assigned');
+      }
+      where.organizationId = currentUser.organizationId;
+    }
+
+    const record = await prisma.payrollRecord.findFirst({ where });
+    if (!record) {
+      throw new NotFoundError('Payroll record not found');
+    }
 
     return prisma.payrollRecord.update({
       where: { id: recordId },
@@ -389,7 +425,6 @@ export class PayrollService {
 
     await prisma.payrollRecord.updateMany({ where, data: updateData });
 
-    // If approved, notify employees via email
     if (status === 'APPROVED') {
       try {
         const records = await prisma.payrollRecord.findMany({
@@ -399,12 +434,12 @@ export class PayrollService {
             organization: { select: { name: true } },
           },
         });
-        const toNum = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
+        const toNumLocal = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
         emailService.sendPayrollBulkNotification(
           records.map(r => ({
             email: r.user.email,
             firstName: r.user.firstName,
-            netSalary: toNum(r.netSalary),
+            netSalary: toNumLocal(r.netSalary),
             bsMonth: BS_MONTHS_EN[(r.bsMonth || 1) - 1],
             bsYear: r.bsYear,
             orgName: r.organization.name,
@@ -423,106 +458,96 @@ export class PayrollService {
     const months: Array<{ bsYear: number; bsMonth: number }> = [];
     let currentYear = fromBsYear;
     let currentMonth = fromBsMonth;
-    
+
     while (currentYear < toBsYear || (currentYear === toBsYear && currentMonth <= toBsMonth)) {
       months.push({ bsYear: currentYear, bsMonth: currentMonth });
       currentMonth++;
-      if (currentMonth > 12) { 
-        currentMonth = 1; 
-        currentYear++; 
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
       }
     }
-    
+
     if (months.length > 12) throw new ValidationError('Maximum 12 months allowed');
-    
-    const where: Record<string, unknown> = { 
-      OR: months.map((m) => ({ bsYear: m.bsYear, bsMonth: m.bsMonth })) 
+
+    const where: Record<string, unknown> = {
+      OR: months.map((m) => ({ bsYear: m.bsYear, bsMonth: m.bsMonth })),
     };
-    
+
     if (currentUser.role === 'EMPLOYEE') {
       where.userId = currentUser.userId;
     } else if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
       where.organizationId = currentUser.organizationId;
     }
-    
-    const records = await prisma.payrollRecord.findMany({ 
-      where, 
-      include: { 
-        user: { 
-          select: { 
-            id: true, 
-            firstName: true, 
-            lastName: true, 
-            employeeId: true, 
-            email: true 
-          } 
-        } 
-      }, 
-      orderBy: [
-        { user: { firstName: 'asc' } }, 
-        { bsYear: 'asc' }, 
-        { bsMonth: 'asc' }
-      ] 
+
+    const records = await prisma.payrollRecord.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeId: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: [{ user: { firstName: 'asc' } }, { bsYear: 'asc' }, { bsMonth: 'asc' }],
     });
-    
+
     const employeeMap: Record<string, any> = {};
-    
+
     for (const record of records) {
       const userId = record.userId;
-      
+
       if (!employeeMap[userId]) {
-        employeeMap[userId] = { 
-          userId, 
-          employee: { 
-            firstName: record.user.firstName, 
-            lastName: record.user.lastName, 
-            employeeId: record.user.employeeId, 
-            email: record.user.email 
-          }, 
-          months: {}, 
-          totals: { 
-            basicSalary: 0, 
-            grossSalary: 0, 
-            totalDeductions: 0, 
-            netSalary: 0, 
-            employeeSsf: 0, 
-            employeePf: 0, 
-            tds: 0, 
-            monthsProcessed: 0 
-          } 
+        employeeMap[userId] = {
+          userId,
+          employee: {
+            firstName: record.user.firstName,
+            lastName: record.user.lastName,
+            employeeId: record.user.employeeId,
+            email: record.user.email,
+          },
+          months: {},
+          totals: {
+            basicSalary: 0, grossSalary: 0, totalDeductions: 0,
+            netSalary: 0, employeeSsf: 0, employeePf: 0, tds: 0, monthsProcessed: 0,
+          },
         };
       }
-      
+
       const emp = employeeMap[userId];
       const monthKey = `${record.bsYear}-${record.bsMonth}`;
-      
-      emp.months[monthKey] = { 
+
+      emp.months[monthKey] = {
         id: record.id,
-        bsYear: record.bsYear, 
-        bsMonth: record.bsMonth, 
-        monthNameEn: BS_MONTHS_EN[record.bsMonth - 1], 
-        monthNameNp: BS_MONTHS_NP[record.bsMonth - 1], 
-        basicSalary: toNum(record.basicSalary), 
-        dearnessAllowance: toNum(record.dearnessAllowance), 
-        transportAllowance: toNum(record.transportAllowance), 
-        medicalAllowance: toNum(record.medicalAllowance), 
-        otherAllowances: toNum(record.otherAllowances), 
-        grossSalary: toNum(record.grossSalary), 
-        absenceDeduction: toNum(record.absenceDeduction), 
-        employeeSsf: toNum(record.employeeSsf), 
-        employeePf: toNum(record.employeePf), 
-        citDeduction: toNum(record.citDeduction), 
-        tds: toNum(record.tds), 
-        advanceDeduction: toNum(record.advanceDeduction), 
-        dashainBonus: toNum(record.dashainBonus), 
-        totalDeductions: toNum(record.totalDeductions), 
-        netSalary: toNum(record.netSalary), 
-        status: record.status, 
-        workingDaysInMonth: record.workingDaysInMonth, 
-        daysPresent: record.daysPresent, 
-        daysAbsent: record.daysAbsent 
+        bsYear: record.bsYear,
+        bsMonth: record.bsMonth,
+        monthNameEn: BS_MONTHS_EN[record.bsMonth - 1],
+        monthNameNp: BS_MONTHS_NP[record.bsMonth - 1],
+        basicSalary: toNum(record.basicSalary),
+        dearnessAllowance: toNum(record.dearnessAllowance),
+        transportAllowance: toNum(record.transportAllowance),
+        medicalAllowance: toNum(record.medicalAllowance),
+        otherAllowances: toNum(record.otherAllowances),
+        grossSalary: toNum(record.grossSalary),
+        absenceDeduction: toNum(record.absenceDeduction),
+        employeeSsf: toNum(record.employeeSsf),
+        employeePf: toNum(record.employeePf),
+        citDeduction: toNum(record.citDeduction),
+        tds: toNum(record.tds),
+        advanceDeduction: toNum(record.advanceDeduction),
+        dashainBonus: toNum(record.dashainBonus),
+        totalDeductions: toNum(record.totalDeductions),
+        netSalary: toNum(record.netSalary),
+        status: record.status,
+        workingDaysInMonth: record.workingDaysInMonth,
+        daysPresent: record.daysPresent,
+        daysAbsent: record.daysAbsent,
       };
-      
+
       emp.totals.basicSalary += toNum(record.basicSalary);
       emp.totals.grossSalary += toNum(record.grossSalary);
       emp.totals.totalDeductions += toNum(record.totalDeductions);
@@ -532,31 +557,22 @@ export class PayrollService {
       emp.totals.tds += toNum(record.tds);
       emp.totals.monthsProcessed++;
     }
-    
-    const employees = Object.values(employeeMap).map((emp: any) => ({ 
-      ...emp, 
-      totals: { 
-        basicSalary: Math.round(emp.totals.basicSalary * 100) / 100, 
-        grossSalary: Math.round(emp.totals.grossSalary * 100) / 100, 
-        totalDeductions: Math.round(emp.totals.totalDeductions * 100) / 100, 
-        netSalary: Math.round(emp.totals.netSalary * 100) / 100, 
-        employeeSsf: Math.round(emp.totals.employeeSsf * 100) / 100, 
-        employeePf: Math.round(emp.totals.employeePf * 100) / 100, 
-        tds: Math.round(emp.totals.tds * 100) / 100, 
-        monthsProcessed: emp.totals.monthsProcessed 
-      } 
+
+    const employees = Object.values(employeeMap).map((emp: any) => ({
+      ...emp,
+      totals: {
+        basicSalary: Math.round(emp.totals.basicSalary * 100) / 100,
+        grossSalary: Math.round(emp.totals.grossSalary * 100) / 100,
+        totalDeductions: Math.round(emp.totals.totalDeductions * 100) / 100,
+        netSalary: Math.round(emp.totals.netSalary * 100) / 100,
+        employeeSsf: Math.round(emp.totals.employeeSsf * 100) / 100,
+        employeePf: Math.round(emp.totals.employeePf * 100) / 100,
+        tds: Math.round(emp.totals.tds * 100) / 100,
+        monthsProcessed: emp.totals.monthsProcessed,
+      },
     }));
-    
-    const grandTotals = { 
-      basicSalary: 0, 
-      grossSalary: 0, 
-      totalDeductions: 0, 
-      netSalary: 0, 
-      employeeSsf: 0, 
-      employeePf: 0, 
-      tds: 0 
-    };
-    
+
+    const grandTotals = { basicSalary: 0, grossSalary: 0, totalDeductions: 0, netSalary: 0, employeeSsf: 0, employeePf: 0, tds: 0 };
     for (const emp of employees) {
       grandTotals.basicSalary += emp.totals.basicSalary;
       grandTotals.grossSalary += emp.totals.grossSalary;
@@ -566,19 +582,19 @@ export class PayrollService {
       grandTotals.employeePf += emp.totals.employeePf;
       grandTotals.tds += emp.totals.tds;
     }
-    
-    return { 
-      months, 
-      employees, 
-      grandTotals: { 
-        basicSalary: Math.round(grandTotals.basicSalary * 100) / 100, 
-        grossSalary: Math.round(grandTotals.grossSalary * 100) / 100, 
-        totalDeductions: Math.round(grandTotals.totalDeductions * 100) / 100, 
-        netSalary: Math.round(grandTotals.netSalary * 100) / 100, 
-        employeeSsf: Math.round(grandTotals.employeeSsf * 100) / 100, 
-        employeePf: Math.round(grandTotals.employeePf * 100) / 100, 
-        tds: Math.round(grandTotals.tds * 100) / 100 
-      } 
+
+    return {
+      months,
+      employees,
+      grandTotals: {
+        basicSalary: Math.round(grandTotals.basicSalary * 100) / 100,
+        grossSalary: Math.round(grandTotals.grossSalary * 100) / 100,
+        totalDeductions: Math.round(grandTotals.totalDeductions * 100) / 100,
+        netSalary: Math.round(grandTotals.netSalary * 100) / 100,
+        employeeSsf: Math.round(grandTotals.employeeSsf * 100) / 100,
+        employeePf: Math.round(grandTotals.employeePf * 100) / 100,
+        tds: Math.round(grandTotals.tds * 100) / 100,
+      },
     };
   }
 
@@ -640,7 +656,6 @@ export class PayrollService {
       if (r.duration) totalMinutes += r.duration;
     }
 
-    // Include currently checked-in records
     const openRecords = await prisma.attendanceRecord.findMany({
       where: { userId, checkInTime: { gte: adStart, lte: adEnd }, status: 'CHECKED_IN' },
     });
