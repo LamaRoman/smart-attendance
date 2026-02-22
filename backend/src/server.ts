@@ -16,7 +16,8 @@ import { startTrialExpiryJob } from './jobs/trial-expiry.job';
 import { startBillingJob } from './jobs/billing.job';
 import { startPriceExpiryJob } from './jobs/price-expiry.job';
 import { startGracePeriodJob } from './jobs/grace-period.job';
-import { startAbandonedJob } from './jobs/abandoned.job';// Route imports
+import { startAbandonedJob } from './jobs/abandoned.job';
+// Route imports
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import qrRoutes from './routes/qr';
@@ -66,22 +67,60 @@ app.use(generalRateLimiter);
 
 // ============================================================
 // Request ID — unique per request for log correlation
+// FIX L-02: Validate x-request-id before accepting it (max 36 chars, alphanumeric+hyphen only)
 // ============================================================
 app.use((req, res, next) => {
-  const requestId = (req.headers['x-request-id'] as string) || crypto.randomUUID();
+  const rawId = req.headers['x-request-id'] as string | undefined;
+  const isValidId = rawId && /^[a-zA-Z0-9-]{1,36}$/.test(rawId);
+  const requestId = isValidId ? rawId : crypto.randomUUID();
   res.setHeader('x-request-id', requestId);
   (req as any).requestId = requestId;
   next();
 });
 
 // ============================================================
+// CSRF Protection — Custom Header Check (C-04)
+// Any state-changing request (POST/PUT/PATCH/DELETE) must include
+// the X-Requested-With header. Browsers cannot set custom headers
+// on cross-origin requests without CORS preflight — which our
+// CORS policy blocks — making CSRF from malicious sites impossible.
+//
+// Exemptions:
+//   - GET/HEAD/OPTIONS (safe methods)
+//   - /api/attendance/scan-public (intentionally unauthenticated QR scan)
+// ============================================================
+const CSRF_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const CSRF_EXEMPT_PATHS = new Set(['/api/attendance/scan-public']);
+
+app.use((req, res, next) => {
+  if (CSRF_SAFE_METHODS.has(req.method)) return next();
+  if (CSRF_EXEMPT_PATHS.has(req.path)) return next();
+
+  const hasCustomHeader = req.headers['x-requested-with'] === 'XMLHttpRequest';
+  if (!hasCustomHeader) {
+    logger.warn({
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+    }, 'CSRF check failed — missing X-Requested-With header');
+    return res.status(403).json({
+      error: { message: 'CSRF check failed', code: 'CSRF_REJECTED' },
+    });
+  }
+  next();
+});
+
+// ============================================================
 // Core Middleware
+// FIX C-01: express.json() MUST come before sanitizeInput.
+// Previously sanitizeInput ran first, meaning req.body was always
+// undefined when sanitization ran — all JSON bodies were unsanitized.
 // ============================================================
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(cookieParser());
-app.use(sanitizeInput);
-app.use(express.json({ limit: '100kb' }));
+app.use(express.json({ limit: '100kb' }));          // ← parse body FIRST
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+app.use(sanitizeInput);                              // ← then sanitize
 
 // Request logging
 app.use((req, res, next) => {
@@ -120,8 +159,10 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/super-admin/subscriptions', superAdminSubscriptionRouter);
-app.use('/api/super-admin/platform-config', platformConfigRouter);// Enhanced health check — includes DB connectivity
+app.use('/api/super-admin/platform-config', platformConfigRouter);
 app.use("/api/super-admin/plans", superAdminPlansRouter);
+
+// Enhanced health check — includes DB connectivity
 app.get('/api/health', async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -154,6 +195,7 @@ const server = app.listen(PORT, () => {
   logger.info(`Backend server running on http://localhost:${PORT}`);
   logger.info(`Environment: ${config.NODE_ENV}`);
   logger.info(`CORS origins: ${corsOrigins.join(', ')}`);
+
   // Cleanup expired sessions every hour
   setInterval(async () => {
     try { await authService.cleanExpiredSessions(); } catch (e) { /* ignore */ }
@@ -164,13 +206,12 @@ const server = app.listen(PORT, () => {
     try { await notificationService.deleteOldNotifications(); } catch (e) { /* ignore */ }
   }, 24 * 60 * 60 * 1000);
 
-
   // Trial expiry cron — runs daily at 08:00 NPT
   startTrialExpiryJob();
   startBillingJob();
   startPriceExpiryJob();
-    startGracePeriodJob();
-    startAbandonedJob();
+  startGracePeriodJob();
+  startAbandonedJob();
 });
 
 // Graceful shutdown

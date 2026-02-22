@@ -100,6 +100,9 @@ export const requireOrgAdmin = (
 /**
  * Middleware to enforce organization data isolation
  * Ensures non-super-admin users can only access their own org's data
+ *
+ * FIX C-03: Capture the requested org ID BEFORE overwriting req.body.organizationId.
+ * Previously, the check compared req.body.organizationId against itself (always passed).
  */
 export const enforceOrgIsolation = (
   req: AuthRequest,
@@ -120,21 +123,29 @@ export const enforceOrgIsolation = (
     return res.status(403).json({ error: { message: 'No organization assigned' } });
   }
 
-  // Inject organizationId into query and body for downstream use
-  req.query.organizationId = req.user.organizationId;
+  // FIX C-03: Capture the ORIGINAL requested org ID BEFORE we overwrite anything.
+  // Previously this was done after overwriting req.body.organizationId, meaning
+  // the cross-org check always compared the user's own org against itself and always passed.
+  const requestedOrgId =
+    req.params.organizationId ||
+    req.body?.organizationId ||
+    req.query?.organizationId;
 
-  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
-    req.body.organizationId = req.user.organizationId;
-  }
-
-  // Check if a different orgId was requested (prevent cross-org access)
-  const requestedOrgId = req.params.organizationId || req.body.organizationId;
+  // Block cross-org access before injecting anything
   if (requestedOrgId && requestedOrgId !== req.user.organizationId) {
     log.warn(
       { userId: req.user.userId, requestedOrg: requestedOrgId, userOrg: req.user.organizationId },
       'Cross-org access attempt blocked'
     );
     return res.status(403).json({ error: { message: 'Access denied to this organization' } });
+  }
+
+  // Now safe to inject organizationId into query and body for downstream use
+  req.query.organizationId = req.user.organizationId;
+
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    req.body = req.body || {};
+    req.body.organizationId = req.user.organizationId;
   }
 
   next();

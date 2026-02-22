@@ -7,6 +7,7 @@ export async function apiRequest(
 ): Promise<{ data?: unknown; error?: { message: string; code?: string } }> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
     ...options.headers,
   };
 
