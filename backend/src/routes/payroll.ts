@@ -146,6 +146,19 @@ router.post('/generate', validate(generatePayrollSchema), async (req: AuthReques
   }
 });
 
+// POST /api/payroll/regenerate/:userId
+// Recalculate payslip for a single employee after an attendance correction
+router.post('/regenerate/:userId', requireOrgAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { bsYear, bsMonth, reason } = req.body;
+    if (!bsYear || !bsMonth) throw new Error('bsYear and bsMonth are required');
+    if (!reason) throw new Error('reason is required for audit trail');
+    const data = await payrollService.regenerateForEmployee(req.params.userId, Number(bsYear), Number(bsMonth), reason, req.user!);
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
 // GET /api/payroll/records
 router.get('/records', validate(payrollRecordsQuerySchema, 'query'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -167,6 +180,16 @@ router.put('/records/:id/status', requireFeature('featurePayrollWorkflow'), vali
   }
 });
 
+// GET /api/payroll/records/:id/audit
+// Get full audit trail for a single payroll record
+router.get('/records/:id/audit', requireOrgAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await payrollService.getAuditLog(req.params.id, req.user!);
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
 // PUT /api/payroll/records/bulk-status
 router.put('/records/bulk-status', requireFeature('featurePayrollWorkflow'), validate(bulkPayrollStatusSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
