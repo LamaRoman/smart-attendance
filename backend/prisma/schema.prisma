@@ -119,6 +119,7 @@ model Organization {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   // Relations
   users             User[]
@@ -165,6 +166,7 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   // Relations
   sessions          UserSession[]
@@ -179,6 +181,7 @@ model User {
   documents     EmployeeDocument[]
 
   @@index([organizationId])
+  passwordResetTokens PasswordResetToken[]
   @@map("users")
 }
 
@@ -196,6 +199,7 @@ model UserSession {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   @@index([userId])
   @@index([tokenHash])
@@ -220,6 +224,7 @@ model TOTPDevice {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   // Relations
   qrCodes QRCode[]
@@ -253,6 +258,7 @@ model QRCode {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   // Multi-tenant
   organizationId String
@@ -396,6 +402,7 @@ model EmployeePaySettings {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   @@index([organizationId])
   @@index([userId])
@@ -463,6 +470,7 @@ model PayrollRecord {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   // One payroll record per employee per BS month
   @@unique([userId, bsYear, bsMonth])
@@ -503,6 +511,7 @@ model Holiday {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   // Unique per BS date (per org or national)
   @@unique([bsYear, bsMonth, bsDay, organizationId])
@@ -547,6 +556,7 @@ model Leave {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   @@index([userId])
   @@index([organizationId])
@@ -572,6 +582,7 @@ model SystemConfig {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   // One key per organization
   @@unique([organizationId, key])
@@ -598,6 +609,7 @@ model Notification {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   @@index([organizationId, isRead, createdAt])
   @@index([userId])
@@ -630,6 +642,7 @@ model DocumentType {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   documents EmployeeDocument[]
 
@@ -658,6 +671,7 @@ model EmployeeDocument {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // FIX H-10: soft delete timestamp
 
   @@index([userId])
   @@index([organizationId])
@@ -914,4 +928,21 @@ model PlatformConfig {
   createdAt   DateTime @default(now())
 
   @@map("platform_config")
+}
+
+// ============================================================
+// PASSWORD RESET TOKEN — FIX C-12: secure welcome email flow
+// ============================================================
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
