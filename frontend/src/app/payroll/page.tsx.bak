@@ -1,0 +1,635 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { api } from '@/lib/api';
+
+// Nepali month names
+const nepaliMonths = [
+  { np: 'बैशाख', en: 'Baishakh', days: 31 },
+  { np: 'जेठ', en: 'Jestha', days: 31 },
+  { np: 'असार', en: 'Ashadh', days: 32 },
+  { np: 'श्रावण', en: 'Shrawan', days: 32 },
+  { np: 'भदौ', en: 'Bhadra', days: 31 },
+  { np: 'असोज', en: 'Ashwin', days: 30 },
+  { np: 'कार्तिक', en: 'Kartik', days: 30 },
+  { np: 'मंसिर', en: 'Mangsir', days: 30 },
+  { np: 'पौष', en: 'Poush', days: 30 },
+  { np: 'माघ', en: 'Magh', days: 30 },
+  { np: 'फागुन', en: 'Falgun', days: 30 },
+  { np: 'चैत्र', en: 'Chaitra', days: 30 }
+];
+
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  employeeId: string;
+}
+
+interface PaySettings {
+  basicSalary: number;
+  dearnessAllowance: number;
+  transportAllowance: number;
+  medicalAllowance: number;
+  otherAllowances: number;
+  overtimeRatePerHour: number;
+  ssfEnabled: boolean;
+  employeeSsfRate: number;
+  employerSsfRate: number;
+  tdsEnabled: boolean;
+}
+
+interface PayrollRecord {
+  id: string;
+  user: User;
+  bsYear: number;
+  bsMonth: number;
+  workingDaysInMonth: number;
+  holidaysInMonth: number;
+  daysPresent: number;
+  daysAbsent: number;
+  overtimeHours: number;
+  basicSalary: number;
+  dearnessAllowance: number;
+  transportAllowance: number;
+  medicalAllowance: number;
+  otherAllowances: number;
+  overtimePay: number;
+  grossSalary: number;
+  absenceDeduction: number;
+  employeeSsf: number;
+  tds: number;
+  otherDeductions: number;
+  totalDeductions: number;
+  employerSsf: number;
+  netSalary: number;
+  status: string;
+  notes: string | null;
+}
+
+export default function PayrollPage() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'settings' | 'generate' | 'records'>('settings');
+  
+  // Use current BS date as default (Falgun 2082)
+  const currentBSYear = 2082;
+  const currentBSMonth = 11;
+  
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<string>('');
+  const [paySettings, setPaySettings] = useState<Partial<PaySettings>>({
+    basicSalary: 0,
+    dearnessAllowance: 0,
+    transportAllowance: 0,
+    medicalAllowance: 0,
+    otherAllowances: 0,
+    overtimeRatePerHour: 0,
+    ssfEnabled: true,
+    employeeSsfRate: 11,
+    employerSsfRate: 20,
+    tdsEnabled: true
+  });
+  
+  const [selectedBSYear, setSelectedBSYear] = useState(currentBSYear);
+  const [selectedBSMonth, setSelectedBSMonth] = useState(currentBSMonth);
+  const [generating, setGenerating] = useState(false);
+  
+  const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
+  const [recordsBSYear, setRecordsBSYear] = useState(currentBSYear);
+  const [recordsBSMonth, setRecordsBSMonth] = useState(currentBSMonth);
+  const [selectedPayslip, setSelectedPayslip] = useState<PayrollRecord | null>(null);
+
+  useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      loadUsers();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'records') {
+      loadPayrollRecords();
+    }
+  }, [activeTab, recordsBSYear, recordsBSMonth]);
+
+  const loadUsers = async () => {
+    const res = await api.get('/api/users');
+    if (res.data) {
+      setUsers((res.data as { users: User[] }).users);
+    }
+  };
+
+  const loadPaySettings = async (userId: string) => {
+    const res = await api.get(`/api/payroll/settings/${userId}`);
+    if (res.data) {
+      setPaySettings((res.data as { settings: PaySettings }).settings);
+    } else {
+      setPaySettings({
+        basicSalary: 0,
+        dearnessAllowance: 0,
+        transportAllowance: 0,
+        medicalAllowance: 0,
+        otherAllowances: 0,
+        overtimeRatePerHour: 0,
+        ssfEnabled: true,
+        employeeSsfRate: 11,
+        employerSsfRate: 20,
+        tdsEnabled: true
+      });
+    }
+  };
+
+  const savePaySettings = async () => {
+    if (!selectedUser) {
+      alert('Please select an employee');
+      return;
+    }
+    const res = await api.post(`/api/payroll/settings/${selectedUser}`, paySettings);
+    if (res.error) {
+      alert('Failed to save settings: ' + res.error.message);
+    } else {
+      alert('Pay settings saved successfully');
+    }
+  };
+
+  const generatePayroll = async () => {
+    setGenerating(true);
+    try {
+      const res = await api.post('/api/payroll/generate', { 
+        bsYear: selectedBSYear, 
+        bsMonth: selectedBSMonth 
+      });
+      if (res.error) {
+        alert('Failed to generate payroll: ' + res.error.message);
+      } else {
+        alert('Payroll generated successfully');
+        setActiveTab('records');
+        setRecordsBSYear(selectedBSYear);
+        setRecordsBSMonth(selectedBSMonth);
+      }
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const loadPayrollRecords = async () => {
+    const res = await api.get(`/api/payroll/records?bsYear=${recordsBSYear}&bsMonth=${recordsBSMonth}`);
+    if (res.data) {
+      setPayrollRecords((res.data as { records: PayrollRecord[] }).records);
+    }
+  };
+
+  const updateStatus = async (status: string) => {
+    const res = await api.put('/api/payroll/records/bulk-status', { 
+      bsYear: recordsBSYear, 
+      bsMonth: recordsBSMonth, 
+      status 
+    });
+    if (res.error) {
+      alert('Failed to update status');
+    } else {
+      loadPayrollRecords();
+    }
+  };
+
+  const printPayslip = (record: PayrollRecord) => {
+    const monthName = nepaliMonths[record.bsMonth - 1].np;
+    const printContent = `
+      <html>
+      <head>
+        <title>Payslip - ${record.user.firstName} ${record.user.lastName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .header h2 { margin: 5px 0 0 0; font-size: 16px; color: #666; }
+          .section { margin: 20px 0; }
+          .section h3 { background: #f0f0f0; padding: 8px; margin: 0 0 10px 0; font-size: 14px; }
+          .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; }
+          .row span.label { font-weight: bold; }
+          .total { font-weight: bold; font-size: 16px; background: #f9f9f9; padding: 10px; margin-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>PAYSLIP</h1>
+          <h2>${monthName} ${record.bsYear}</h2>
+        </div>
+        <div class="section">
+          <div class="row"><span class="label">Employee:</span> ${record.user.firstName} ${record.user.lastName}</div>
+          <div class="row"><span class="label">Employee ID:</span> ${record.user.employeeId}</div>
+          <div class="row"><span class="label">Period:</span> ${monthName} ${record.bsYear}</div>
+          <div class="row"><span class="label">Working Days:</span> ${record.workingDaysInMonth}</div>
+          <div class="row"><span class="label">Days Present:</span> ${record.daysPresent}</div>
+          <div class="row"><span class="label">Days Absent:</span> ${record.daysAbsent}</div>
+          <div class="row"><span class="label">Overtime Hours:</span> ${record.overtimeHours}h</div>
+        </div>
+        <div class="section">
+          <h3>EARNINGS</h3>
+          <div class="row"><span class="label">Basic Salary:</span> NPR ${record.basicSalary.toLocaleString()}</div>
+          <div class="row"><span class="label">Dearness Allowance:</span> NPR ${record.dearnessAllowance.toLocaleString()}</div>
+          <div class="row"><span class="label">Transport Allowance:</span> NPR ${record.transportAllowance.toLocaleString()}</div>
+          <div class="row"><span class="label">Medical Allowance:</span> NPR ${record.medicalAllowance.toLocaleString()}</div>
+          <div class="row"><span class="label">Other Allowances:</span> NPR ${record.otherAllowances.toLocaleString()}</div>
+          <div class="row"><span class="label">Overtime Pay:</span> NPR ${record.overtimePay.toLocaleString()}</div>
+          <div class="total">Gross Salary: NPR ${record.grossSalary.toLocaleString()}</div>
+        </div>
+        <div class="section">
+          <h3>DEDUCTIONS</h3>
+          <div class="row"><span class="label">Absence Deduction:</span> NPR ${record.absenceDeduction.toLocaleString()}</div>
+          <div class="row"><span class="label">Employee SSF (11%):</span> NPR ${record.employeeSsf.toLocaleString()}</div>
+          <div class="row"><span class="label">TDS:</span> NPR ${record.tds.toLocaleString()}</div>
+          <div class="row"><span class="label">Other Deductions:</span> NPR ${record.otherDeductions.toLocaleString()}</div>
+          <div class="total">Total Deductions: NPR ${record.totalDeductions.toLocaleString()}</div>
+        </div>
+        <div class="section">
+          <div class="row"><span class="label">Employer SSF (20%):</span> NPR ${record.employerSsf.toLocaleString()}</div>
+        </div>
+        <div class="total" style="font-size: 18px; background: #e0e0e0;">
+          NET SALARY: NPR ${record.netSalary.toLocaleString()}
+        </div>
+        ${record.notes ? `<div class="section"><h3>NOTES</h3><p>${record.notes}</p></div>` : ''}
+      </body>
+      </html>
+    `;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  if (user?.role !== 'ADMIN') {
+    return <div className="p-8">Access denied. Admin only.</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Payroll Management</h1>
+          <button onClick={() => window.location.href = '/admin'} className="text-blue-500 hover:underline">
+            ← Back to Dashboard
+          </button>
+        </div>
+
+        <div className="bg-white rounded-lg shadow mb-6">
+          <div className="flex border-b">
+            {['settings', 'generate', 'records'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as typeof activeTab)}
+                className={`px-6 py-3 font-medium ${activeTab === tab ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+              >
+                {tab === 'settings' ? 'Pay Settings' : tab === 'generate' ? 'Generate Payroll' : 'Payroll Records'}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            {activeTab === 'settings' && (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Employee</label>
+                  <select
+                    value={selectedUser}
+                    onChange={(e) => {
+                      setSelectedUser(e.target.value);
+                      if (e.target.value) loadPaySettings(e.target.value);
+                    }}
+                    className="w-full px-3 py-2 border rounded"
+                  >
+                    <option value="">-- Select Employee --</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName} ({u.employeeId})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedUser && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Basic Salary (NPR/month)</label>
+                      <input
+                        type="number"
+                        value={paySettings.basicSalary}
+                        onChange={(e) => setPaySettings({...paySettings, basicSalary: Number(e.target.value)})}
+                        className="w-full px-3 py-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Dearness Allowance</label>
+                      <input
+                        type="number"
+                        value={paySettings.dearnessAllowance}
+                        onChange={(e) => setPaySettings({...paySettings, dearnessAllowance: Number(e.target.value)})}
+                        className="w-full px-3 py-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Transport Allowance</label>
+                      <input
+                        type="number"
+                        value={paySettings.transportAllowance}
+                        onChange={(e) => setPaySettings({...paySettings, transportAllowance: Number(e.target.value)})}
+                        className="w-full px-3 py-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Medical Allowance</label>
+                      <input
+                        type="number"
+                        value={paySettings.medicalAllowance}
+                        onChange={(e) => setPaySettings({...paySettings, medicalAllowance: Number(e.target.value)})}
+                        className="w-full px-3 py-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Other Allowances</label>
+                      <input
+                        type="number"
+                        value={paySettings.otherAllowances}
+                        onChange={(e) => setPaySettings({...paySettings, otherAllowances: Number(e.target.value)})}
+                        className="w-full px-3 py-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Overtime Rate (per hour)</label>
+                      <input
+                        type="number"
+                        value={paySettings.overtimeRatePerHour}
+                        onChange={(e) => setPaySettings({...paySettings, overtimeRatePerHour: Number(e.target.value)})}
+                        className="w-full px-3 py-2 border rounded"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={paySettings.ssfEnabled}
+                          onChange={(e) => setPaySettings({...paySettings, ssfEnabled: e.target.checked})}
+                          className="mr-2"
+                        />
+                        Enable SSF Contribution
+                      </label>
+                    </div>
+                    {paySettings.ssfEnabled && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Employee SSF Rate (%)</label>
+                          <input
+                            type="number"
+                            value={paySettings.employeeSsfRate}
+                            onChange={(e) => setPaySettings({...paySettings, employeeSsfRate: Number(e.target.value)})}
+                            className="w-full px-3 py-2 border rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Employer SSF Rate (%)</label>
+                          <input
+                            type="number"
+                            value={paySettings.employerSsfRate}
+                            onChange={(e) => setPaySettings({...paySettings, employerSsfRate: Number(e.target.value)})}
+                            className="w-full px-3 py-2 border rounded"
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div className="col-span-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={paySettings.tdsEnabled}
+                          onChange={(e) => setPaySettings({...paySettings, tdsEnabled: e.target.checked})}
+                          className="mr-2"
+                        />
+                        Enable TDS (Tax Deduction at Source)
+                      </label>
+                    </div>
+                    <div className="col-span-2">
+                      <button
+                        onClick={savePaySettings}
+                        className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+                      >
+                        Save Pay Settings
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'generate' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">BS Year (वि.सं.)</label>
+                    <select
+                      value={selectedBSYear}
+                      onChange={(e) => setSelectedBSYear(Number(e.target.value))}
+                      className="w-full px-3 py-2 border rounded"
+                    >
+                      {[2080, 2081, 2082, 2083].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">BS Month (महिना)</label>
+                    <select
+                      value={selectedBSMonth}
+                      onChange={(e) => setSelectedBSMonth(Number(e.target.value))}
+                      className="w-full px-3 py-2 border rounded"
+                    >
+                      {nepaliMonths.map((m, i) => (
+                        <option key={i} value={i + 1}>
+                          {m.np} ({m.en})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <button
+                  onClick={generatePayroll}
+                  disabled={generating}
+                  className="w-full bg-green-500 text-white py-3 rounded hover:bg-green-600 disabled:bg-gray-400"
+                >
+                  {generating ? 'Generating...' : `Generate Payroll for ${nepaliMonths[selectedBSMonth - 1].np} ${selectedBSYear}`}
+                </button>
+                <p className="text-sm text-gray-600">
+                  Working days, attendance, and holidays will be auto-calculated from the system.
+                </p>
+              </div>
+            )}
+
+            {activeTab === 'records' && (
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">BS Year</label>
+                    <select
+                      value={recordsBSYear}
+                      onChange={(e) => setRecordsBSYear(Number(e.target.value))}
+                      className="px-3 py-2 border rounded"
+                    >
+                      {[2080, 2081, 2082, 2083].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">BS Month</label>
+                    <select
+                      value={recordsBSMonth}
+                      onChange={(e) => setRecordsBSMonth(Number(e.target.value))}
+                      className="px-3 py-2 border rounded"
+                    >
+                      {nepaliMonths.map((m, i) => (
+                        <option key={i} value={i + 1}>{m.np}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <button onClick={() => updateStatus('PROCESSED')} className="px-4 py-2 bg-blue-500 text-white rounded">
+                      Mark Processed
+                    </button>
+                    <button onClick={() => updateStatus('PAID')} className="px-4 py-2 bg-green-500 text-white rounded">
+                      Mark Paid
+                    </button>
+                  </div>
+                </div>
+
+                {payrollRecords.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No payroll records for this month</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left">Employee</th>
+                          <th className="px-4 py-2 text-left">Working Days</th>
+                          <th className="px-4 py-2 text-left">Present</th>
+                          <th className="px-4 py-2 text-left">Absent</th>
+                          <th className="px-4 py-2 text-left">Gross</th>
+                          <th className="px-4 py-2 text-left">Deductions</th>
+                          <th className="px-4 py-2 text-left">Net Salary</th>
+                          <th className="px-4 py-2 text-left">Status</th>
+                          <th className="px-4 py-2 text-left">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payrollRecords.map(r => (
+                          <tr key={r.id} className="border-b">
+                            <td className="px-4 py-2">{r.user.firstName} {r.user.lastName}</td>
+                            <td className="px-4 py-2">{r.workingDaysInMonth}</td>
+                            <td className="px-4 py-2">{r.daysPresent}</td>
+                            <td className="px-4 py-2">{r.daysAbsent}</td>
+                            <td className="px-4 py-2">NPR {Number(r.grossSalary).toLocaleString()}</td>
+                            <td className="px-4 py-2">NPR {Number(r.totalDeductions).toLocaleString()}</td>
+                            <td className="px-4 py-2 font-bold">NPR {Number(r.netSalary).toLocaleString()}</td>
+                            <td className="px-4 py-2">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                r.status === 'DRAFT' ? 'bg-gray-200' :
+                                r.status === 'PROCESSED' ? 'bg-blue-200' :
+                                'bg-green-200'
+                              }`}>
+                                {r.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2">
+                              <button
+                                onClick={() => setSelectedPayslip(r)}
+                                className="text-blue-500 hover:underline mr-2"
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => printPayslip(r)}
+                                className="text-green-500 hover:underline"
+                              >
+                                Print
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {selectedPayslip && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-lg font-semibold">
+                          {selectedPayslip.user.firstName} {selectedPayslip.user.lastName} — {nepaliMonths[selectedPayslip.bsMonth - 1].np} {selectedPayslip.bsYear}
+                        </h3>
+                        <button onClick={() => setSelectedPayslip(null)} className="text-gray-500 hover:text-gray-700">✕</button>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="font-medium">Employee ID:</div>
+                          <div>{selectedPayslip.user.employeeId}</div>
+                          <div className="font-medium">Working Days:</div>
+                          <div>{selectedPayslip.workingDaysInMonth}</div>
+                          <div className="font-medium">Days Present:</div>
+                          <div>{selectedPayslip.daysPresent}</div>
+                          <div className="font-medium">Days Absent:</div>
+                          <div>{selectedPayslip.daysAbsent}</div>
+                          <div className="font-medium">Overtime Hours:</div>
+                          <div>{Number(selectedPayslip.overtimeHours)}h</div>
+                        </div>
+                        <div className="border-t pt-4">
+                          <h4 className="font-semibold mb-2">Earnings</h4>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>Basic Salary:</div><div>NPR {Number(selectedPayslip.basicSalary).toLocaleString()}</div>
+                            <div>DA:</div><div>NPR {Number(selectedPayslip.dearnessAllowance).toLocaleString()}</div>
+                            <div>Transport:</div><div>NPR {Number(selectedPayslip.transportAllowance).toLocaleString()}</div>
+                            <div>Medical:</div><div>NPR {Number(selectedPayslip.medicalAllowance).toLocaleString()}</div>
+                            <div>Other:</div><div>NPR {Number(selectedPayslip.otherAllowances).toLocaleString()}</div>
+                            <div>Overtime:</div><div>NPR {Number(selectedPayslip.overtimePay).toLocaleString()}</div>
+                            <div className="font-bold">Gross:</div><div className="font-bold">NPR {Number(selectedPayslip.grossSalary).toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <div className="border-t pt-4">
+                          <h4 className="font-semibold mb-2">Deductions</h4>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>Absence:</div><div>NPR {Number(selectedPayslip.absenceDeduction).toLocaleString()}</div>
+                            <div>Employee SSF:</div><div>NPR {Number(selectedPayslip.employeeSsf).toLocaleString()}</div>
+                            <div>TDS:</div><div>NPR {Number(selectedPayslip.tds).toLocaleString()}</div>
+                            <div>Other:</div><div>NPR {Number(selectedPayslip.otherDeductions).toLocaleString()}</div>
+                            <div className="font-bold">Total:</div><div className="font-bold">NPR {Number(selectedPayslip.totalDeductions).toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <div className="border-t pt-4">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>Employer SSF:</div><div>NPR {Number(selectedPayslip.employerSsf).toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <div className="bg-green-50 p-4 rounded">
+                          <div className="flex justify-between items-center text-lg font-bold">
+                            <span>NET SALARY:</span>
+                            <span>NPR {Number(selectedPayslip.netSalary).toLocaleString()}</span>
+                          </div>
+                        </div>
+                        {selectedPayslip.notes && (
+                          <div className="border-t pt-4">
+                            <h4 className="font-semibold mb-2">Notes</h4>
+                            <p className="text-sm">{selectedPayslip.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
