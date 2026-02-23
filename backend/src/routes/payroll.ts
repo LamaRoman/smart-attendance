@@ -160,7 +160,7 @@ router.get('/records', validate(payrollRecordsQuerySchema, 'query'), async (req:
 // PUT /api/payroll/records/:id/status
 router.put('/records/:id/status', requireFeature('featurePayrollWorkflow'), validate(payrollStatusSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await payrollService.updateStatus(req.params.id, req.body.status);
+    const data = await payrollService.updateStatus(req.params.id, req.body.status, req.user!);
     res.json({ data });
   } catch (error) {
     next(error);

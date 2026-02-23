@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma';
+﻿import prisma from '../lib/prisma';
 import { parseQRPayload, verifyQRSignature, verifyTOTPCode } from '../lib/crypto';
 import { adToBS } from '../lib/nepali-date';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
@@ -29,7 +29,7 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 
 export class AttendanceService {
   /**
-   * Public QR scan — uses employee ID instead of auth
+   * Public QR scan â€” uses employee ID instead of auth
    */
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
@@ -39,12 +39,12 @@ export class AttendanceService {
 
     if (!user) {
       await this.logAudit({ employeeId: input.employeeId, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'EMPLOYEE_NOT_FOUND', ipAddress, userAgent });
-      throw new NotFoundError('Employee ID not found');
+      throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
     if (!user.isActive) {
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
-      throw new ValidationError('Account is inactive');
+      throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
     await this.validateQRPayload(input.qrPayload, user.organizationId!);
@@ -64,10 +64,7 @@ export class AttendanceService {
       }
     }
 
-    await this.checkCooldown(user.id);
-    await this.checkDailyLimit(user.id);
-
-    const result = await this.performClockAction(user.id, user.organizationId!, 'QR_SCAN');
+    const result = await this.performClockActionSafe(user.id, user.organizationId!, 'QR_SCAN');
 
     await this.logAudit({
       employeeId: input.employeeId,
@@ -99,11 +96,11 @@ export class AttendanceService {
     });
     if (!user) {
       await this.logAudit({ employeeId: input.employeeId, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'EMPLOYEE_NOT_FOUND', ipAddress, userAgent });
-      throw new NotFoundError('Employee ID not found');
+      throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
     if (!user.isActive) {
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
-      throw new ValidationError('Account is inactive');
+      throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
     // Check org allows mobile check-in
     const org = await prisma.organization.findUnique({
@@ -123,9 +120,7 @@ export class AttendanceService {
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'OUTSIDE_GEOFENCE', ipAddress, userAgent });
       throw new ValidationError('You are ' + Math.round(distance) + 'm from office. Must be within ' + org.geofenceRadius + 'm.');
     }
-    await this.checkCooldown(user.id);
-    await this.checkDailyLimit(user.id);
-    const result = await this.performClockAction(user.id, user.organizationId!, 'MOBILE_CHECKIN');
+    const result = await this.performClockActionSafe(user.id, user.organizationId!, 'MOBILE_CHECKIN');
     await this.logAudit({
       employeeId: input.employeeId,
       userId: user.id,
@@ -154,10 +149,7 @@ export class AttendanceService {
     }
 
     await this.validateQRPayload(input.qrPayload, user.organizationId);
-    await this.checkCooldown(user.id);
-    await this.checkDailyLimit(user.id);
-
-    const result = await this.performClockAction(user.id, user.organizationId, 'QR_SCAN');
+    const result = await this.performClockActionSafe(user.id, user.organizationId, 'QR_SCAN');
 
     await this.logAudit({
       userId: user.id,
@@ -312,7 +304,7 @@ export class AttendanceService {
   }
 
   /**
-   * List all attendance records (admin) — org-scoped
+   * List all attendance records (admin) â€” org-scoped
    */
   async listAttendance(currentUser: JWTPayload, limit: number, offset: number, filters: { userId?: string; status?: string }) {
     const where: Record<string, unknown> = {};
@@ -467,6 +459,47 @@ export class AttendanceService {
     }
   }
 
+
+  private async performClockActionSafe(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
+    return prisma.$transaction(async (tx) => {
+      const cooldownTime = new Date(Date.now() - SCAN_COOLDOWN_MINUTES * 60 * 1000);
+      const recentAction = await tx.attendanceRecord.findFirst({
+        where: { userId, OR: [{ checkInTime: { gte: cooldownTime } }, { checkOutTime: { gte: cooldownTime } }] },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (recentAction) {
+        const lastActionTime = recentAction.checkOutTime || recentAction.checkInTime;
+        const timeSince = Math.floor((Date.now() - lastActionTime.getTime()) / 1000);
+        const waitTime = SCAN_COOLDOWN_MINUTES * 60 - timeSince;
+        if (waitTime > 0) throw new ValidationError('Please wait before scanning again', 'COOLDOWN_ACTIVE');
+      }
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      const todayCount = await tx.attendanceRecord.count({ where: { userId, checkInTime: { gte: todayStart, lte: todayEnd } } });
+      if (todayCount >= MAX_DAILY_SCANS) throw new ValidationError('Daily scan limit reached', 'DAILY_LIMIT_REACHED');
+      const openRecord = await tx.attendanceRecord.findFirst({ where: { userId, status: 'CHECKED_IN' } });
+      if (openRecord) {
+        const checkOutTime = new Date();
+        const durationMinutes = Math.floor((checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000);
+        const record = await tx.attendanceRecord.update({
+          where: { id: openRecord.id },
+          data: { checkOutTime, checkOutMethod: method, duration: durationMinutes, status: 'CHECKED_OUT' },
+          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+        });
+        return { action: 'CLOCK_OUT' as const, record };
+      } else {
+        const now = new Date();
+        const bs = adToBS(now);
+        const record = await tx.attendanceRecord.create({
+          data: { userId, organizationId, checkInMethod: method, status: 'CHECKED_IN', bsYear: bs.year, bsMonth: bs.month, bsDay: bs.day },
+          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+        });
+        this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => log.error({ err }, 'Late arrival check failed'));
+        return { action: 'CLOCK_IN' as const, record };
+      }
+    });
+  }
+
   private async performClockAction(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
     const openRecord = await prisma.attendanceRecord.findFirst({
       where: { userId, status: 'CHECKED_IN' },
@@ -540,7 +573,7 @@ export class AttendanceService {
    */
   async editAttendance(recordId: string, input: { checkInTime?: string; checkOutTime?: string; note: string; markPresent?: boolean }, currentUser: JWTPayload) {
     const record = await prisma.attendanceRecord.findFirst({
-      where: { id: recordId, organizationId: currentUser.organizationId ?? undefined },
+      where: { id: recordId, organizationId: currentUser.organizationId! },
     });
 
     if (!record) {
@@ -602,7 +635,7 @@ export class AttendanceService {
     const existing = await prisma.attendanceRecord.findFirst({
       where: {
         userId: input.userId,
-        organizationId: currentUser.organizationId ?? undefined,
+        organizationId: currentUser.organizationId!,
         checkInTime: { gte: dateStart, lte: dateEnd },
         isActive: true,
       },
@@ -646,3 +679,6 @@ export class AttendanceService {
 }
 
 export const attendanceService = new AttendanceService();
+
+
+
