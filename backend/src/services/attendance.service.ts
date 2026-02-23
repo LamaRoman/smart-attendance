@@ -1,5 +1,6 @@
 ﻿import prisma from '../lib/prisma';
 import { parseQRPayload, verifyQRSignature } from '../lib/crypto';
+import { verifyPassword } from '../lib/password';
 import { adToBS } from '../lib/nepali-date';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
 import { createLogger } from '../logger';
@@ -8,6 +9,7 @@ import {
   ScanPublicInput,
   ScanAuthenticatedInput,
   ManualAttendanceInput,
+  MobileCheckinInput,
 } from '../schemas/attendance.schema';
 import { notificationService } from './notification.service';
 import { payrollService } from './payroll.service';
@@ -58,7 +60,7 @@ export class AttendanceService {
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
       where: { employeeId: input.employeeId },
-      select: { id: true, firstName: true, lastName: true, employeeId: true, isActive: true, organizationId: true },
+      select: { id: true, firstName: true, lastName: true, employeeId: true, isActive: true, organizationId: true, attendancePinHash: true },
     });
 
     if (!user) {
@@ -66,8 +68,17 @@ export class AttendanceService {
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
+    if (!user) return;
     if (!user.isActive) {
-      await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
+      throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
+    }
+    // C-07: Verify attendance PIN
+    if (!user.attendancePinHash) {
+      throw new ValidationError('Attendance PIN not set. Please contact your administrator.', 'PIN_NOT_SET');
+    }
+    const isPinValid = await verifyPassword(input.pin, user!.attendancePinHash!);
+    if (!isPinValid) {
+      await this.logAudit({ employeeId: input.employeeId, userId: user!.id, organizationId: user!.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'INVALID_PIN', ipAddress, userAgent });
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
@@ -89,7 +100,6 @@ export class AttendanceService {
     }
     const result = await this.performClockActionSafe(user.id, user.organizationId!, 'QR_SCAN');
 
-    const result = await this.performClockAction(user.id, user.organizationId!, 'QR_SCAN');
 
     await this.logAudit({
       employeeId: input.employeeId,
@@ -110,10 +120,10 @@ export class AttendanceService {
     return { ...result, message, user: { firstName: user.firstName, lastName: user.lastName, employeeId: user.employeeId } };
   }
 
-  async mobileCheckin(input: { employeeId: string; latitude: number; longitude: number }, ipAddress?: string, userAgent?: string) {
+  async mobileCheckin(input: MobileCheckinInput, ipAddress?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
       where: { employeeId: input.employeeId },
-      select: { id: true, firstName: true, lastName: true, employeeId: true, isActive: true, organizationId: true },
+      select: { id: true, firstName: true, lastName: true, employeeId: true, isActive: true, organizationId: true, attendancePinHash: true },
     });
     if (!user) {
       await this.logAudit({ employeeId: input.employeeId, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'EMPLOYEE_NOT_FOUND', ipAddress, userAgent });
@@ -123,9 +133,17 @@ export class AttendanceService {
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
+    // C-07: Verify attendance PIN
+    if (!user.attendancePinHash) {
+      throw new ValidationError('Attendance PIN not set. Please contact your administrator.', 'PIN_NOT_SET');
+    }
+    const isPinValid = await verifyPassword(input.pin, user!.attendancePinHash!);
+    if (!isPinValid) {
+      await this.logAudit({ employeeId: input.employeeId, userId: user!.id, organizationId: user!.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'INVALID_PIN', ipAddress, userAgent });
+      throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
+    }
     const org = await prisma.organization.findUnique({
       where: { id: user.organizationId! },
-      select: { attendanceMode: true, geofenceEnabled: true, officeLat: true, officeLng: true, geofenceRadius: true },
     });
     if (!org) throw new NotFoundError('Organization not found');
     if (org.attendanceMode === 'QR_ONLY') {
@@ -169,7 +187,6 @@ export class AttendanceService {
 
     await this.validateQRPayload(input.qrPayload, user.organizationId);
     const result = await this.performClockActionSafe(user.id, user.organizationId, 'QR_SCAN');
-    const result = await this.performClockAction(user.id, user.organizationId, 'QR_SCAN');
 
     await this.logAudit({
       userId: user.id,
@@ -739,6 +756,8 @@ export class AttendanceService {
 }
 
 export const attendanceService = new AttendanceService();
+
+
 
 
 

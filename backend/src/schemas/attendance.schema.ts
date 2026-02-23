@@ -1,14 +1,16 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 export const scanPublicSchema = z.object({
   qrPayload: z.string().min(1, 'QR payload is required'),
   employeeId: z.string().min(1, 'Employee ID is required').transform((v) => v.toUpperCase().trim()),
+  pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d{4}$/, 'PIN must be 4 digits'),
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
 });
 
 export const mobileCheckinSchema = z.object({
   employeeId: z.string().min(1, "Employee ID is required").transform((v) => v.toUpperCase().trim()),
+  pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d{4}$/, 'PIN must be 4 digits'),
   latitude: z.coerce.number().min(-90).max(90),
   longitude: z.coerce.number().min(-180).max(180),
 });
@@ -50,3 +52,4 @@ export const editAttendanceSchema = z.object({
 });
 
 export type EditAttendanceInput = z.infer<typeof editAttendanceSchema>['body'];
+
