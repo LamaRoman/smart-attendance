@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 // System config
 export const updateConfigSchema = z.object({
@@ -22,11 +22,4 @@ export const monthInfoQuerySchema = z.object({
   bsMonth: z.coerce.number().int().min(1).max(12),
 });
 
-// TOTP device
-export const createTOTPDeviceSchema = z.object({
-  name: z.string().min(1, 'Device name is required').max(100).trim(),
-});
 
-export const totpDeviceIdParamSchema = z.object({
-  id: z.string().uuid('Invalid device ID'),
-});

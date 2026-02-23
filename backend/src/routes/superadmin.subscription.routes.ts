@@ -1,4 +1,4 @@
-// src/routes/superadmin.subscription.routes.ts
+﻿// src/routes/superadmin.subscription.routes.ts
 import { Router, Response, NextFunction } from 'express';
 import prisma from "../lib/prisma";
 import { authenticate, requireSuperAdmin, AuthRequest } from '../middleware/auth';
@@ -21,7 +21,7 @@ const router = Router();
 
 router.use(authenticate, requireSuperAdmin);
 
-// Inline schema for mark-expired — reason required, same pattern as suspend
+// Inline schema for mark-expired â€” reason required, same pattern as suspend
 const markExpiredSchema = z.object({
   reason: z.string().min(1, 'Reason is required').max(500),
 });
@@ -165,7 +165,7 @@ router.patch('/:organizationId/feature-overrides', validate(orgIdParamSchema, 'p
   try {
     const { organizationId } = req.params;
     const allowedFields = [
-      'overrideFeatureTotp', 'overrideFeatureLeave', 'overrideFeatureManualCorrection',
+      'overrideFeatureLeave', 'overrideFeatureManualCorrection',
       'overrideFeatureFullPayroll', 'overrideFeaturePayrollWorkflow', 'overrideFeatureReports',
       'overrideFeatureNotifications', 'overrideFeatureOnboarding', 'overrideFeatureAuditLog',
       'overrideFeatureFileDownload', 'overrideFeatureDownloadReports', 'overrideFeatureDownloadPayslips',
@@ -195,3 +195,4 @@ router.patch('/:organizationId/feature-overrides', validate(orgIdParamSchema, 'p
 });
 
 export default router;
+

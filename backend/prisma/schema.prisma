@@ -1,6 +1,6 @@
 // ============================================================
-// SMART ATTENDANCE SYSTEM — Prisma Schema
-// Multi-tenant, Nepal-specific, TOTP QR ready
+// SMART ATTENDANCE SYSTEM - Prisma Schema
+// Multi-tenant, Nepal-specific, QR attendance ready
 // ============================================================
 
 generator client {
@@ -17,8 +17,8 @@ datasource db {
 // ============================================================
 
 enum Role {
-  SUPER_ADMIN // Platform-level admin — manages all orgs
-  ORG_ADMIN // Organization admin — manages their org
+  SUPER_ADMIN // Platform-level admin â€” manages all orgs
+  ORG_ADMIN // Organization admin â€” manages their org
   EMPLOYEE // Regular employee
 }
 
@@ -89,7 +89,7 @@ enum CalendarMode {
 }
 
 // ============================================================
-// ORGANIZATION — Multi-tenant root
+// ORGANIZATION â€” Multi-tenant root
 // ============================================================
 model Organization {
   id                 String  @id @default(uuid())
@@ -131,7 +131,6 @@ model Organization {
   payrollRecords    PayrollRecord[]
   payrollAuditLogs  PayrollAuditLog[]
   systemConfigs     SystemConfig[]
-  totpDevices       TOTPDevice[]
 
   notifications Notification[]
   documents     EmployeeDocument[]
@@ -161,7 +160,7 @@ model User {
   shiftStartTime String? // HH:mm format, e.g. "14:00"
   shiftEndTime   String? // HH:mm format, e.g. "18:00"
 
-  // Multi-tenant — NULL only for SUPER_ADMIN
+  // Multi-tenant â€” NULL only for SUPER_ADMIN
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -187,7 +186,7 @@ model User {
 }
 
 // ============================================================
-// USER SESSION — JWT token tracking for secure logout
+// USER SESSION â€” JWT token tracking for secure logout
 // ============================================================
 model UserSession {
   id     String @id @default(uuid())
@@ -210,33 +209,8 @@ model UserSession {
 }
 
 // ============================================================
-// TOTP DEVICE — Office display devices for QR rotation
-// Each office/entrance has one device with a unique TOTP seed
 // ============================================================
-model TOTPDevice {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  name       String // e.g., "Main Entrance", "Building B Gate"
-  totpSecret String // Base32-encoded TOTP secret (encrypted at rest)
-  isActive   Boolean   @default(true)
-  lastSeenAt DateTime? // Last time this device sent a heartbeat
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
-
-  // Relations
-  qrCodes QRCode[]
-
-  @@index([organizationId])
-  @@map("totp_devices")
-}
-
-// ============================================================
-// QR CODE — Generated for attendance scanning
-// With TOTP, these serve as audit records of generated codes
+// QR CODE â€” Generated for attendance scanning
 // ============================================================
 model QRCode {
   id        String @id @default(uuid())
@@ -251,9 +225,6 @@ model QRCode {
   createdById String
   createdBy   User   @relation("QRCodeCreator", fields: [createdById], references: [id])
 
-  // Which device generated it (for TOTP tracking)
-  totpDeviceId String?
-  totpDevice   TOTPDevice? @relation(fields: [totpDeviceId], references: [id])
 
   revokedAt DateTime?
 
@@ -274,8 +245,8 @@ model QRCode {
 }
 
 // ============================================================
-// ATTENDANCE RECORD — Clock-in / Clock-out tracking
-// One record per shift (not per day — supports multiple shifts)
+// ATTENDANCE RECORD â€” Clock-in / Clock-out tracking
+// One record per shift (not per day â€” supports multiple shifts)
 // ============================================================
 model AttendanceRecord {
   id     String @id @default(uuid())
@@ -329,7 +300,7 @@ model AttendanceRecord {
 }
 
 // ============================================================
-// ATTENDANCE AUDIT LOG — Every scan attempt (success + failure)
+// ATTENDANCE AUDIT LOG â€” Every scan attempt (success + failure)
 // ============================================================
 model AttendanceAuditLog {
   id             String  @id @default(uuid())
@@ -345,8 +316,6 @@ model AttendanceAuditLog {
   success       Boolean
   failureReason String? // e.g., "COOLDOWN_ACTIVE", "INVALID_QR", "EMPLOYEE_NOT_FOUND"
 
-  // TOTP metadata
-  totpDeviceId String?
   qrToken      String? // The token that was scanned (for debugging)
 
   createdAt DateTime @default(now())
@@ -359,7 +328,7 @@ model AttendanceAuditLog {
 }
 
 // ============================================================
-// EMPLOYEE PAY SETTINGS — Per-employee salary configuration
+// EMPLOYEE PAY SETTINGS â€” Per-employee salary configuration
 // ============================================================
 model EmployeePaySettings {
   id     String @id @default(uuid())
@@ -377,18 +346,18 @@ model EmployeePaySettings {
   otherAllowances     Decimal @default(0) @db.Decimal(12, 2)
   overtimeRatePerHour Decimal @default(0) @db.Decimal(10, 2)
 
-  // SSF (Social Security Fund) — Nepal specific
+  // SSF (Social Security Fund) â€” Nepal specific
   ssfEnabled       Boolean @default(true)
   employeeSsfRate  Decimal @default(11) @db.Decimal(5, 2) // 11%
   employerSsfRate  Decimal @default(20) @db.Decimal(5, 2) // 20%
-  // PF (Provident Fund) — 10% each
+  // PF (Provident Fund) â€” 10% each
   pfEnabled        Boolean @default(false)
   employeePfRate   Decimal @default(10) @db.Decimal(5, 2)
   employerPfRate   Decimal @default(10) @db.Decimal(5, 2)
-  // CIT (Citizen Investment Trust) — optional, tax-deductible
+  // CIT (Citizen Investment Trust) â€” optional, tax-deductible
   citEnabled       Boolean @default(false)
   citAmount        Decimal @default(0) @db.Decimal(12, 2)
-  // Marital status — affects TDS first slab
+  // Marital status â€” affects TDS first slab
   isMarried        Boolean @default(false)
   // Advance/Loan deductions
   advanceDeduction Decimal @default(0) @db.Decimal(12, 2)
@@ -411,7 +380,7 @@ model EmployeePaySettings {
 }
 
 // ============================================================
-// PAYROLL RECORD — Monthly payroll calculation results
+// PAYROLL RECORD â€” Monthly payroll calculation results
 // ============================================================
 model PayrollRecord {
   id     String @id @default(uuid())
@@ -422,7 +391,7 @@ model PayrollRecord {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  // Period — both AD and BS
+  // Period â€” both AD and BS
   year    Int // AD year
   month   Int // AD month
   bsYear  Int // BS year
@@ -484,18 +453,18 @@ model PayrollRecord {
 }
 
 // ============================================================
-// HOLIDAY — Supports both national and org-specific holidays
+// HOLIDAY â€” Supports both national and org-specific holidays
 // With full BS date support
 // ============================================================
 model Holiday {
   id String @id @default(uuid())
 
-  // Multi-tenant — NULL = national holiday for all orgs
+  // Multi-tenant â€” NULL = national holiday for all orgs
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   name       String
-  nameNepali String? // नेपाली नाम
+  nameNepali String? // à¤¨à¥‡à¤ªà¤¾à¤²à¥€ à¤¨à¤¾à¤®
 
   // AD date
   date DateTime @db.Date
@@ -524,7 +493,7 @@ model Holiday {
 }
 
 // ============================================================
-// LEAVE — Employee leave requests
+// LEAVE â€” Employee leave requests
 // ============================================================
 model Leave {
   id     String @id @default(uuid())
@@ -568,7 +537,7 @@ model Leave {
 }
 
 // ============================================================
-// SYSTEM CONFIG — Key-value settings per organization
+// SYSTEM CONFIG â€” Key-value settings per organization
 // ============================================================
 model SystemConfig {
   id String @id @default(uuid())
@@ -680,7 +649,7 @@ model EmployeeDocument {
   @@map("employee_documents")
 }
 // ============================================================
-// PRICING TIER ADDITIONS — Add to your existing schema.prisma
+// PRICING TIER ADDITIONS â€” Add to your existing schema.prisma
 // ============================================================
 
 // ============================================================
@@ -689,7 +658,7 @@ model EmployeeDocument {
 
 enum TierName {
   STARTER      // Free, up to 5 employees
-  OPERATIONS   // Rs. 250/employee/month, 6–100 employees
+  OPERATIONS   // Rs. 250/employee/month, 6â€“100 employees
 }
 
 enum SubscriptionStatus {
@@ -708,7 +677,7 @@ enum BillingCycle {
 }
 
 // ============================================================
-// PRICING PLAN — Defines each tier's rules & pricing
+// PRICING PLAN â€” Defines each tier's rules & pricing
 // Super admin configures this. One row per tier.
 //
 // NOTE: Nepal-specific core features (BS calendar, geofencing,
@@ -728,9 +697,9 @@ model PricingPlan {
   defaultSetupFee  Decimal? @db.Decimal(10, 2)          // null = no setup fee
   currency         String  @default("NPR")
 
-  // Limits — null means unlimited
+  // Limits â€” null means unlimited
   maxEmployees     Int?    // 5 for Starter, null for Operations
-  hardEmployeeCap  Int?    // Hard ceiling — 100 for Operations
+  hardEmployeeCap  Int?    // Hard ceiling â€” 100 for Operations
 
   // Trial config
   trialDaysMonthly Int  @default(30)  // 30 days for monthly billing
@@ -739,8 +708,7 @@ model PricingPlan {
 
   // Annual billing discount
 
-  // ── Feature flags — super admin can toggle per plan ──────
-  featureTotp              Boolean @default(false)
+  // â”€â”€ Feature flags â€” super admin can toggle per plan â”€â”€â”€â”€â”€â”€
   featureLeave             Boolean @default(false)
   featureManualCorrection  Boolean @default(false)
   featureFullPayroll       Boolean @default(false)  // PF, CIT, allowances, Dashain
@@ -751,8 +719,8 @@ model PricingPlan {
   featureAuditLog          Boolean @default(false)
   auditLogRetentionDays    Int?    // null = unlimited, 30 for Operations
 
-  // ── File access control ───────────────────────────────────
-  // Starter: preview only — no downloads
+  // â”€â”€ File access control â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Starter: preview only â€” no downloads
   // Operations: full download access
   featureFileDownload      Boolean @default(false)
   // Granular download control if needed in future
@@ -774,8 +742,8 @@ model PricingPlan {
 }
 
 // ============================================================
-// ADMIN NOTE — Thread of internal notes per subscription
-// Replaces single adminNote string — preserves full history
+// ADMIN NOTE â€” Thread of internal notes per subscription
+// Replaces single adminNote string â€” preserves full history
 // ============================================================
 model SubscriptionAdminNote {
   id             String          @id @default(uuid())
@@ -791,7 +759,7 @@ model SubscriptionAdminNote {
 }
 
 // ============================================================
-// ORG SUBSCRIPTION — One active subscription per organization
+// ORG SUBSCRIPTION â€” One active subscription per organization
 // ============================================================
 model OrgSubscription {
   id             String       @id @default(uuid())
@@ -820,20 +788,19 @@ model OrgSubscription {
   // Billing dates
   currentPeriodStart    DateTime?
   currentPeriodEnd      DateTime?
-  nextBillingDate       DateTime? // Explicit — shown to org admin as "next bill on X"
+  nextBillingDate       DateTime? // Explicit â€” shown to org admin as "next bill on X"
   cancelledAt           DateTime?
   suspendedAt           DateTime?
 
-  // Employee count cache — avoids counting User rows on every bill
+  // Employee count cache â€” avoids counting User rows on every bill
   currentEmployeeCount  Int @default(0) // Updated on every add/remove employee event
 
-  // Custom pricing override — for special deals
+  // Custom pricing override â€” for special deals
   customPricePerEmployee Decimal? @db.Decimal(10, 2) // null = use plan default
   customPriceExpiresAt   DateTime?              // null = no expiry, auto-reverts when reached
   customMaxEmployees     Int?
 
-  // Per-org feature overrides — null = use plan default, true/false = override
-  overrideFeatureTotp              Boolean?
+  // Per-org feature overrides â€” null = use plan default, true/false = override
   overrideFeatureLeave             Boolean?
   overrideFeatureManualCorrection  Boolean?
   overrideFeatureFullPayroll       Boolean?
@@ -883,7 +850,7 @@ model OrgSubscription {
 }
 
 // ============================================================
-// SUBSCRIPTION BILLING LOG — Full audit trail
+// SUBSCRIPTION BILLING LOG â€” Full audit trail
 // ============================================================
 model SubscriptionBillingLog {
   id             String          @id @default(uuid())
@@ -914,7 +881,7 @@ model SubscriptionBillingLog {
   @@index([createdAt])
   @@map("subscription_billing_log")
 }
-// ── Platform-level configuration (super admin only) ──────────
+// â”€â”€ Platform-level configuration (super admin only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Global settings that apply across all orgs.
 // Key-value store with type hints for the UI.
 model PlatformConfig {
@@ -932,7 +899,7 @@ model PlatformConfig {
 }
 
 // ============================================================
-// PASSWORD RESET TOKEN — FIX C-12: secure welcome email flow
+// PASSWORD RESET TOKEN â€” FIX C-12: secure welcome email flow
 // ============================================================
 model PasswordResetToken {
   id        String   @id @default(uuid())
@@ -949,7 +916,7 @@ model PasswordResetToken {
 }
 
 // ============================================================
-// PAYROLL AUDIT LOG — tracks every generate, regenerate, status change,
+// PAYROLL AUDIT LOG â€” tracks every generate, regenerate, status change,
 // and payroll flag triggered by attendance corrections
 // ============================================================
 model PayrollAuditLog {
@@ -974,3 +941,4 @@ model PayrollAuditLog {
   @@index([employeeUserId])
   @@map("payroll_audit_logs")
 }
+

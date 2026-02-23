@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma';
+﻿import prisma from '../lib/prisma';
 import { generateToken, hashToken, getTokenExpiration, JWTPayload } from '../lib/jwt';
 import { verifyPassword } from '../lib/password';
 import { AuthenticationError } from '../lib/errors';
@@ -8,7 +8,7 @@ import { LoginInput } from '../schemas/auth.schema';
 const log = createLogger('auth-service');
 
 
-// Account lockout — track failed login attempts
+// Account lockout â€” track failed login attempts
 const failedAttempts: Map<string, { count: number; lockedUntil: number }> = new Map();
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
@@ -162,7 +162,6 @@ export class AuthService {
         featureFullPayroll: plan.featureFullPayroll,
         featurePayrollWorkflow: plan.featurePayrollWorkflow,
         featureReports: plan.featureReports,
-        featureTotp: plan.featureTotp,
         featureManualCorrection: plan.featureManualCorrection,
         featureNotifications: plan.featureNotifications,
         featureOnboarding: plan.featureOnboarding,
