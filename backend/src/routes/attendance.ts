@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+﻿import { Router, Request, Response, NextFunction } from 'express';
 import { attendanceService } from '../services/attendance.service';
 import { validate } from '../middleware/validate';
 import {
@@ -17,7 +17,7 @@ import prisma from '../lib/prisma';
 
 const router = Router();
 
-// POST /api/attendance/scan-public — Unauthenticated, uses employee ID
+// POST /api/attendance/scan-public â€” Unauthenticated, uses employee ID
 router.post(
   '/scan-public',
   scanRateLimiter,
@@ -36,10 +36,10 @@ router.post(
   }
 );
 
-// GET /api/attendance/org-mode/:orgId — Public, returns attendance mode for the org
+// GET /api/attendance/org-mode/:orgId â€” Public, returns attendance mode for the org
 router.get("/org-mode/:orgId", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const org = await require("../lib/prisma").default.organization.findUnique({
+    const org = await prisma.organization.findUnique({
       where: { id: req.params.orgId },
       select: { id: true, name: true, attendanceMode: true, geofenceEnabled: true },
     });
@@ -47,7 +47,7 @@ router.get("/org-mode/:orgId", async (req: Request, res: Response, next: NextFun
     res.json({ data: { id: org.id, name: org.name, attendanceMode: org.attendanceMode, geofenceEnabled: org.geofenceEnabled } });
   } catch (error) { next(error); }
 });
-// POST /api/attendance/mobile-checkin — Unauthenticated, GPS-based
+// POST /api/attendance/mobile-checkin â€” Unauthenticated, GPS-based
 router.post(
   "/mobile-checkin",
   scanRateLimiter,
@@ -65,7 +65,7 @@ router.post(
     }
   }
 );
-// POST /api/attendance/scan — Authenticated QR scan
+// POST /api/attendance/scan â€” Authenticated QR scan
 router.post(
   '/scan',
   authenticate,
@@ -85,7 +85,7 @@ router.post(
   }
 );
 
-// GET /api/attendance/status — Current clock-in status
+// GET /api/attendance/status â€” Current clock-in status
 router.get('/status', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const status = await attendanceService.getStatus(req.user!.userId);
@@ -95,7 +95,7 @@ router.get('/status', authenticate, async (req: AuthRequest, res: Response, next
   }
 });
 
-// GET /api/attendance/my — My attendance records
+// GET /api/attendance/my â€” My attendance records
 router.get(
   '/my',
   authenticate,
@@ -111,7 +111,7 @@ router.get(
   }
 );
 
-// GET /api/attendance — Admin list (org-scoped)
+// GET /api/attendance â€” Admin list (org-scoped)
 router.get(
   '/',
   authenticate,
@@ -129,7 +129,7 @@ router.get(
   }
 );
 
-// POST /api/attendance/manual — Admin manual clock in/out
+// POST /api/attendance/manual â€” Admin manual clock in/out
 router.post(
   '/manual',
   authenticate,
@@ -146,7 +146,7 @@ router.post(
   }
 );
 
-// PUT /api/attendance/:id/edit — Admin edits attendance record
+// PUT /api/attendance/:id/edit â€” Admin edits attendance record
 router.put(
   '/:id/edit',
   authenticate,
@@ -163,7 +163,7 @@ router.put(
   }
 );
 
-// POST /api/attendance/mark-present — Admin marks absent employee as present
+// POST /api/attendance/mark-present â€” Admin marks absent employee as present
 router.post(
   '/mark-present',
   authenticate,
@@ -342,3 +342,4 @@ router.get('/late-arrivals', authenticate, requireOrgAdmin, async (req: AuthRequ
 });
 
 export default router;
+
