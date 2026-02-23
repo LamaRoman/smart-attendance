@@ -87,9 +87,7 @@ export class AttendanceService {
         throw new ValidationError('You are ' + Math.round(distance) + 'm from office. Must be within ' + org.geofenceRadius + 'm.');
       }
     }
-
-    await this.checkCooldown(user.id);
-    await this.checkDailyLimit(user.id);
+    const result = await this.performClockActionSafe(user.id, user.organizationId!, 'QR_SCAN');
 
     const result = await this.performClockAction(user.id, user.organizationId!, 'QR_SCAN');
 
@@ -141,9 +139,7 @@ export class AttendanceService {
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'OUTSIDE_GEOFENCE', ipAddress, userAgent });
       throw new ValidationError('You are ' + Math.round(distance) + 'm from office. Must be within ' + org.geofenceRadius + 'm.');
     }
-    await this.checkCooldown(user.id);
-    await this.checkDailyLimit(user.id);
-    const result = await this.performClockAction(user.id, user.organizationId!, 'MOBILE_CHECKIN');
+    const result = await this.performClockActionSafe(user.id, user.organizationId!, 'MOBILE_CHECKIN');
     await this.logAudit({
       employeeId: input.employeeId,
       userId: user.id,
@@ -172,9 +168,7 @@ export class AttendanceService {
     }
 
     await this.validateQRPayload(input.qrPayload, user.organizationId);
-    await this.checkCooldown(user.id);
-    await this.checkDailyLimit(user.id);
-
+    const result = await this.performClockActionSafe(user.id, user.organizationId, 'QR_SCAN');
     const result = await this.performClockAction(user.id, user.organizationId, 'QR_SCAN');
 
     await this.logAudit({
@@ -745,5 +739,7 @@ export class AttendanceService {
 }
 
 export const attendanceService = new AttendanceService();
+
+
 
 
