@@ -120,8 +120,8 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
 
       const res = await fetch(url, {
         method: editingId ? 'PATCH' : 'POST',
-        credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify(body),
       });
 
@@ -149,8 +149,8 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
     try {
       const res = await fetch(`${API_URL}/api/org/document-types/${t.id}`, {
         method: 'PATCH',
-        credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({ isActive: !t.isActive }),
       });
       if (!res.ok) throw new Error('Failed');
