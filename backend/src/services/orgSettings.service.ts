@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma';
+﻿import prisma from '../lib/prisma';
 import { createLogger } from '../logger';
 import { JWTPayload } from '../lib/jwt';
 import { NotFoundError, AuthorizationError } from '../lib/errors';
@@ -92,7 +92,6 @@ export class OrgSettingsService {
         address: true,
         calendarMode: true,
         language: true,
-        payrollEnabled: true,
         isActive: true,
         geofenceEnabled: true,
         officeLat: true,
@@ -112,3 +111,4 @@ export class OrgSettingsService {
 }
 
 export const orgSettingsService = new OrgSettingsService();
+

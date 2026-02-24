@@ -1,4 +1,4 @@
-import { Router, Response, NextFunction } from 'express';
+﻿import { Router, Response, NextFunction } from 'express';
 import { superAdminService } from '../services/superAdmin.service';
 import { validate } from '../middleware/validate';
 import { createOrganizationSchema, updateOrganizationSchema, orgIdParamSchema } from '../schemas/organization.schema';
@@ -69,16 +69,6 @@ router.delete('/organizations/:id', validate(orgIdParamSchema, 'params'), async 
   }
 });
 
-// PATCH /api/super-admin/organizations/:id/toggle-payroll
-router.patch('/organizations/:id/toggle-payroll', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const organization = await superAdminService.togglePayroll(req.params.id);
-    res.json({ data: { message: `Payroll ${organization.payrollEnabled ? 'enabled' : 'disabled'}`, organization } });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // PATCH /api/super-admin/organizations/:id/toggle-status
 router.patch('/organizations/:id/toggle-status', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -89,7 +79,7 @@ router.patch('/organizations/:id/toggle-status', validate(orgIdParamSchema, 'par
   }
 });
 
-// GET /api/super-admin/tds-slabs — Get current TDS slabs
+// GET /api/super-admin/tds-slabs â€” Get current TDS slabs
 router.get('/tds-slabs', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const slabs = await superAdminService.getTDSSlabs();
@@ -97,7 +87,7 @@ router.get('/tds-slabs', async (req: AuthRequest, res: Response, next: NextFunct
   } catch (error) { next(error); }
 });
 
-// PUT /api/super-admin/tds-slabs — Update TDS slabs
+// PUT /api/super-admin/tds-slabs â€” Update TDS slabs
 router.put('/tds-slabs', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await superAdminService.updateTDSSlabs(req.body);

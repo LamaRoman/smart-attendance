@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
@@ -17,6 +17,7 @@ import {
   Trash2,
   Copy,
   MapPin,
+  Clock,
 } from 'lucide-react';
 
 interface QRData {
@@ -32,6 +33,37 @@ interface QRData {
   qrImageLarge?: string;
   isStatic?: boolean;
   isExisting?: boolean;
+}
+
+function useCountdown(expiresAt: string | null, onExpire: () => void) {
+  const [timeLeft, setTimeLeft] = useState('');
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
+
+  useEffect(() => {
+    if (!expiresAt) { setTimeLeft(''); return; }
+
+    const tick = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft('00:00:00');
+        onExpireRef.current();
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      );
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  return timeLeft;
 }
 
 export default function AdminQRPage() {
@@ -55,6 +87,34 @@ export default function AdminQRPage() {
   const loadQR = async () => {
     const res = await api.get('/api/qr/active');
     if (res.data) setQrData(res.data as QRData);
+  };
+
+  // Auto-refresh rotating QR when it expires
+  const handleExpire = useCallback(async () => {
+    if (!qrData || qrData.qrCode.expiresAt === null) return;
+    setGenerating(true);
+    const res = await api.post('/api/qr/generate');
+    if (res.data) {
+      setQrData(res.data as QRData);
+      setSuccess(isNp ? 'QR कोड स्वतः नवीकरण भयो' : 'QR code auto-renewed');
+      setTimeout(() => setSuccess(''), 3000);
+    }
+    setGenerating(false);
+  }, [qrData, isNp]);
+
+  const isStatic = qrData?.qrCode?.expiresAt === null;
+  const timeLeft = useCountdown(
+    isStatic ? null : (qrData?.qrCode?.expiresAt ?? null),
+    handleExpire
+  );
+
+  // Urgency colour: red < 1h, amber < 3h, green otherwise
+  const countdownColor = () => {
+    if (!timeLeft) return '';
+    const [h] = timeLeft.split(':').map(Number);
+    if (h < 1) return 'text-rose-600';
+    if (h < 3) return 'text-amber-600';
+    return 'text-emerald-600';
   };
 
   const generateStaticQR = async () => {
@@ -145,12 +205,10 @@ export default function AdminQRPage() {
 
   if (!user) return null;
 
-  const isStatic = qrData?.qrCode?.expiresAt === null;
-
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Page header - balanced */}
+        {/* Page header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
@@ -162,15 +220,15 @@ export default function AdminQRPage() {
           </div>
           {qrData && (
             <div className="flex items-center gap-2">
-              <button 
-                onClick={printQR} 
+              <button
+                onClick={printQR}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors border border-slate-200"
               >
                 <Printer className="w-3.5 h-3.5" />
                 {isNp ? 'प्रिन्ट' : 'Print'}
               </button>
-              <button 
-                onClick={downloadQR} 
+              <button
+                onClick={downloadQR}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors border border-slate-200"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -207,14 +265,32 @@ export default function AdminQRPage() {
               </div>
 
               {/* Badge */}
-              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium mb-5 ${
+              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium mb-3 ${
                 isStatic ? 'bg-slate-100 text-slate-900' : 'bg-blue-50 text-blue-700'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isStatic ? 'bg-slate-1000' : 'bg-blue-500'}`} />
-                {isStatic 
-                  ? (isNp ? 'स्थिर QR' : 'Static QR') 
+                <span className={`w-1.5 h-1.5 rounded-full ${isStatic ? 'bg-slate-500' : 'bg-blue-500'}`} />
+                {isStatic
+                  ? (isNp ? 'स्थिर QR' : 'Static QR')
                   : (isNp ? 'अस्थायी QR (२४ घण्टा)' : 'Temporary QR (24h)')}
               </div>
+
+              {/* Countdown timer — only for rotating QR */}
+              {!isStatic && timeLeft && (
+                <div className="flex items-center gap-2 mb-5 px-4 py-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                  <Clock className={`w-3.5 h-3.5 ${countdownColor()}`} />
+                  <span className="text-xs text-slate-500">
+                    {isNp ? 'समाप्त हुन्छ:' : 'Expires in:'}
+                  </span>
+                  <span className={`text-sm font-mono font-semibold tabular-nums ${countdownColor()}`}>
+                    {timeLeft}
+                  </span>
+                  {generating && (
+                    <span className="text-xs text-slate-400 ml-1">
+                      {isNp ? '(नवीकरण हुँदैछ...)' : '(renewing...)'}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full max-w-xl">
@@ -231,9 +307,9 @@ export default function AdminQRPage() {
                     {isNp ? 'सिर्जना' : 'Created'}
                   </p>
                   <p className="text-sm font-medium text-slate-900">
-                    {new Date(qrData.qrCode.createdAt).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric' 
+                    {new Date(qrData.qrCode.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
                     })}
                   </p>
                 </div>
@@ -242,11 +318,11 @@ export default function AdminQRPage() {
                     {isNp ? 'समाप्ति' : 'Expires'}
                   </p>
                   <p className="text-sm font-medium text-slate-900">
-                    {isStatic 
-                      ? (isNp ? 'कहिल्यै' : 'Never') 
-                      : new Date(qrData.qrCode.expiresAt!).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
+                    {isStatic
+                      ? (isNp ? 'कहिल्यै' : 'Never')
+                      : new Date(qrData.qrCode.expiresAt!).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric'
                         })}
                   </p>
                 </div>
@@ -402,41 +478,42 @@ export default function AdminQRPage() {
             </div>
           </div>
         </div>
-      </div>
 
         {/* Mobile Check-in Link */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center">
-              <MapPin className="w-4.5 h-4.5 text-indigo-600" />
+              <MapPin className="w-4 h-4 text-indigo-600" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">{isNp ? "मोबाइल चेक-इन" : "Mobile Check-in"}</h3>
-              <p className="text-xs text-slate-500">{isNp ? "QR बिना GPS बाट चेक इन" : "GPS-based check-in without QR"}</p>
+              <h3 className="text-sm font-semibold text-slate-900">{isNp ? 'मोबाइल चेक-इन' : 'Mobile Check-in'}</h3>
+              <p className="text-xs text-slate-500">{isNp ? 'QR बिना GPS बाट चेक इन' : 'GPS-based check-in without QR'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <input
               type="text"
               readOnly
-              value={typeof window !== "undefined" ? window.location.origin + "/checkin?org=" + (user?.organizationId || "") : ""}
+              value={typeof window !== 'undefined' ? window.location.origin + '/checkin?org=' + (user?.organizationId || '') : ''}
               className="flex-1 px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg text-slate-600 truncate"
             />
             <button
               onClick={() => {
-                const url = window.location.origin + "/checkin?org=" + (user?.organizationId || "");
+                const url = window.location.origin + '/checkin?org=' + (user?.organizationId || '');
                 navigator.clipboard.writeText(url);
-                setSuccess(isNp ? "लिङ्क कपी भयो" : "Link copied");
-                setTimeout(() => setSuccess(""), 3000);
+                setSuccess(isNp ? 'लिङ्क कपी भयो' : 'Link copied');
+                setTimeout(() => setSuccess(''), 3000);
               }}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-colors"
             >
               <Copy className="w-3.5 h-3.5" />
-              {isNp ? "कपी" : "Copy"}
+              {isNp ? 'कपी' : 'Copy'}
             </button>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">{isNp ? "यो लिङ्क कर्मचारीलाई शेयर गर्नुहोस्। जियोफेन्सिङ सक्रिय हुनुपर्छ।" : "Share this link with employees. Geofencing must be enabled."}</p>
+          <p className="text-[11px] text-slate-400 mt-2">{isNp ? 'यो लिङ्क कर्मचारीलाई शेयर गर्नुहोस्। जियोफेन्सिङ सक्रिय हुनपर्छ।' : 'Share this link with employees. Geofencing must be enabled.'}</p>
         </div>
+
+      </div>
     </AdminLayout>
   );
 }

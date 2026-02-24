@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -14,7 +14,7 @@ import {
   Loader2,
 } from 'lucide-react';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface DocType {
   id: string;
@@ -39,7 +39,7 @@ interface DocumentManagerProps {
   readOnly?: boolean;
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -72,7 +72,7 @@ function formatDate(dateStr: string): string {
   });
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function DocumentManager({ userId, language = 'ENGLISH', readOnly = false }: DocumentManagerProps) {
   const isNp = language === 'NEPALI';
@@ -109,7 +109,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
 
   const fetchDocTypes = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/org/document-types`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/api/org/document-types`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!res.ok) throw new Error('Failed to fetch document types');
       const data = await res.json();
       setDocTypes(data);
@@ -124,7 +124,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/documents/user/${userId}`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/api/documents/user/${userId}`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!res.ok) throw new Error('Failed to fetch documents');
       const data = await res.json();
       setDocuments(data);
@@ -159,7 +159,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
 
       const res = await fetch(`${API_URL}/api/documents/user/${userId}`, {
         method: 'POST',
-        credentials: 'include',
+        credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: formData,
       });
 
@@ -168,7 +168,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
         throw new Error(data.error || 'Upload failed');
       }
 
-      setSuccess(isNp ? 'कागजात सफलतापूर्वक अपलोड भयो' : 'Document uploaded successfully');
+      setSuccess(isNp ? 'à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤¸à¤«à¤²à¤¤à¤¾à¤ªà¥‚à¤°à¥à¤µà¤• à¤…à¤ªà¤²à¥‹à¤¡ à¤­à¤¯à¥‹' : 'Document uploaded successfully');
       setSelectedFile(null);
       setDescription('');
       setShowUploadForm(false);
@@ -181,12 +181,12 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
     }
   };
 
-  // ── Preview (view only, no download) ──
+  // â”€â”€ Preview (view only, no download) â”€â”€
   const handlePreview = async (doc: Document) => {
     setPreviewDoc(doc);
     setPreviewLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/documents/${doc.id}/download`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/api/documents/${doc.id}/download`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!res.ok) throw new Error('Preview failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -209,13 +209,13 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
     try {
       const res = await fetch(`${API_URL}/api/documents/${docId}`, {
         method: 'DELETE',
-        credentials: 'include',
+        credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Delete failed');
       }
-      setSuccess(isNp ? 'कागजात मेटाइयो' : 'Document deleted');
+      setSuccess(isNp ? 'à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤®à¥‡à¤Ÿà¤¾à¤‡à¤¯à¥‹' : 'Document deleted');
       setDeleteId(null);
       fetchDocuments();
     } catch (err: any) {
@@ -271,7 +271,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-900">
-          {isNp ? 'कागजातहरू' : 'Documents'}
+          {isNp ? 'à¤•à¤¾à¤—à¤œà¤¾à¤¤à¤¹à¤°à¥‚' : 'Documents'}
         </h3>
         {!readOnly && !showUploadForm && !noTypes && (
           <button
@@ -279,7 +279,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors"
           >
             <Upload className="w-3.5 h-3.5" />
-            {isNp ? 'अपलोड गर्नुहोस्' : 'Upload'}
+            {isNp ? 'à¤…à¤ªà¤²à¥‹à¤¡ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Upload'}
           </button>
         )}
       </div>
@@ -288,7 +288,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
         <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
           <p className="text-xs text-amber-700">
             {isNp
-              ? 'अहिलेसम्म कुनै कागजात प्रकार सेट गरिएको छैन। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।'
+              ? 'à¤…à¤¹à¤¿à¤²à¥‡à¤¸à¤®à¥à¤® à¤•à¥à¤¨à¥ˆ à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤ªà¥à¤°à¤•à¤¾à¤° à¤¸à¥‡à¤Ÿ à¤—à¤°à¤¿à¤à¤•à¥‹ à¤›à¥ˆà¤¨à¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤•à¤²à¤¾à¤ˆ à¤¸à¤®à¥à¤ªà¤°à¥à¤• à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥à¥¤'
               : 'No document types have been configured yet. Please ask your admin to set them up in Settings.'}
           </p>
         </div>
@@ -312,7 +312,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
         <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-700">
-              {isNp ? 'नयाँ कागजात अपलोड गर्नुहोस्' : 'Upload new document'}
+              {isNp ? 'à¤¨à¤¯à¤¾à¤ à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤…à¤ªà¤²à¥‹à¤¡ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Upload new document'}
             </span>
             <button
               onClick={() => { setShowUploadForm(false); setSelectedFile(null); }}
@@ -340,8 +340,8 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
             ) : (
               <div>
                 <Upload className="w-6 h-6 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs text-slate-500">{isNp ? 'फाइल छान्नुहोस् वा यहाँ ड्र्याग गर्नुहोस्' : 'Click to select or drag and drop'}</p>
-                <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG — Max 5MB</p>
+                <p className="text-xs text-slate-500">{isNp ? 'à¤«à¤¾à¤‡à¤² à¤›à¤¾à¤¨à¥à¤¨à¥à¤¹à¥‹à¤¸à¥ à¤µà¤¾ à¤¯à¤¹à¤¾à¤ à¤¡à¥à¤°à¥à¤¯à¤¾à¤— à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Click to select or drag and drop'}</p>
+                <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG â€” Max 5MB</p>
               </div>
             )}
           </div>
@@ -349,7 +349,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">
-                {isNp ? 'कागजात प्रकार' : 'Document Type'}<span className="text-rose-400 ml-0.5">*</span>
+                {isNp ? 'à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤ªà¥à¤°à¤•à¤¾à¤°' : 'Document Type'}<span className="text-rose-400 ml-0.5">*</span>
               </label>
               <select value={selectedTypeId} onChange={(e) => setSelectedTypeId(e.target.value)} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-200">
                 {docTypes.map((t) => (
@@ -359,14 +359,14 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">
-                {isNp ? 'विवरण' : 'Description'}<span className="text-slate-400 ml-1">({isNp ? 'ऐच्छिक' : 'optional'})</span>
+                {isNp ? 'à¤µà¤¿à¤µà¤°à¤£' : 'Description'}<span className="text-slate-400 ml-1">({isNp ? 'à¤à¤šà¥à¤›à¤¿à¤•' : 'optional'})</span>
               </label>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={isNp ? 'नोट थप्नुहोस्...' : 'Add a note...'} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-200" />
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={isNp ? 'à¤¨à¥‹à¤Ÿ à¤¥à¤ªà¥à¤¨à¥à¤¹à¥‹à¤¸à¥...' : 'Add a note...'} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-200" />
             </div>
           </div>
 
           <button onClick={handleUpload} disabled={!selectedFile || !selectedTypeId || uploading} className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            {uploading ? (<><Loader2 className="w-3.5 h-3.5 animate-spin" />{isNp ? 'अपलोड हुँदैछ...' : 'Uploading...'}</>) : (<><Upload className="w-3.5 h-3.5" />{isNp ? 'अपलोड गर्नुहोस्' : 'Upload Document'}</>)}
+            {uploading ? (<><Loader2 className="w-3.5 h-3.5 animate-spin" />{isNp ? 'à¤…à¤ªà¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Uploading...'}</>) : (<><Upload className="w-3.5 h-3.5" />{isNp ? 'à¤…à¤ªà¤²à¥‹à¤¡ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Upload Document'}</>)}
           </button>
         </div>
       )}
@@ -379,8 +379,8 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
       ) : documents.length === 0 ? (
         <div className="text-center py-10">
           <FolderOpen className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-          <p className="text-sm font-medium text-slate-400">{isNp ? 'कुनै कागजात छैन' : 'No documents yet'}</p>
-          <p className="text-xs text-slate-300 mt-1">{isNp ? 'कागजात अपलोड गर्न माथिको बटन थिच्नुहोस्' : 'Upload documents using the button above'}</p>
+          <p className="text-sm font-medium text-slate-400">{isNp ? 'à¤•à¥à¤¨à¥ˆ à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤›à¥ˆà¤¨' : 'No documents yet'}</p>
+          <p className="text-xs text-slate-300 mt-1">{isNp ? 'à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤…à¤ªà¤²à¥‹à¤¡ à¤—à¤°à¥à¤¨ à¤®à¤¾à¤¥à¤¿à¤•à¥‹ à¤¬à¤Ÿà¤¨ à¤¥à¤¿à¤šà¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Upload documents using the button above'}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -399,7 +399,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
                   {isPdf ? <FileText className="w-4 h-4 text-rose-500" /> : <Image className="w-4 h-4 text-blue-500" />}
                 </button>
 
-                {/* Info — clickable name */}
+                {/* Info â€” clickable name */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 truncate cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handlePreview(doc)}>
                     {doc.originalName}
@@ -412,9 +412,9 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
                   {doc.description && <p className="text-xs text-slate-400 mt-0.5 truncate">{doc.description}</p>}
                 </div>
 
-                {/* Actions — view only, no download */}
+                {/* Actions â€” view only, no download */}
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => handlePreview(doc)} className="p-1.5 hover:bg-slate-100 rounded-md transition-colors" title={isNp ? 'हेर्नुहोस्' : 'View'}>
+                  <button onClick={() => handlePreview(doc)} className="p-1.5 hover:bg-slate-100 rounded-md transition-colors" title={isNp ? 'à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'View'}>
                     <Eye className="w-3.5 h-3.5 text-slate-500" />
                   </button>
                   {!readOnly && (
@@ -422,14 +422,14 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
                       {deleteId === doc.id ? (
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleDelete(doc.id)} className="px-2 py-1 bg-rose-500 text-white rounded-md text-xs font-medium hover:bg-rose-600 transition-colors">
-                            {isNp ? 'पक्का?' : 'Confirm'}
+                            {isNp ? 'à¤ªà¤•à¥à¤•à¤¾?' : 'Confirm'}
                           </button>
                           <button onClick={() => setDeleteId(null)} className="p-1 hover:bg-slate-100 rounded-md transition-colors">
                             <X className="w-3.5 h-3.5 text-slate-400" />
                           </button>
                         </div>
                       ) : (
-                        <button onClick={() => setDeleteId(doc.id)} className="p-1.5 hover:bg-rose-50 rounded-md transition-colors" title={isNp ? 'मेटाउनुहोस्' : 'Delete'}>
+                        <button onClick={() => setDeleteId(doc.id)} className="p-1.5 hover:bg-rose-50 rounded-md transition-colors" title={isNp ? 'à¤®à¥‡à¤Ÿà¤¾à¤‰à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Delete'}>
                           <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-rose-500" />
                         </button>
                       )}
@@ -442,7 +442,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
         </div>
       )}
 
-      {/* ── Preview Modal (View Only — No Download) ── */}
+      {/* â”€â”€ Preview Modal (View Only â€” No Download) â”€â”€ */}
       {previewDoc && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closePreview} />
@@ -458,7 +458,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
                 <span className="text-xs text-slate-400 shrink-0">{formatBytes(previewDoc.fileSize)}</span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-slate-400 italic">{isNp ? 'हेर्ने मात्र' : 'View only'}</span>
+                <span className="text-xs text-slate-400 italic">{isNp ? 'à¤¹à¥‡à¤°à¥à¤¨à¥‡ à¤®à¤¾à¤¤à¥à¤°' : 'View only'}</span>
                 <button onClick={closePreview} className="p-1.5 hover:bg-slate-200 rounded-md transition-colors">
                   <X className="w-4 h-4 text-slate-500" />
                 </button>
@@ -473,7 +473,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
               {previewLoading ? (
                 <div className="flex flex-col items-center gap-3 py-20">
                   <Loader2 className="w-8 h-8 text-slate-300 animate-spin" />
-                  <p className="text-sm text-slate-400">{isNp ? 'लोड हुँदैछ...' : 'Loading preview...'}</p>
+                  <p className="text-sm text-slate-400">{isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading preview...'}</p>
                 </div>
               ) : previewUrl ? (
                 previewDoc.mimeType === 'application/pdf' ? (
@@ -498,7 +498,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
                   </div>
                 )
               ) : (
-                <p className="text-sm text-slate-400 py-20">{isNp ? 'पूर्वावलोकन उपलब्ध छैन' : 'Preview not available'}</p>
+                <p className="text-sm text-slate-400 py-20">{isNp ? 'à¤ªà¥‚à¤°à¥à¤µà¤¾à¤µà¤²à¥‹à¤•à¤¨ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤›à¥ˆà¤¨' : 'Preview not available'}</p>
               )}
             </div>
           </div>

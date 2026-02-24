@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -31,9 +31,9 @@ interface EmployeeDetailModalProps {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 const ROLE_LABELS: Record<string, { en: string; np: string; color: string }> = {
-  ORG_ADMIN: { en: 'Admin', np: 'प्रशासक', color: 'bg-blue-50 text-blue-700' },
-  EMPLOYEE: { en: 'Employee', np: 'कर्मचारी', color: 'bg-slate-100 text-slate-700' },
-  SUPER_ADMIN: { en: 'Super Admin', np: 'सुपर प्रशासक', color: 'bg-rose-50 text-rose-700' },
+  ORG_ADMIN: { en: 'Admin', np: 'à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤•', color: 'bg-blue-50 text-blue-700' },
+  EMPLOYEE: { en: 'Employee', np: 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€', color: 'bg-slate-100 text-slate-700' },
+  SUPER_ADMIN: { en: 'Super Admin', np: 'à¤¸à¥à¤ªà¤° à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤•', color: 'bg-rose-50 text-rose-700' },
 };
 
 function formatDate(dateStr: string): string {
@@ -61,7 +61,7 @@ export default function EmployeeDetailModal({
 
     const fetchUser = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/users/${user.id}`, { credentials: 'include' });
+        const res = await fetch(`${API_URL}/api/users/${user.id}`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         if (res.ok) {
           const data = await res.json();
           setFullUser(data.data || data);
@@ -80,8 +80,8 @@ export default function EmployeeDetailModal({
   const initials = `${displayUser.firstName?.[0] || ''}${displayUser.lastName?.[0] || ''}`.toUpperCase();
 
   const tabs = [
-    { key: 'profile' as const, label: isNp ? 'प्रोफाइल' : 'Profile' },
-    { key: 'documents' as const, label: isNp ? 'कागजातहरू' : 'Documents' },
+    { key: 'profile' as const, label: isNp ? 'à¤ªà¥à¤°à¥‹à¤«à¤¾à¤‡à¤²' : 'Profile' },
+    { key: 'documents' as const, label: isNp ? 'à¤•à¤¾à¤—à¤œà¤¾à¤¤à¤¹à¤°à¥‚' : 'Documents' },
   ];
 
   return (
@@ -110,12 +110,12 @@ export default function EmployeeDetailModal({
                   {displayUser.isActive ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700">
                       <CheckCircle2 className="w-3 h-3" />
-                      {isNp ? 'सक्रिय' : 'Active'}
+                      {isNp ? 'à¤¸à¤•à¥à¤°à¤¿à¤¯' : 'Active'}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-rose-50 text-rose-700">
                       <XCircle className="w-3 h-3" />
-                      {isNp ? 'निष्क्रिय' : 'Inactive'}
+                      {isNp ? 'à¤¨à¤¿à¤·à¥à¤•à¥à¤°à¤¿à¤¯' : 'Inactive'}
                     </span>
                   )}
                 </div>
@@ -152,36 +152,36 @@ export default function EmployeeDetailModal({
               <div className="grid grid-cols-2 gap-4">
                 <InfoItem
                   icon={<Hash className="w-3.5 h-3.5" />}
-                  label={isNp ? 'कर्मचारी आईडी' : 'Employee ID'}
-                  value={displayUser.employeeId || '—'}
+                  label={isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€ à¤†à¤ˆà¤¡à¥€' : 'Employee ID'}
+                  value={displayUser.employeeId || 'â€”'}
                 />
                 <InfoItem
                   icon={<Mail className="w-3.5 h-3.5" />}
-                  label={isNp ? 'इमेल' : 'Email'}
+                  label={isNp ? 'à¤‡à¤®à¥‡à¤²' : 'Email'}
                   value={displayUser.email}
                 />
                 <InfoItem
                   icon={<Phone className="w-3.5 h-3.5" />}
-                  label={isNp ? 'फोन' : 'Phone'}
-                  value={displayUser.phone || '—'}
+                  label={isNp ? 'à¤«à¥‹à¤¨' : 'Phone'}
+                  value={displayUser.phone || 'â€”'}
                 />
                 <InfoItem
                   icon={<Briefcase className="w-3.5 h-3.5" />}
-                  label={isNp ? 'भूमिका' : 'Role'}
+                  label={isNp ? 'à¤­à¥‚à¤®à¤¿à¤•à¤¾' : 'Role'}
                   value={isNp ? roleInfo.np : roleInfo.en}
                 />
                 <InfoItem
                   icon={<Clock className="w-3.5 h-3.5" />}
-                  label={isNp ? 'शिफ्ट समय' : 'Shift Time'}
+                  label={isNp ? 'à¤¶à¤¿à¤«à¥à¤Ÿ à¤¸à¤®à¤¯' : 'Shift Time'}
                   value={
                     displayUser.shiftStartTime && displayUser.shiftEndTime
                       ? `${displayUser.shiftStartTime} - ${displayUser.shiftEndTime}`
-                      : isNp ? 'संगठन पूर्वनिर्धारित' : 'Org default'
+                      : isNp ? 'à¤¸à¤‚à¤—à¤ à¤¨ à¤ªà¥‚à¤°à¥à¤µà¤¨à¤¿à¤°à¥à¤§à¤¾à¤°à¤¿à¤¤' : 'Org default'
                   }
                 />
                 <InfoItem
                   icon={<Calendar className="w-3.5 h-3.5" />}
-                  label={isNp ? 'सिर्जना मिति' : 'Joined'}
+                  label={isNp ? 'à¤¸à¤¿à¤°à¥à¤œà¤¨à¤¾ à¤®à¤¿à¤¤à¤¿' : 'Joined'}
                   value={formatDate(displayUser.createdAt)}
                 />
               </div>
@@ -197,7 +197,7 @@ export default function EmployeeDetailModal({
   );
 }
 
-// ── Info Item sub-component ──
+// â”€â”€ Info Item sub-component â”€â”€
 function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-start gap-3 p-3 bg-slate-50/50 rounded-lg">
