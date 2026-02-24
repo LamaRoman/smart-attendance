@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { BarChart3, Clock, FileText, Download } from 'lucide-react';
 import { BS_MONTHS_NP, BS_MONTHS_EN, fmt, API_BASE } from '../utils';
@@ -35,7 +35,7 @@ export default function MultiMonthTab({
   const handleCsvExport = async () => {
     const res = await fetch(
       `${API_BASE}/api/payroll/multi-month/export?fromBsYear=${multiFromYear}&fromBsMonth=${multiFromMonth}&toBsYear=${multiToYear}&toBsMonth=${multiToMonth}`,
-      { credentials: 'include' },
+      { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
     );
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -48,22 +48,22 @@ export default function MultiMonthTab({
 
   return (
     <div className="space-y-6">
-      {/* Filter card — always visible */}
+      {/* Filter card â€” always visible */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold text-slate-900 mb-1">
-              {isNp ? 'बहु-महिना तलब दृश्य' : 'Multi-Month Salary View'}
+              {isNp ? 'à¤¬à¤¹à¥-à¤®à¤¹à¤¿à¤¨à¤¾ à¤¤à¤²à¤¬ à¤¦à¥ƒà¤¶à¥à¤¯' : 'Multi-Month Salary View'}
             </h2>
             <p className="text-xs text-slate-500">
               {isNp
-                ? 'कर्मचारीहरूको धेरै महिनाको तलब एकै पटक हेर्नुहोस्'
+                ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€à¤¹à¤°à¥‚à¤•à¥‹ à¤§à¥‡à¤°à¥ˆ à¤®à¤¹à¤¿à¤¨à¤¾à¤•à¥‹ à¤¤à¤²à¤¬ à¤à¤•à¥ˆ à¤ªà¤Ÿà¤• à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥'
                 : 'View salary across multiple months'}
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <MonthRangeSelector
-              label={isNp ? 'देखि' : 'From'}
+              label={isNp ? 'à¤¦à¥‡à¤–à¤¿' : 'From'}
               year={multiFromYear}
               month={multiFromMonth}
               isNp={isNp}
@@ -71,7 +71,7 @@ export default function MultiMonthTab({
               onMonthChange={onSetFromMonth}
             />
             <MonthRangeSelector
-              label={isNp ? 'सम्म' : 'To'}
+              label={isNp ? 'à¤¸à¤®à¥à¤®' : 'To'}
               year={multiToYear}
               month={multiToMonth}
               isNp={isNp}
@@ -85,8 +85,8 @@ export default function MultiMonthTab({
             >
               <BarChart3 className="w-4 h-4" />
               {loadingMultiMonth
-                ? isNp ? 'लोड हुँदैछ...' : 'Loading...'
-                : isNp ? 'हेर्नुहोस्' : 'View'}
+                ? isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading...'
+                : isNp ? 'à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'View'}
             </button>
 
             {/* FIX (MEDIUM): always shown; disabled with PRO badge on Starter */}
@@ -94,7 +94,7 @@ export default function MultiMonthTab({
               <button
                 disabled={isStarter}
                 onClick={handleCsvExport}
-                title={isStarter ? (isNp ? 'Operations प्लान आवश्यक छ' : 'Requires Operations plan') : undefined}
+                title={isStarter ? (isNp ? 'Operations à¤ªà¥à¤²à¤¾à¤¨ à¤†à¤µà¤¶à¥à¤¯à¤• à¤›' : 'Requires Operations plan') : undefined}
                 className="flex items-center gap-1 px-3 py-2 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-50"
               >
                 {isStarter && (
@@ -142,7 +142,7 @@ export default function MultiMonthTab({
                 {[
                   ['Rajesh Sharma', ['31,500','31,500','33,000','33,000'], '1,29,000'],
                   ['Sita Thapa',    ['36,750','36,750','38,500','38,500'], '1,50,500'],
-                  ['Bikash Karki',  ['24,000','—','24,000','24,000'],      '72,000'],
+                  ['Bikash Karki',  ['24,000','â€”','24,000','24,000'],      '72,000'],
                   ['Anita Rai',     ['43,500','43,500','45,500','45,500'], '1,78,000'],
                 ].map(([name, months, total]) => (
                   <tr key={name as string}>
@@ -152,7 +152,7 @@ export default function MultiMonthTab({
                     </td>
                     {(months as string[]).map((v, i) => (
                       <td key={i} className="py-3 px-4 text-center text-sm font-medium text-slate-700">
-                        {v === '—' ? <span className="text-slate-300">—</span> : `Rs. ${v}`}
+                        {v === 'â€”' ? <span className="text-slate-300">â€”</span> : `Rs. ${v}`}
                       </td>
                     ))}
                     <td className="py-3 px-4 text-right text-sm font-bold text-emerald-600">Rs. {total}</td>
@@ -175,21 +175,21 @@ export default function MultiMonthTab({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[2px]">
             <div className="bg-white rounded-xl border border-amber-200 shadow-lg p-6 text-center max-w-sm mx-4">
               <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
-                <span className="text-2xl">📅</span>
+                <span className="text-2xl">ðŸ“…</span>
               </div>
               <h3 className="text-sm font-bold text-slate-900 mb-1">
-                {isNp ? 'बहु-महिना तलब दृश्य' : 'Multi-Month Salary View'}
+                {isNp ? 'à¤¬à¤¹à¥-à¤®à¤¹à¤¿à¤¨à¤¾ à¤¤à¤²à¤¬ à¤¦à¥ƒà¤¶à¥à¤¯' : 'Multi-Month Salary View'}
               </h3>
               <p className="text-xs text-slate-500 mb-4">
                 {isNp
-                  ? 'एकै पटक धेरै महिनाको तलब तुलना गर्नुहोस् र CSV निर्यात गर्नुहोस्।'
+                  ? 'à¤à¤•à¥ˆ à¤ªà¤Ÿà¤• à¤§à¥‡à¤°à¥ˆ à¤®à¤¹à¤¿à¤¨à¤¾à¤•à¥‹ à¤¤à¤²à¤¬ à¤¤à¥à¤²à¤¨à¤¾ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥ à¤° CSV à¤¨à¤¿à¤°à¥à¤¯à¤¾à¤¤ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥à¥¤'
                   : 'Compare salaries across months side-by-side and export to CSV for payroll audits.'}
               </p>
               <button
                 onClick={onUpgrade}
                 className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors"
               >
-                {isNp ? 'अपग्रेड गर्नुहोस्' : 'Upgrade to Operations'}
+                {isNp ? 'à¤…à¤ªà¤—à¥à¤°à¥‡à¤¡ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Upgrade to Operations'}
               </button>
             </div>
           </div>
@@ -199,7 +199,7 @@ export default function MultiMonthTab({
   );
 }
 
-/* ── Month range selector ── */
+/* â”€â”€ Month range selector â”€â”€ */
 function MonthRangeSelector({
   label, year, month, isNp, onYearChange, onMonthChange,
 }: {
@@ -231,7 +231,7 @@ function MonthRangeSelector({
   );
 }
 
-/* ── Main data table ── */
+/* â”€â”€ Main data table â”€â”€ */
 function DataTable({
   data, isNp, expandedEmployee, onToggleExpand,
 }: {
@@ -245,7 +245,7 @@ function DataTable({
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
               <th className="text-left py-3 px-4 text-xs font-medium text-slate-400 uppercase sticky left-0 bg-slate-50/50 z-10">
-                {isNp ? 'कर्मचारी' : 'Employee'}
+                {isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€' : 'Employee'}
               </th>
               {data.months.map((m: any) => (
                 <th
@@ -256,7 +256,7 @@ function DataTable({
                 </th>
               ))}
               <th className="text-right py-3 px-4 text-xs font-medium text-slate-400 uppercase min-w-[120px] sticky right-0 bg-slate-50/50 z-10">
-                {isNp ? 'जम्मा' : 'Total'} ({data.months.length})
+                {isNp ? 'à¤œà¤®à¥à¤®à¤¾' : 'Total'} ({data.months.length})
               </th>
             </tr>
           </thead>
@@ -288,12 +288,12 @@ function DataTable({
                               <span
                                 className={`inline-flex px-1.5 py-0.5 rounded-md font-medium ${STATUS_COLORS[monthData.status] || ''}`}
                               >
-                                {monthData.status === 'PAID' ? '✅' : monthData.status === 'APPROVED' ? '⏳' : '📝'}
+                                {monthData.status === 'PAID' ? 'âœ…' : monthData.status === 'APPROVED' ? 'â³' : 'ðŸ“'}
                               </span>
                             </div>
                           </>
                         ) : (
-                          <span className="text-slate-300 text-xs">—</span>
+                          <span className="text-slate-300 text-xs">â€”</span>
                         )}
                       </td>
                     );
@@ -303,7 +303,7 @@ function DataTable({
                       Rs. {fmt(emp.totals.netSalary)}
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      {emp.totals.monthsProcessed} {isNp ? 'महिना' : 'months'}
+                      {emp.totals.monthsProcessed} {isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾' : 'months'}
                     </div>
                   </td>
                 </tr>
@@ -313,17 +313,17 @@ function DataTable({
                   <tr>
                     <td colSpan={data.months.length + 2} className="px-4 py-4 bg-slate-50">
                       <div className="text-xs font-semibold text-slate-900 mb-3">
-                        {isNp ? 'विस्तृत' : 'Details'} — {emp.employee.firstName}
+                        {isNp ? 'à¤µà¤¿à¤¸à¥à¤¤à¥ƒà¤¤' : 'Details'} â€” {emp.employee.firstName}
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs">
                           <tbody className="divide-y divide-slate-100">
                             {(
                               [
-                                ['basicSalary',    isNp ? 'आधारभूत' : 'Basic',      'text-slate-600', ''],
-                                ['grossSalary',    isNp ? 'कुल'      : 'Gross',      'text-slate-600', ''],
-                                ['totalDeductions',isNp ? 'कटौती'    : 'Deductions', 'text-rose-600',  'text-rose-600'],
-                                ['netSalary',      isNp ? 'खुद'      : 'Net',        'text-emerald-700 font-semibold', 'text-emerald-700 font-bold'],
+                                ['basicSalary',    isNp ? 'à¤†à¤§à¤¾à¤°à¤­à¥‚à¤¤' : 'Basic',      'text-slate-600', ''],
+                                ['grossSalary',    isNp ? 'à¤•à¥à¤²'      : 'Gross',      'text-slate-600', ''],
+                                ['totalDeductions',isNp ? 'à¤•à¤Ÿà¥Œà¤¤à¥€'    : 'Deductions', 'text-rose-600',  'text-rose-600'],
+                                ['netSalary',      isNp ? 'à¤–à¥à¤¦'      : 'Net',        'text-emerald-700 font-semibold', 'text-emerald-700 font-bold'],
                               ] as [string, string, string, string][]
                             ).map(([key, label, cellClass, totalClass]) => (
                               <tr key={key} className={key === 'netSalary' ? 'bg-emerald-50/50' : ''}>
@@ -337,7 +337,7 @@ function DataTable({
                                       key={`${m.bsYear}-${m.bsMonth}`}
                                       className={`py-2 px-3 text-right ${cellClass}`}
                                     >
-                                      {monthData ? fmt(monthData[key]) : '—'}
+                                      {monthData ? fmt(monthData[key]) : 'â€”'}
                                     </td>
                                   );
                                 })}
@@ -358,7 +358,7 @@ function DataTable({
           <tfoot>
             <tr className="bg-slate-100 font-semibold border-t-2 border-slate-300">
               <td className="py-3 px-4 text-sm sticky left-0 bg-slate-100 z-10">
-                {isNp ? 'जम्मा' : 'TOTAL'}
+                {isNp ? 'à¤œà¤®à¥à¤®à¤¾' : 'TOTAL'}
               </td>
               {data.months.map((m: any) => {
                 const monthTotal = data.employees.reduce((s: number, emp: any) => {
@@ -386,7 +386,7 @@ function LoadingCard({ isNp }: { isNp: boolean }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
       <Clock className="w-6 h-6 text-slate-400 animate-spin mx-auto mb-3" />
-      <p className="text-sm text-slate-500">{isNp ? 'लोड हुँदैछ...' : 'Loading...'}</p>
+      <p className="text-sm text-slate-500">{isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading...'}</p>
     </div>
   );
 }
@@ -396,10 +396,10 @@ function EmptyCard({ isNp }: { isNp: boolean }) {
     <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
       <FileText className="w-8 h-8 text-slate-400 mx-auto mb-4" />
       <h3 className="text-sm font-semibold text-slate-900 mb-1">
-        {isNp ? 'डाटा छैन' : 'No data'}
+        {isNp ? 'à¤¡à¤¾à¤Ÿà¤¾ à¤›à¥ˆà¤¨' : 'No data'}
       </h3>
       <p className="text-xs text-slate-500">
-        {isNp ? 'रेकर्ड छैन' : 'No records for this period'}
+        {isNp ? 'à¤°à¥‡à¤•à¤°à¥à¤¡ à¤›à¥ˆà¤¨' : 'No records for this period'}
       </p>
     </div>
   );

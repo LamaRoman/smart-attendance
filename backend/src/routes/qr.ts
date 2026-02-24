@@ -49,8 +49,12 @@ router.post(
 );
 
 // GET /api/qr/active — Get current active QR code
+// FIX C-06: Added requireOrgAdmin guard. Previously any authenticated employee
+// could call this endpoint and retrieve the full QR token + signature,
+// which is the first step in the ghost attendance attack chain.
 router.get(
   '/active',
+  requireOrgAdmin,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const result = await qrService.getActive(req.user!);

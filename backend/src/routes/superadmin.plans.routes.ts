@@ -1,4 +1,4 @@
-// src/routes/superadmin.plans.routes.ts
+﻿// src/routes/superadmin.plans.routes.ts
 import { Router, Response, NextFunction } from 'express';
 import { authenticate, requireSuperAdmin, AuthRequest } from '../middleware/auth';
 import prisma from '../lib/prisma';
@@ -23,7 +23,7 @@ router.patch('/:tier/features', async (req: AuthRequest, res: Response, next: Ne
   try {
     const { tier } = req.params;
     const allowedFields = [
-      'featureTotp', 'featureLeave', 'featureManualCorrection',
+      'featureLeave', 'featureManualCorrection',
       'featureFullPayroll', 'featurePayrollWorkflow', 'featureReports',
       'featureNotifications', 'featureOnboarding', 'featureAuditLog',
       'featureFileDownload', 'featureDownloadReports', 'featureDownloadPayslips',
@@ -77,7 +77,7 @@ router.patch('/:tier/setup-fee', async (req: AuthRequest, res: Response, next: N
 });
 
 // PATCH /api/super-admin/plans/:tier/trial-days
-// Only monthly trial days — annual billing is not supported
+// Only monthly trial days â€” annual billing is not supported
 router.patch('/:tier/trial-days', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { tier } = req.params;
@@ -130,3 +130,4 @@ router.patch('/:tier/annual-discount', async (req: AuthRequest, res: Response, n
 });
 
 export default router;
+

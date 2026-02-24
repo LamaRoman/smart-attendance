@@ -1,10 +1,10 @@
-import { PrismaClient, Role } from '@prisma/client';
+﻿import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database...\n');
+  console.log('ðŸŒ± Seeding database...\n');
 
   // ============================================================
   // 1. Super Admin
@@ -16,7 +16,7 @@ async function main() {
 
   let superAdmin;
   if (existingSuperAdmin) {
-    console.log(`✓ Super admin already exists: ${superAdminEmail}`);
+    console.log(`âœ“ Super admin already exists: ${superAdminEmail}`);
     superAdmin = existingSuperAdmin;
   } else {
     superAdmin = await prisma.user.create({
@@ -30,7 +30,7 @@ async function main() {
         // No organizationId for super admin
       },
     });
-    console.log(`✓ Super admin created: ${superAdminEmail} / ${superAdminPassword}`);
+    console.log(`âœ“ Super admin created: ${superAdminEmail} / ${superAdminPassword}`);
   }
 
   // ============================================================
@@ -49,9 +49,9 @@ async function main() {
         calendarMode: 'NEPALI',
       },
     });
-    console.log(`✓ Organization created: ${org.name}`);
+    console.log(`âœ“ Organization created: ${org.name}`);
   } else {
-    console.log(`✓ Organization already exists: ${org.name}`);
+    console.log(`âœ“ Organization already exists: ${org.name}`);
   }
 
   // ============================================================
@@ -72,9 +72,9 @@ async function main() {
         isActive: true,
       },
     });
-    console.log(`✓ Org admin created: ${orgAdminEmail} / OrgAdmin@123`);
+    console.log(`âœ“ Org admin created: ${orgAdminEmail} / OrgAdmin@123`);
   } else {
-    console.log(`✓ Org admin already exists: ${orgAdminEmail}`);
+    console.log(`âœ“ Org admin already exists: ${orgAdminEmail}`);
   }
 
   // ============================================================
@@ -100,9 +100,9 @@ async function main() {
           isActive: true,
         },
       });
-      console.log(`✓ Employee created: ${emp.firstName} ${emp.lastName} (${emp.employeeId}) / Employee@123`);
+      console.log(`âœ“ Employee created: ${emp.firstName} ${emp.lastName} (${emp.employeeId}) / Employee@123`);
     } else {
-      console.log(`✓ Employee already exists: ${emp.email}`);
+      console.log(`âœ“ Employee already exists: ${emp.email}`);
     }
   }
 
@@ -136,7 +136,7 @@ async function main() {
           tdsEnabled: true,
         },
       });
-      console.log(`✓ Pay settings created for: ${emp.firstName} ${emp.lastName} — NPR ${salaries[i]}`);
+      console.log(`âœ“ Pay settings created for: ${emp.firstName} ${emp.lastName} â€” NPR ${salaries[i]}`);
     }
   }
 
@@ -159,7 +159,7 @@ async function main() {
       await prisma.systemConfig.create({
         data: { organizationId: org.id, ...cfg },
       });
-      console.log(`✓ Config set: ${cfg.key} = ${cfg.value}`);
+      console.log(`âœ“ Config set: ${cfg.key} = ${cfg.value}`);
     }
   }
 
@@ -177,7 +177,6 @@ async function main() {
       maxEmployees: 5,
       hardEmployeeCap: 5,
       trialDaysMonthly: 0,
-          featureTotp: false,
       featureLeave: true,
       featureManualCorrection: false,
       featureFullPayroll: true,
@@ -195,7 +194,7 @@ async function main() {
       sortOrder: 1,
     },
   });
-  console.log(`✓ Pricing plan seeded: ${starterPlan.displayName}`);
+  console.log(`âœ“ Pricing plan seeded: ${starterPlan.displayName}`);
 
   const operationsPlan = await prisma.pricingPlan.upsert({
     where: { tier: 'OPERATIONS' },
@@ -207,7 +206,6 @@ async function main() {
       pricePerEmployee: 250,
       hardEmployeeCap: 100,
       trialDaysMonthly: 30,
-      featureTotp: true,
       featureLeave: true,
       featureManualCorrection: true,
       featureFullPayroll: true,
@@ -226,10 +224,10 @@ async function main() {
       sortOrder: 2,
     },
   });
-  console.log(`✓ Pricing plan seeded: ${operationsPlan.displayName}`);
+  console.log(`âœ“ Pricing plan seeded: ${operationsPlan.displayName}`);
 
   // ============================================================
-  // 8. OrgSubscription for Demo Company (Operations — Founding)
+  // 8. OrgSubscription for Demo Company (Operations â€” Founding)
   // ============================================================
   const existingSubscription = await prisma.orgSubscription.findUnique({
     where: { organizationId: org.id },
@@ -244,18 +242,18 @@ async function main() {
         billingCycle: 'MONTHLY',
         isPriceLockedForever: true,
         setupFeeWaived: true,
-        setupFeeWaivedNote: 'Demo org — founding member',
+        setupFeeWaivedNote: 'Demo org â€” founding member',
         currentEmployeeCount: 5,
         assignedBy: superAdmin.id,
         assignedAt: new Date(),
       },
     });
-    console.log(`✓ Subscription created for: ${org.name} (Operations — Founding Member)`);
+    console.log(`âœ“ Subscription created for: ${org.name} (Operations â€” Founding Member)`);
   } else {
-    console.log(`✓ Subscription already exists for: ${org.name}`);
+    console.log(`âœ“ Subscription already exists for: ${org.name}`);
   }
 
-  console.log('\n✅ Seeding complete!\n');
+  console.log('\nâœ… Seeding complete!\n');
   console.log('=== Login Credentials ===');
   console.log(`Super Admin:  ${superAdminEmail} / ${superAdminPassword}`);
   console.log(`Org Admin:    ${orgAdminEmail} / OrgAdmin@123`);
@@ -265,9 +263,10 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Seed failed:', e);
+    console.error('âŒ Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
   });
+

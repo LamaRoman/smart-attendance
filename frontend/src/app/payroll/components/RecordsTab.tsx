@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Clock, FileText, Eye, Download } from 'lucide-react';
 import { PayrollRecord, STATUS_COLORS } from '../types';
@@ -7,7 +7,7 @@ import { BS_MONTHS_NP, BS_MONTHS_EN, fmt, API_BASE } from '../utils';
 interface Props {
   isNp: boolean;
   isStarter: boolean;
-  /** Specific feature flag — false on STARTER plan */
+  /** Specific feature flag â€” false on STARTER plan */
   featurePayrollWorkflow: boolean;
   recYear: number;
   recMonth: number;
@@ -30,7 +30,7 @@ export default function RecordsTab({
   const handleBankCsv = async () => {
     const res = await fetch(
       `${API_BASE}/api/payroll/export/bank-sheet?bsYear=${recYear}&bsMonth=${recMonth}`,
-      { credentials: 'include' },
+      { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
     );
     if (!res.ok) return;
     const blob = await res.blob();
@@ -48,7 +48,7 @@ export default function RecordsTab({
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="text-sm font-semibold text-slate-900">
-            {isNp ? 'तलब रेकर्ड' : 'Payroll records'}
+            {isNp ? 'à¤¤à¤²à¤¬ à¤°à¥‡à¤•à¤°à¥à¤¡' : 'Payroll records'}
           </h2>
           <div className="flex items-center gap-3 flex-wrap">
             <select
@@ -70,31 +70,31 @@ export default function RecordsTab({
 
             {records.length > 0 && (
               <div className="flex gap-2 flex-wrap">
-                {/* ── FIX (HIGH): Process / Approve / Paid gated by featurePayrollWorkflow ── */}
+                {/* â”€â”€ FIX (HIGH): Process / Approve / Paid gated by featurePayrollWorkflow â”€â”€ */}
                 <WorkflowButton
-                  label={isNp ? 'प्रशोधन' : 'Process'}
+                  label={isNp ? 'à¤ªà¥à¤°à¤¶à¥‹à¤§à¤¨' : 'Process'}
                   allowed={featurePayrollWorkflow}
                   onClick={() => onBulkStatus('PROCESSED')}
                   className="bg-blue-50 text-blue-700 hover:bg-blue-100"
                 />
                 <WorkflowButton
-                  label={isNp ? 'स्वीकृत' : 'Approve'}
+                  label={isNp ? 'à¤¸à¥à¤µà¥€à¤•à¥ƒà¤¤' : 'Approve'}
                   allowed={featurePayrollWorkflow}
                   onClick={() => onBulkStatus('APPROVED')}
                   className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 />
                 <WorkflowButton
-                  label={isNp ? 'भुक्तानी' : 'Paid'}
+                  label={isNp ? 'à¤­à¥à¤•à¥à¤¤à¤¾à¤¨à¥€' : 'Paid'}
                   allowed={featurePayrollWorkflow}
                   onClick={() => onBulkStatus('PAID')}
                   className="bg-slate-100 text-slate-900 hover:bg-slate-200"
                 />
 
-                {/* ── FIX (MEDIUM): Bank CSV shows disabled PRO badge rather than vanishing ── */}
+                {/* â”€â”€ FIX (MEDIUM): Bank CSV shows disabled PRO badge rather than vanishing â”€â”€ */}
                 <button
                   disabled={isStarter}
                   onClick={handleBankCsv}
-                  title={isStarter ? (isNp ? 'Operations प्लान आवश्यक छ' : 'Requires Operations plan') : undefined}
+                  title={isStarter ? (isNp ? 'Operations à¤ªà¥à¤²à¤¾à¤¨ à¤†à¤µà¤¶à¥à¤¯à¤• à¤›' : 'Requires Operations plan') : undefined}
                   className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-md text-xs font-medium hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-50"
                 >
                   {isStarter && (
@@ -103,7 +103,7 @@ export default function RecordsTab({
                     </span>
                   )}
                   <Download className="w-3 h-3" />
-                  {isNp ? 'बैंक CSV' : 'Bank CSV'}
+                  {isNp ? 'à¤¬à¥ˆà¤‚à¤• CSV' : 'Bank CSV'}
                 </button>
               </div>
             )}
@@ -120,14 +120,14 @@ export default function RecordsTab({
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
                   {[
-                    { label: isNp ? 'कर्मचारी' : 'Employee',   align: 'left'   },
-                    { label: isNp ? 'दिन'       : 'Days',       align: 'center' },
-                    { label: isNp ? 'कुल'       : 'Gross',      align: 'right'  },
+                    { label: isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€' : 'Employee',   align: 'left'   },
+                    { label: isNp ? 'à¤¦à¤¿à¤¨'       : 'Days',       align: 'center' },
+                    { label: isNp ? 'à¤•à¥à¤²'       : 'Gross',      align: 'right'  },
                     { label: 'SSF',                              align: 'right'  },
                     { label: 'PF',                               align: 'right'  },
                     { label: 'TDS',                              align: 'right'  },
-                    { label: isNp ? 'खुद'       : 'Net',        align: 'right'  },
-                    { label: isNp ? 'स्थिति'    : 'Status',     align: 'center' },
+                    { label: isNp ? 'à¤–à¥à¤¦'       : 'Net',        align: 'right'  },
+                    { label: isNp ? 'à¤¸à¥à¤¥à¤¿à¤¤à¤¿'    : 'Status',     align: 'center' },
                     { label: '',                                 align: 'center' },
                   ].map((h, i) => (
                     <th
@@ -182,10 +182,10 @@ export default function RecordsTab({
             <FileText className="w-8 h-8 text-slate-400" />
           </div>
           <h3 className="text-sm font-semibold text-slate-900 mb-1">
-            {isNp ? 'कुनै रेकर्ड छैन' : 'No records'}
+            {isNp ? 'à¤•à¥à¤¨à¥ˆ à¤°à¥‡à¤•à¤°à¥à¤¡ à¤›à¥ˆà¤¨' : 'No records'}
           </h3>
           <p className="text-xs text-slate-500">
-            {isNp ? 'पहिले तलब गणना गर्नुहोस्' : 'Generate payroll first'}
+            {isNp ? 'à¤ªà¤¹à¤¿à¤²à¥‡ à¤¤à¤²à¤¬ à¤—à¤£à¤¨à¤¾ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Generate payroll first'}
           </p>
         </div>
       )}
@@ -193,7 +193,7 @@ export default function RecordsTab({
   );
 }
 
-/* ── Workflow button with PRO badge when locked ── */
+/* â”€â”€ Workflow button with PRO badge when locked â”€â”€ */
 function WorkflowButton({
   label, allowed, onClick, className,
 }: {
@@ -222,7 +222,7 @@ function LoadingCard({ isNp }: { isNp: boolean }) {
       <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
         <Clock className="w-6 h-6 text-slate-400 animate-spin" />
       </div>
-      <p className="text-sm text-slate-500">{isNp ? 'लोड हुँदैछ...' : 'Loading...'}</p>
+      <p className="text-sm text-slate-500">{isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading...'}</p>
     </div>
   );
 }

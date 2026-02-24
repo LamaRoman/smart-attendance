@@ -1,5 +1,10 @@
 ﻿import prisma from '../lib/prisma';
+<<<<<<< HEAD
 import { parseQRPayload, verifyQRSignature, verifyTOTPCode } from '../lib/crypto';
+=======
+import { parseQRPayload, verifyQRSignature } from '../lib/crypto';
+import { verifyPassword } from '../lib/password';
+>>>>>>> dev
 import { adToBS } from '../lib/nepali-date';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
 import { createLogger } from '../logger';
@@ -8,13 +13,18 @@ import {
   ScanPublicInput,
   ScanAuthenticatedInput,
   ManualAttendanceInput,
+  MobileCheckinInput,
 } from '../schemas/attendance.schema';
 import { notificationService } from './notification.service';
+import { payrollService } from './payroll.service';
 
 const log = createLogger('attendance-service');
 
 const SCAN_COOLDOWN_MINUTES = 2;
 const MAX_DAILY_SCANS = 4;
+
+// FIX H-07: Maximum how far back an admin can edit attendance records
+const MAX_EDIT_WINDOW_DAYS = 90;
 
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
@@ -27,14 +37,40 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c2;
 }
 
+// FIX H-06 / H-07: Validate admin-supplied timestamps
+function validateTimestamp(raw: string, fieldName: string): Date {
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) {
+    throw new ValidationError(`${fieldName} is not a valid date`, 'INVALID_DATE');
+  }
+  const now = new Date();
+  if (d > now) {
+    throw new ValidationError(`${fieldName} cannot be in the future`, 'FUTURE_DATE');
+  }
+  const cutoff = new Date(now.getTime() - MAX_EDIT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  if (d < cutoff) {
+    throw new ValidationError(
+      `${fieldName} cannot be more than ${MAX_EDIT_WINDOW_DAYS} days in the past`,
+      'DATE_TOO_OLD'
+    );
+  }
+  return d;
+}
+
 export class AttendanceService {
+<<<<<<< HEAD
   /**
    * Public QR scan â€” uses employee ID instead of auth
    */
+=======
+
+  // ======== QR / mobile scans ========
+
+>>>>>>> dev
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
       where: { employeeId: input.employeeId },
-      select: { id: true, firstName: true, lastName: true, employeeId: true, isActive: true, organizationId: true },
+      select: { id: true, firstName: true, lastName: true, employeeId: true, isActive: true, organizationId: true, attendancePinHash: true },
     });
 
     if (!user) {
@@ -42,8 +78,21 @@ export class AttendanceService {
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
+    if (!user) return;
     if (!user.isActive) {
+<<<<<<< HEAD
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
+=======
+      throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
+    }
+    // C-07: Verify attendance PIN
+    if (!user.attendancePinHash) {
+      throw new ValidationError('Attendance PIN not set. Please contact your administrator.', 'PIN_NOT_SET');
+    }
+    const isPinValid = await verifyPassword(input.pin, user!.attendancePinHash!);
+    if (!isPinValid) {
+      await this.logAudit({ employeeId: input.employeeId, userId: user!.id, organizationId: user!.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'INVALID_PIN', ipAddress, userAgent });
+>>>>>>> dev
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
@@ -63,8 +112,12 @@ export class AttendanceService {
         throw new ValidationError('You are ' + Math.round(distance) + 'm from office. Must be within ' + org.geofenceRadius + 'm.');
       }
     }
-
     const result = await this.performClockActionSafe(user.id, user.organizationId!, 'QR_SCAN');
+
+<<<<<<< HEAD
+    const result = await this.performClockActionSafe(user.id, user.organizationId!, 'QR_SCAN');
+=======
+>>>>>>> dev
 
     await this.logAudit({
       employeeId: input.employeeId,
@@ -85,14 +138,10 @@ export class AttendanceService {
     return { ...result, message, user: { firstName: user.firstName, lastName: user.lastName, employeeId: user.employeeId } };
   }
 
-  /**
-   * Authenticated QR scan
-   */
-
-  async mobileCheckin(input: { employeeId: string; latitude: number; longitude: number }, ipAddress?: string, userAgent?: string) {
+  async mobileCheckin(input: MobileCheckinInput, ipAddress?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
       where: { employeeId: input.employeeId },
-      select: { id: true, firstName: true, lastName: true, employeeId: true, isActive: true, organizationId: true },
+      select: { id: true, firstName: true, lastName: true, employeeId: true, isActive: true, organizationId: true, attendancePinHash: true },
     });
     if (!user) {
       await this.logAudit({ employeeId: input.employeeId, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'EMPLOYEE_NOT_FOUND', ipAddress, userAgent });
@@ -101,17 +150,26 @@ export class AttendanceService {
     if (!user.isActive) {
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
+<<<<<<< HEAD
+=======
     }
-    // Check org allows mobile check-in
+    // C-07: Verify attendance PIN
+    if (!user.attendancePinHash) {
+      throw new ValidationError('Attendance PIN not set. Please contact your administrator.', 'PIN_NOT_SET');
+    }
+    const isPinValid = await verifyPassword(input.pin, user!.attendancePinHash!);
+    if (!isPinValid) {
+      await this.logAudit({ employeeId: input.employeeId, userId: user!.id, organizationId: user!.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'INVALID_PIN', ipAddress, userAgent });
+      throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
+>>>>>>> dev
+    }
     const org = await prisma.organization.findUnique({
       where: { id: user.organizationId! },
-      select: { attendanceMode: true, geofenceEnabled: true, officeLat: true, officeLng: true, geofenceRadius: true },
     });
     if (!org) throw new NotFoundError('Organization not found');
     if (org.attendanceMode === 'QR_ONLY') {
       throw new ValidationError('Mobile check-in is not enabled for this organization. Please use QR scan.');
     }
-    // Geofence is mandatory for mobile check-in
     if (!org.geofenceEnabled || !org.officeLat || !org.officeLng) {
       throw new ValidationError('Geofencing must be enabled for mobile check-in. Contact your administrator.');
     }
@@ -168,9 +226,8 @@ export class AttendanceService {
     return { ...result, message };
   }
 
-  /**
-   * Manual clock in/out by admin
-   */
+  // ======== Admin manual operations ========
+
   async manualAttendance(input: ManualAttendanceInput, currentUser: JWTPayload) {
     const user = await prisma.user.findUnique({
       where: { id: input.userId },
@@ -210,7 +267,6 @@ export class AttendanceService {
         include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
       });
 
-      // Check for late arrival and notify admin (non-blocking)
       this.checkAndNotifyLateArrival(input.userId, user.organizationId!, now, record.id).catch(err => {
         log.error({ err }, 'Late arrival check failed');
       });
@@ -254,8 +310,180 @@ export class AttendanceService {
   }
 
   /**
-   * Get current clock-in status for a user
+   * Admin edits an existing attendance record.
+   * After saving, flags payroll NEEDS_RECALCULATION if a payslip exists for the month.
    */
+  async editAttendance(
+    recordId: string,
+    input: { checkInTime?: string; checkOutTime?: string; note: string; markPresent?: boolean },
+    currentUser: JWTPayload
+  ) {
+    // FIX H-08: org always enforced â€” SUPER_ADMIN must have an org in context
+    if (!currentUser.organizationId) {
+      throw new ValidationError('Organization context required to edit attendance records', 'ORG_REQUIRED');
+    }
+
+    const record = await prisma.attendanceRecord.findFirst({
+      where: {
+        id: recordId,
+        organizationId: currentUser.organizationId,
+      },
+    });
+
+    if (!record) {
+      throw new NotFoundError('Attendance record not found');
+    }
+
+    const updateData: Record<string, unknown> = {
+      modifiedBy: currentUser.userId,
+      modifiedAt: new Date(),
+      modificationNote: input.note,
+    };
+
+    if (!record.originalCheckIn) {
+      updateData.originalCheckIn = record.checkInTime;
+    }
+    if (!record.originalCheckOut && record.checkOutTime) {
+      updateData.originalCheckOut = record.checkOutTime;
+    }
+
+    let resolvedCheckIn: Date = record.checkInTime;
+    if (input.checkInTime) {
+      resolvedCheckIn = validateTimestamp(input.checkInTime, 'checkInTime');
+      updateData.checkInTime = resolvedCheckIn;
+    }
+
+    if (input.checkOutTime) {
+      const resolvedCheckOut = validateTimestamp(input.checkOutTime, 'checkOutTime');
+      if (resolvedCheckOut <= resolvedCheckIn) {
+        throw new ValidationError('checkOutTime must be after checkInTime', 'INVALID_TIME_RANGE');
+      }
+      updateData.checkOutTime = resolvedCheckOut;
+      updateData.status = 'CHECKED_OUT';
+      updateData.duration = Math.round((resolvedCheckOut.getTime() - resolvedCheckIn.getTime()) / (1000 * 60));
+    }
+
+    const updated = await prisma.attendanceRecord.update({
+      where: { id: recordId },
+      data: updateData,
+      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+    });
+
+    log.info({ recordId, adminId: currentUser.userId, note: input.note }, 'Attendance record edited by admin');
+
+    // Flag payroll for this BS month (non-blocking)
+    const bs = adToBS(resolvedCheckIn);
+    this.flagPayrollAfterAttendanceChange(
+      record.userId,
+      record.organizationId,
+      bs.year,
+      bs.month,
+      currentUser.userId,
+      recordId,
+      `Admin edited attendance record ${recordId}: ${input.note}`
+    );
+
+    return updated;
+  }
+
+  /**
+   * Admin creates a manual present entry for an absent employee.
+   * Returns payrollWarning in the response if a payslip was flagged for recalculation.
+   */
+  async markPresent(
+    input: { userId: string; date: string; checkInTime: string; checkOutTime?: string; note: string },
+    currentUser: JWTPayload
+  ) {
+    const employee = await prisma.user.findFirst({
+      where: { id: input.userId, organizationId: currentUser.organizationId },
+    });
+
+    if (!employee) {
+      throw new NotFoundError('Employee not found');
+    }
+
+    // FIX H-06 / H-07: Validate timestamps
+    const checkIn = validateTimestamp(input.checkInTime, 'checkInTime');
+
+    let checkOut: Date | null = null;
+    if (input.checkOutTime) {
+      checkOut = validateTimestamp(input.checkOutTime, 'checkOutTime');
+      if (checkOut <= checkIn) {
+        throw new ValidationError('checkOutTime must be after checkInTime', 'INVALID_TIME_RANGE');
+      }
+    }
+
+    const dateStart = new Date(input.date);
+    dateStart.setHours(0, 0, 0, 0);
+    const dateEnd = new Date(input.date);
+    dateEnd.setHours(23, 59, 59, 999);
+
+    if (isNaN(dateStart.getTime())) {
+      throw new ValidationError('date is not a valid date', 'INVALID_DATE');
+    }
+
+    const existing = await prisma.attendanceRecord.findFirst({
+      where: {
+        userId: input.userId,
+        organizationId: currentUser.organizationId!,
+        checkInTime: { gte: dateStart, lte: dateEnd },
+        isActive: true,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictError('Attendance record already exists for this date');
+    }
+
+    const duration = checkOut ? Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60)) : null;
+    const bs = adToBS(checkIn);
+
+    const record = await prisma.attendanceRecord.create({
+      data: {
+        userId: input.userId,
+        organizationId: currentUser.organizationId!,
+        checkInTime: checkIn,
+        checkOutTime: checkOut,
+        checkInMethod: 'MANUAL',
+        checkOutMethod: checkOut ? 'MANUAL' : undefined,
+        duration,
+        status: checkOut ? 'CHECKED_OUT' : 'CHECKED_IN',
+        isManualEntry: true,
+        modifiedBy: currentUser.userId,
+        modifiedAt: new Date(),
+        modificationNote: input.note,
+        notes: 'Manual entry: ' + input.note,
+        bsYear: bs.year,
+        bsMonth: bs.month,
+        bsDay: bs.day,
+      },
+      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+    });
+
+    log.info({ userId: input.userId, adminId: currentUser.userId, date: input.date, note: input.note }, 'Employee marked present by admin');
+
+    // Check if payslip already exists for this month and flag it
+    const payrollFlag = await payrollService.flagPayrollNeedsRecalculation(
+      input.userId,
+      currentUser.organizationId!,
+      bs.year,
+      bs.month,
+      currentUser.userId,
+      record.id,
+      `Admin marked employee present for ${input.date}: ${input.note}`
+    );
+
+    return {
+      record,
+      // Frontend can show a banner when this is non-null
+      payrollWarning: payrollFlag.flagged
+        ? `A payslip for ${bs.year}/${bs.month} already existed (was: ${payrollFlag.previousStatus}). It has been flagged for recalculation â€” please regenerate it before the next payroll run.`
+        : null,
+    };
+  }
+
+  // ======== Read methods ========
+
   async getStatus(userId: string) {
     const openRecord = await prisma.attendanceRecord.findFirst({
       where: { userId, status: 'CHECKED_IN' },
@@ -278,9 +506,6 @@ export class AttendanceService {
     return { isClockedIn: false, record: null, currentDuration: null };
   }
 
-  /**
-   * Get attendance records for current user
-   */
   async getMyAttendance(userId: string, limit: number, offset: number) {
     const where = { userId };
 
@@ -303,9 +528,12 @@ export class AttendanceService {
     return { records, pagination: { total, limit, offset, hasMore: offset + records.length < total } };
   }
 
+<<<<<<< HEAD
   /**
    * List all attendance records (admin) â€” org-scoped
    */
+=======
+>>>>>>> dev
   async listAttendance(currentUser: JWTPayload, limit: number, offset: number, filters: { userId?: string; status?: string }) {
     const where: Record<string, unknown> = {};
 
@@ -394,7 +622,6 @@ export class AttendanceService {
   private async checkDailyLimit(userId: string) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
@@ -440,17 +667,12 @@ export class AttendanceService {
 
       const diffMs = checkInTime.getTime() - workStart.getTime();
       const minutesLate = Math.floor(diffMs / 60000);
-
       const threshold = org.lateThresholdMinutes || 10;
+
       if (minutesLate > threshold) {
         const userName = `${user.firstName} ${user.lastName}`;
         await notificationService.createLateArrivalNotification(
-          organizationId,
-          userId,
-          userName,
-          minutesLate,
-          checkInTime,
-          attendanceId
+          organizationId, userId, userName, minutesLate, checkInTime, attendanceId
         );
         log.info({ userId, userName, minutesLate, checkInTime }, 'Late arrival notification created');
       }
@@ -459,6 +681,7 @@ export class AttendanceService {
     }
   }
 
+<<<<<<< HEAD
 
   private async performClockActionSafe(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
     return prisma.$transaction(async (tx) => {
@@ -503,49 +726,86 @@ export class AttendanceService {
   private async performClockAction(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
     const openRecord = await prisma.attendanceRecord.findFirst({
       where: { userId, status: 'CHECKED_IN' },
+=======
+  // FIX C-11: Serializable transaction prevents duplicate CLOCK_IN race conditions
+  private async performClockActionSafe(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
+    return prisma.$transaction(async (tx) => {
+      const cooldownTime = new Date(Date.now() - SCAN_COOLDOWN_MINUTES * 60 * 1000);
+      const recentAction = await tx.attendanceRecord.findFirst({ where: { userId, OR: [{ checkInTime: { gte: cooldownTime } }, { checkOutTime: { gte: cooldownTime } }] }, orderBy: { updatedAt: 'desc' } });
+      if (recentAction) { const lastActionTime = recentAction.checkOutTime || recentAction.checkInTime; const timeSince = Math.floor((Date.now() - lastActionTime.getTime()) / 1000); const waitTime = SCAN_COOLDOWN_MINUTES * 60 - timeSince; if (waitTime > 0) throw new ValidationError('Please wait before scanning again', 'COOLDOWN_ACTIVE'); }
+      const todayStart = new Date(); todayStart.setHours(0,0,0,0); const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+      const todayCount = await tx.attendanceRecord.count({ where: { userId, checkInTime: { gte: todayStart, lte: todayEnd } } });
+      if (todayCount >= MAX_DAILY_SCANS) throw new ValidationError('Daily scan limit reached', 'DAILY_LIMIT_REACHED');
+      const openRecord = await tx.attendanceRecord.findFirst({ where: { userId, status: 'CHECKED_IN' } });
+      if (openRecord) { const checkOutTime = new Date(); const durationMinutes = Math.floor((checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000); const record = await tx.attendanceRecord.update({ where: { id: openRecord.id }, data: { checkOutTime, checkOutMethod: method, duration: durationMinutes, status: 'CHECKED_OUT' }, include: { user: { select: { firstName: true, lastName: true, employeeId: true } } } }); return { action: 'CLOCK_OUT' as const, record }; }
+      else { const now = new Date(); const bs = adToBS(now); const record = await tx.attendanceRecord.create({ data: { userId, organizationId, checkInMethod: method, status: 'CHECKED_IN', bsYear: bs.year, bsMonth: bs.month, bsDay: bs.day }, include: { user: { select: { firstName: true, lastName: true, employeeId: true } } } }); this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => log.error({ err }, 'Late arrival check failed')); return { action: 'CLOCK_IN' as const, record }; }
+>>>>>>> dev
     });
+  }
 
-    if (openRecord) {
-      const checkOutTime = new Date();
-      const durationMinutes = Math.floor(
-        (checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000
-      );
-
-      const record = await prisma.attendanceRecord.update({
-        where: { id: openRecord.id },
-        data: {
-          checkOutTime,
-          checkOutMethod: method,
-          duration: durationMinutes,
-          status: 'CHECKED_OUT',
-        },
-        include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+  private async performClockAction(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
+    return await prisma.$transaction(async (tx) => {
+      const openRecord = await tx.attendanceRecord.findFirst({
+        where: { userId, status: 'CHECKED_IN' },
       });
 
-      return { action: 'CLOCK_OUT' as const, record };
-    } else {
-      const now = new Date();
-      const bs = adToBS(now);
+      if (openRecord) {
+        const checkOutTime = new Date();
+        const durationMinutes = Math.floor(
+          (checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000
+        );
 
-      const record = await prisma.attendanceRecord.create({
-        data: {
-          userId,
-          organizationId,
-          checkInMethod: method,
-          status: 'CHECKED_IN',
-          bsYear: bs.year,
-          bsMonth: bs.month,
-          bsDay: bs.day,
-        },
-        include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-      });
+        const record = await tx.attendanceRecord.update({
+          where: { id: openRecord.id },
+          data: {
+            checkOutTime,
+            checkOutMethod: method,
+            duration: durationMinutes,
+            status: 'CHECKED_OUT',
+          },
+          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+        });
 
-      this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => {
-        log.error({ err }, 'Late arrival check failed');
-      });
+        return { action: 'CLOCK_OUT' as const, record };
+      } else {
+        const now = new Date();
+        const bs = adToBS(now);
 
-      return { action: 'CLOCK_IN' as const, record };
-    }
+        const record = await tx.attendanceRecord.create({
+          data: {
+            userId,
+            organizationId,
+            checkInMethod: method,
+            status: 'CHECKED_IN',
+            bsYear: bs.year,
+            bsMonth: bs.month,
+            bsDay: bs.day,
+          },
+          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+        });
+
+        this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => {
+          log.error({ err }, 'Late arrival check failed');
+        });
+
+        return { action: 'CLOCK_IN' as const, record };
+      }
+    }, { isolationLevel: 'Serializable' });
+  }
+
+  // Fire-and-forget payroll flag â€” errors logged, never thrown to caller
+  private flagPayrollAfterAttendanceChange(
+    userId: string,
+    organizationId: string,
+    bsYear: number,
+    bsMonth: number,
+    triggeredBy: string,
+    attendanceRecordId: string,
+    reason: string
+  ) {
+    payrollService.flagPayrollNeedsRecalculation(
+      userId, organizationId, bsYear, bsMonth, triggeredBy, attendanceRecordId, reason
+    ).catch(err => log.error({ err }, 'Failed to flag payroll after attendance correction'));
   }
 
   private async logAudit(data: {
@@ -567,6 +827,7 @@ export class AttendanceService {
       log.error({ err, data }, 'Failed to write audit log');
     }
   }
+<<<<<<< HEAD
 
   /**
    * Admin edits an attendance record
@@ -676,9 +937,17 @@ export class AttendanceService {
     log.info({ userId: input.userId, adminId: currentUser.userId, date: input.date, note: input.note }, 'Employee marked present by admin');
     return record;
   }
+=======
+>>>>>>> dev
 }
 
 export const attendanceService = new AttendanceService();
 
 
 
+<<<<<<< HEAD
+=======
+
+
+
+>>>>>>> dev

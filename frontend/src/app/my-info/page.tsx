@@ -20,6 +20,7 @@ import {
   CheckCircle,
   AlertCircle,
   Pencil,
+  KeyRound,
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
 
@@ -38,6 +39,10 @@ export default function MyInfoPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [pinForm, setPinForm] = useState({ currentPin: '', newPin: '', confirmPin: '' });
+  const [pinSaving, setPinSaving] = useState(false);
+  const [pinMsg, setPinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) router.push('/login');
@@ -108,6 +113,32 @@ export default function MyInfoPage() {
     setPwSaving(false);
   };
 
+  const savePin = async () => {
+    setPinMsg(null);
+    if (!pinForm.currentPin || pinForm.currentPin.length !== 4) {
+      setPinMsg({ type: 'error', text: isNp ? 'हालको PIN ४ अंकको हुनुपर्छ' : 'Current PIN must be 4 digits' }); return;
+    }
+    if (!pinForm.newPin || pinForm.newPin.length !== 4) {
+      setPinMsg({ type: 'error', text: isNp ? 'नयाँ PIN ४ अंकको हुनुपर्छ' : 'New PIN must be 4 digits' }); return;
+    }
+    if (pinForm.newPin !== pinForm.confirmPin) {
+      setPinMsg({ type: 'error', text: isNp ? 'PIN मेल खाएन' : 'PINs do not match' }); return;
+    }
+    if (pinForm.currentPin === pinForm.newPin) {
+      setPinMsg({ type: 'error', text: isNp ? 'नयाँ PIN हालकोभन्दा फरक हुनुपर्छ' : 'New PIN must be different from current PIN' }); return;
+    }
+    setPinSaving(true);
+    try {
+      const res = await api.patch('/api/auth/attendance-pin', { currentPin: pinForm.currentPin, newPin: pinForm.newPin });
+      if (res.error) throw new Error(res.error.message);
+      setPinForm({ currentPin: '', newPin: '', confirmPin: '' });
+      setPinMsg({ type: 'success', text: isNp ? 'PIN सफलतापूर्वक परिवर्तन भयो!' : 'Attendance PIN changed successfully!' });
+    } catch (e: any) {
+      setPinMsg({ type: 'error', text: e.message || 'Failed to change PIN' });
+    }
+    setPinSaving(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -124,6 +155,7 @@ export default function MyInfoPage() {
     ORG_ADMIN: isNp ? 'प्रशासक' : 'Admin',
   };
   const inputClass = 'w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-colors bg-white';
+  const pinInputClass = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-colors bg-white text-center tracking-widest font-medium';
 
   const Feedback = ({ msg }: { msg: { type: 'success' | 'error'; text: string } }) => (
     <div className={'flex items-center gap-2 p-3 rounded-lg text-sm ' + (
@@ -301,10 +333,82 @@ export default function MyInfoPage() {
           </div>
         </div>
 
-
         {/* Document Manager Section */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <DocumentManager userId={user.id} language={language} />
+        </div>
+
+        {/* Change Attendance PIN */}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+            <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+            <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+              {isNp ? 'हाजिरी PIN परिवर्तन' : 'Change attendance PIN'}
+            </h3>
+          </div>
+          <div className="p-5 space-y-4">
+            <p className="text-xs text-slate-400">
+              {isNp
+                ? 'हाजिरी QR स्क्यान गर्दा प्रयोग हुने ४ अंकको PIN।'
+                : 'The 4-digit PIN used when scanning the attendance QR code.'}
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  {isNp ? 'हालको PIN' : 'Current PIN'}
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinForm.currentPin}
+                  onChange={(e) => setPinForm({ ...pinForm, currentPin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  className={pinInputClass}
+                  placeholder="••••"
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  {isNp ? 'नयाँ PIN' : 'New PIN'}
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinForm.newPin}
+                  onChange={(e) => setPinForm({ ...pinForm, newPin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  className={pinInputClass}
+                  placeholder="••••"
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  {isNp ? 'PIN पुष्टि' : 'Confirm PIN'}
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinForm.confirmPin}
+                  onChange={(e) => setPinForm({ ...pinForm, confirmPin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  className={pinInputClass}
+                  placeholder="••••"
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+            {pinMsg && <Feedback msg={pinMsg} />}
+            <button
+              onClick={savePin}
+              disabled={pinSaving || pinForm.currentPin.length !== 4 || pinForm.newPin.length !== 4 || pinForm.confirmPin.length !== 4}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-800 hover:bg-slate-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              {pinSaving ? (isNp ? 'परिवर्तन गर्दै...' : 'Updating...') : (isNp ? 'PIN परिवर्तन गर्नुहोस्' : 'Update PIN')}
+            </button>
+          </div>
         </div>
 
         {/* Change Password */}

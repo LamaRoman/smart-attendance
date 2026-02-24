@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState,useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
@@ -20,7 +20,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const BS_MONTHS_EN = ['Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'];
-const BS_MONTHS_NP = ['बैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कार्तिक', 'मंसिर', 'पुष', 'माघ', 'फागुन', 'चैत्र'];
+const BS_MONTHS_NP = ['à¤¬à¥ˆà¤¶à¤¾à¤–', 'à¤œà¥‡à¤ ', 'à¤…à¤¸à¤¾à¤°', 'à¤¸à¤¾à¤‰à¤¨', 'à¤­à¤¦à¥Œ', 'à¤…à¤¸à¥‹à¤œ', 'à¤•à¤¾à¤°à¥à¤¤à¤¿à¤•', 'à¤®à¤‚à¤¸à¤¿à¤°', 'à¤ªà¥à¤·', 'à¤®à¤¾à¤˜', 'à¤«à¤¾à¤—à¥à¤¨', 'à¤šà¥ˆà¤¤à¥à¤°'];
 
 const statusColors: Record<string, string> = {
   DRAFT:     'bg-slate-100 text-slate-600',
@@ -30,10 +30,10 @@ const statusColors: Record<string, string> = {
 };
 
 const statusIcons: Record<string, string> = {
-  DRAFT:     '📝',
-  PROCESSED: '🔄',
-  APPROVED:  '✅',
-  PAID:      '💰',
+  DRAFT:     'ðŸ“',
+  PROCESSED: 'ðŸ”„',
+  APPROVED:  'âœ…',
+  PAID:      'ðŸ’°',
 };
 
 export default function MySalaryHistoryPage() {
@@ -58,7 +58,7 @@ export default function MySalaryHistoryPage() {
   const [singleYear, setSingleYear]   = useState(2082);
   const [singleMonth, setSingleMonth] = useState(1);
 
-  // Tooltips — state-based so they show instantly
+  // Tooltips â€” state-based so they show instantly
   const [showSummaryTooltip, setShowSummaryTooltip] = useState(false);
   const [showRowTooltip, setShowRowTooltip]         = useState<string | null>(null);
 
@@ -103,7 +103,7 @@ export default function MySalaryHistoryPage() {
     setLoadingData(false);
   };
 
-  // ── Client-side PDF generation using jsPDF + jspdf-autotable ──────────────
+  // â”€â”€ Client-side PDF generation using jsPDF + jspdf-autotable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const downloadSummaryPDF = () => {
     if (!salaryData || !employeeData) return;
 
@@ -128,7 +128,7 @@ export default function MySalaryHistoryPage() {
 
       const fromLabel  = BS_MONTHS_EN[fromMonth - 1] + ' ' + fromYear;
       const toLabel    = BS_MONTHS_EN[toMonth   - 1] + ' ' + toYear;
-      const rangeLabel = fromLabel + ' – ' + toLabel;
+      const rangeLabel = fromLabel + ' â€“ ' + toLabel;
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
@@ -233,7 +233,7 @@ export default function MySalaryHistoryPage() {
         const md        = employeeData.months[monthKey];
         const monthName = BS_MONTHS_EN[m.bsMonth - 1] + ' ' + m.bsYear;
         if (!md) {
-          tableRows.push([monthName, '—', '—', '—', '—', '—', '—', '—', '—', '—']);
+          tableRows.push([monthName, 'â€”', 'â€”', 'â€”', 'â€”', 'â€”', 'â€”', 'â€”', 'â€”', 'â€”']);
           return;
         }
         const allowances =
@@ -259,7 +259,7 @@ export default function MySalaryHistoryPage() {
         'TOTAL',
         employeeData.totals.monthsProcessed + ' mo',
         fmtPDF(employeeData.totals.basicSalary),
-        '—',
+        'â€”',
         fmtPDF(employeeData.totals.grossSalary),
         fmtPDF(employeeData.totals.employeeSsf),
         fmtPDF(employeeData.totals.employeePf),
@@ -305,7 +305,7 @@ export default function MySalaryHistoryPage() {
       doc.setFontSize(7.5);
       doc.setTextColor(148, 163, 184);
       doc.text(
-        (user?.organizationName || 'Organization') + '  •  ' + rangeLabel + '  •  Generated ' + new Date().toLocaleString('en-IN'),
+        (user?.organizationName || 'Organization') + '  â€¢  ' + rangeLabel + '  â€¢  Generated ' + new Date().toLocaleString('en-IN'),
         pageW / 2, finalY - 10, { align: 'center' }
       );
 
@@ -319,7 +319,7 @@ export default function MySalaryHistoryPage() {
     setSummaryDownloading(false);
   };
 
-  // ── Per-row payslip preview ─────────────────────────────────────────────────
+  // â”€â”€ Per-row payslip preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [preview,        setPreview]        = useState<{ blobUrl: string; filename: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -329,7 +329,7 @@ export default function MySalaryHistoryPage() {
       (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001') +
       '/api/payroll/my-payslip/' + recordId + '/pdf';
     try {
-      const res = await fetch(url, { credentials: 'include' });
+      const res = await fetch(url, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!res.ok) throw new Error('Failed to load PDF');
       const blob    = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -366,7 +366,7 @@ export default function MySalaryHistoryPage() {
   const employeeData = salaryData?.employees?.[0];
 
   const tooltipMsg = isNp
-    ? 'PDF डाउनलोड Operations plan मा उपलब्ध छ'
+    ? 'PDF à¤¡à¤¾à¤‰à¤¨à¤²à¥‹à¤¡ Operations plan à¤®à¤¾ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤›'
     : 'PDF downloads are available on the Operations plan';
 
   return (
@@ -391,7 +391,7 @@ export default function MySalaryHistoryPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
                 >
                   <Download className="w-4 h-4" />
-                  {isNp ? 'डाउनलोड' : 'Download'}
+                  {isNp ? 'à¤¡à¤¾à¤‰à¤¨à¤²à¥‹à¤¡' : 'Download'}
                 </button>
               )}
               <button
@@ -406,7 +406,7 @@ export default function MySalaryHistoryPage() {
             {previewLoading ? (
               <div className="h-full flex flex-col items-center justify-center gap-3">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
-                <p className="text-white text-sm">{isNp ? 'लोड हुँदैछ...' : 'Loading PDF...'}</p>
+                <p className="text-white text-sm">{isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading PDF...'}</p>
               </div>
             ) : preview ? (
               <iframe src={preview.blobUrl} className="w-full h-full border-0" title="Payslip Preview" />
@@ -431,7 +431,7 @@ export default function MySalaryHistoryPage() {
               </div>
               <div>
                 <h1 className="text-base font-bold text-gray-900">
-                  {isNp ? 'मेरो तलब इतिहास' : 'My Salary & Payslips'}
+                  {isNp ? 'à¤®à¥‡à¤°à¥‹ à¤¤à¤²à¤¬ à¤‡à¤¤à¤¿à¤¹à¤¾à¤¸' : 'My Salary & Payslips'}
                 </h1>
                 <p className="text-xs text-gray-500">{user.firstName} {user.lastName}</p>
               </div>
@@ -453,7 +453,7 @@ export default function MySalaryHistoryPage() {
                   ? 'bg-slate-900 text-white border-slate-900'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
             >
-              {isNp ? 'मासिक' : 'Monthly'}
+              {isNp ? 'à¤®à¤¾à¤¸à¤¿à¤•' : 'Monthly'}
             </button>
             <button
               onClick={() => setFilterMode('range')}
@@ -462,7 +462,7 @@ export default function MySalaryHistoryPage() {
                   ? 'bg-slate-900 text-white border-slate-900'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
             >
-              {isNp ? 'दायरा' : 'Range'}
+              {isNp ? 'à¤¦à¤¾à¤¯à¤°à¤¾' : 'Range'}
             </button>
           </div>
 
@@ -472,7 +472,7 @@ export default function MySalaryHistoryPage() {
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <label className="block text-xs text-slate-500 mb-1 font-medium">
-                    {isNp ? 'महिना' : 'Month'}
+                    {isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾' : 'Month'}
                   </label>
                   <div className="flex gap-2">
                     <div className="relative">
@@ -497,11 +497,11 @@ export default function MySalaryHistoryPage() {
                 </div>
               </div>
             ) : (
-              /* Original From/To layout — unchanged */
+              /* Original From/To layout â€” unchanged */
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <label className="block text-xs text-slate-500 mb-1 font-medium">
-                    {isNp ? 'देखि' : 'From'}
+                    {isNp ? 'à¤¦à¥‡à¤–à¤¿' : 'From'}
                   </label>
                   <div className="flex gap-2">
                     <div className="relative">
@@ -526,7 +526,7 @@ export default function MySalaryHistoryPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-slate-500 mb-1 font-medium">
-                    {isNp ? 'सम्म' : 'To'}
+                    {isNp ? 'à¤¸à¤®à¥à¤®' : 'To'}
                   </label>
                   <div className="flex gap-2">
                     <div className="relative">
@@ -554,7 +554,7 @@ export default function MySalaryHistoryPage() {
             <button onClick={loadSalaryData} disabled={loadingData}
               className="flex items-center gap-2 px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50">
               <Calendar className="w-4 h-4" />
-              {loadingData ? (isNp ? 'लोड हुँदैछ...' : 'Loading...') : (isNp ? 'हेर्नुहोस्' : 'View')}
+              {loadingData ? (isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading...') : (isNp ? 'à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'View')}
             </button>
           </div>
         </div>
@@ -571,7 +571,7 @@ export default function MySalaryHistoryPage() {
         {loadingData && (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
             <Clock className="w-6 h-6 text-slate-400 animate-spin mx-auto mb-3" />
-            <p className="text-sm text-slate-500">{isNp ? 'लोड हुँदैछ...' : 'Loading your salary data...'}</p>
+            <p className="text-sm text-slate-500">{isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading your salary data...'}</p>
           </div>
         )}
 
@@ -582,23 +582,23 @@ export default function MySalaryHistoryPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-blue-700">{isNp ? 'महिना' : 'Months'}</span>
+                  <span className="text-xs font-medium text-blue-700">{isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾' : 'Months'}</span>
                   <Calendar className="w-4 h-4 text-blue-600" />
                 </div>
                 <p className="text-2xl font-bold text-blue-900">{employeeData.totals.monthsProcessed}</p>
-                <p className="text-xs text-blue-600 mt-1">{isNp ? 'रेकर्ड' : 'Recorded'}</p>
+                <p className="text-xs text-blue-600 mt-1">{isNp ? 'à¤°à¥‡à¤•à¤°à¥à¤¡' : 'Recorded'}</p>
               </div>
               <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-5 border border-emerald-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-emerald-700">{isNp ? 'जम्मा तलब' : 'Total Net'}</span>
+                  <span className="text-xs font-medium text-emerald-700">{isNp ? 'à¤œà¤®à¥à¤®à¤¾ à¤¤à¤²à¤¬' : 'Total Net'}</span>
                   <DollarSign className="w-4 h-4 text-emerald-600" />
                 </div>
                 <p className="text-xl font-bold text-emerald-900">Rs. {fmtDisplay(employeeData.totals.netSalary)}</p>
-                <p className="text-xs text-emerald-600 mt-1">{employeeData.totals.monthsProcessed} {isNp ? 'महिना' : 'months'}</p>
+                <p className="text-xs text-emerald-600 mt-1">{employeeData.totals.monthsProcessed} {isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾' : 'months'}</p>
               </div>
               <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-purple-700">{isNp ? 'औसत' : 'Avg/Month'}</span>
+                  <span className="text-xs font-medium text-purple-700">{isNp ? 'à¤”à¤¸à¤¤' : 'Avg/Month'}</span>
                   <TrendingUp className="w-4 h-4 text-purple-600" />
                 </div>
                 <p className="text-xl font-bold text-purple-900">
@@ -606,15 +606,15 @@ export default function MySalaryHistoryPage() {
                     ? fmtDisplay(Math.round(employeeData.totals.netSalary / employeeData.totals.monthsProcessed))
                     : 0}
                 </p>
-                <p className="text-xs text-purple-600 mt-1">{isNp ? 'प्रति महिना' : 'per month'}</p>
+                <p className="text-xs text-purple-600 mt-1">{isNp ? 'à¤ªà¥à¤°à¤¤à¤¿ à¤®à¤¹à¤¿à¤¨à¤¾' : 'per month'}</p>
               </div>
               <div className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-xl p-5 border border-rose-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-rose-700">{isNp ? 'कटौती' : 'Deductions'}</span>
+                  <span className="text-xs font-medium text-rose-700">{isNp ? 'à¤•à¤Ÿà¥Œà¤¤à¥€' : 'Deductions'}</span>
                   <FileText className="w-4 h-4 text-rose-600" />
                 </div>
                 <p className="text-xl font-bold text-rose-900">Rs. {fmtDisplay(employeeData.totals.totalDeductions)}</p>
-                <p className="text-xs text-rose-600 mt-1">{isNp ? 'जम्मा' : 'Total'}</p>
+                <p className="text-xs text-rose-600 mt-1">{isNp ? 'à¤œà¤®à¥à¤®à¤¾' : 'Total'}</p>
               </div>
             </div>
 
@@ -624,10 +624,10 @@ export default function MySalaryHistoryPage() {
               {/* Heading + Download Summary PDF button */}
               <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-slate-900">
-                  {isNp ? 'मासिक विवरण' : 'Monthly Breakdown'}
+                  {isNp ? 'à¤®à¤¾à¤¸à¤¿à¤• à¤µà¤¿à¤µà¤°à¤£' : 'Monthly Breakdown'}
                 </h3>
 
-                {/* FIX: Summary PDF — gated on downloadPayslips */}
+                {/* FIX: Summary PDF â€” gated on downloadPayslips */}
                 {canDownloadPayslips ? (
                   <button
                     onClick={downloadSummaryPDF}
@@ -636,8 +636,8 @@ export default function MySalaryHistoryPage() {
                   >
                     <Download className="w-3.5 h-3.5" />
                     {summaryDownloading
-                      ? (isNp ? 'तयार हुँदैछ...' : 'Generating...')
-                      : (isNp ? 'सारांश PDF' : 'Download Summary PDF')}
+                      ? (isNp ? 'à¤¤à¤¯à¤¾à¤° à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Generating...')
+                      : (isNp ? 'à¤¸à¤¾à¤°à¤¾à¤‚à¤¶ PDF' : 'Download Summary PDF')}
                   </button>
                 ) : (
                   <div
@@ -651,7 +651,7 @@ export default function MySalaryHistoryPage() {
                     >
                       <Lock className="w-3.5 h-3.5" />
                       <span className="px-1 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">PRO</span>
-                      {isNp ? 'सारांश PDF' : 'Download Summary PDF'}
+                      {isNp ? 'à¤¸à¤¾à¤°à¤¾à¤‚à¤¶ PDF' : 'Download Summary PDF'}
                     </button>
                     {showSummaryTooltip && (
                       <div className="absolute top-full right-0 mt-2 w-64 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg shadow-lg z-20">
@@ -667,16 +667,16 @@ export default function MySalaryHistoryPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/50">
-                      <th className="text-left   py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'महिना'    : 'Month'}</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'आधारभूत'  : 'Basic'}</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'भत्ता'    : 'Allowances'}</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'कुल'      : 'Gross'}</th>
+                      <th className="text-left   py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾'    : 'Month'}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'à¤†à¤§à¤¾à¤°à¤­à¥‚à¤¤'  : 'Basic'}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'à¤­à¤¤à¥à¤¤à¤¾'    : 'Allowances'}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'à¤•à¥à¤²'      : 'Gross'}</th>
                       <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">SSF</th>
                       <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">PF</th>
                       <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">TDS</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'कटौती'    : 'Total Ded.'}</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'खुद तलब'  : 'Net'}</th>
-                      <th className="text-center py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'स्थिति'   : 'Status'}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'à¤•à¤Ÿà¥Œà¤¤à¥€'    : 'Total Ded.'}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'à¤–à¥à¤¦ à¤¤à¤²à¤¬'  : 'Net'}</th>
+                      <th className="text-center py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'à¤¸à¥à¤¥à¤¿à¤¤à¤¿'   : 'Status'}</th>
                       <th className="text-center py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">PDF</th>
                     </tr>
                   </thead>
@@ -692,7 +692,7 @@ export default function MySalaryHistoryPage() {
                               {isNp ? BS_MONTHS_NP[m.bsMonth - 1] : BS_MONTHS_EN[m.bsMonth - 1]} {m.bsYear}
                             </td>
                             <td colSpan={10} className="py-3 px-4 text-center text-slate-400 text-xs">
-                              {isNp ? 'कुनै रेकर्ड छैन' : 'No record'}
+                              {isNp ? 'à¤•à¥à¤¨à¥ˆ à¤°à¥‡à¤•à¤°à¥à¤¡ à¤›à¥ˆà¤¨' : 'No record'}
                             </td>
                           </tr>
                         );
@@ -711,7 +711,7 @@ export default function MySalaryHistoryPage() {
                               {isNp ? BS_MONTHS_NP[m.bsMonth - 1] : BS_MONTHS_EN[m.bsMonth - 1]} {m.bsYear}
                             </div>
                             <div className="text-xs text-slate-400">
-                              {monthData.daysPresent}/{monthData.workingDaysInMonth} {isNp ? 'दिन' : 'days'}
+                              {monthData.daysPresent}/{monthData.workingDaysInMonth} {isNp ? 'à¤¦à¤¿à¤¨' : 'days'}
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right text-sm text-slate-600">{fmtDisplay(monthData.basicSalary)}</td>
@@ -729,7 +729,7 @@ export default function MySalaryHistoryPage() {
                             </span>
                           </td>
 
-                          {/* FIX: Per-row PDF — gated on downloadPayslips */}
+                          {/* FIX: Per-row PDF â€” gated on downloadPayslips */}
                           <td className="py-3 px-4 text-center">
                             {canDownloadPayslips ? (
                               <button
@@ -767,9 +767,9 @@ export default function MySalaryHistoryPage() {
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-100 font-semibold border-t-2 border-slate-300">
-                      <td className="py-3 px-4 text-sm text-slate-900">{isNp ? 'जम्मा' : 'TOTAL'}</td>
+                      <td className="py-3 px-4 text-sm text-slate-900">{isNp ? 'à¤œà¤®à¥à¤®à¤¾' : 'TOTAL'}</td>
                       <td className="py-3 px-4 text-right text-sm text-slate-900">{fmtDisplay(employeeData.totals.basicSalary)}</td>
-                      <td className="py-3 px-4 text-right text-sm text-slate-900">—</td>
+                      <td className="py-3 px-4 text-right text-sm text-slate-900">â€”</td>
                       <td className="py-3 px-4 text-right text-sm text-slate-900">{fmtDisplay(employeeData.totals.grossSalary)}</td>
                       <td className="py-3 px-4 text-right text-sm text-rose-700">{fmtDisplay(employeeData.totals.employeeSsf)}</td>
                       <td className="py-3 px-4 text-right text-sm text-rose-700">{fmtDisplay(employeeData.totals.employeePf)}</td>
@@ -777,7 +777,7 @@ export default function MySalaryHistoryPage() {
                       <td className="py-3 px-4 text-right text-sm text-rose-700">{fmtDisplay(employeeData.totals.totalDeductions)}</td>
                       <td className="py-3 px-4 text-right text-sm font-bold text-emerald-700">{fmtDisplay(employeeData.totals.netSalary)}</td>
                       <td className="py-3 px-4 text-center text-sm text-slate-600">
-                        {employeeData.totals.monthsProcessed} {isNp ? 'महिना' : 'months'}
+                        {employeeData.totals.monthsProcessed} {isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾' : 'months'}
                       </td>
                       <td className="py-3 px-4"></td>
                     </tr>
@@ -795,11 +795,11 @@ export default function MySalaryHistoryPage() {
               <FileText className="w-8 h-8 text-slate-400" />
             </div>
             <h3 className="text-sm font-semibold text-slate-900 mb-1">
-              {isNp ? 'मिति छान्नुहोस्' : 'Select a date range'}
+              {isNp ? 'à¤®à¤¿à¤¤à¤¿ à¤›à¤¾à¤¨à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Select a date range'}
             </h3>
             <p className="text-xs text-slate-500">
               {isNp
-                ? 'माथि देखि/सम्म मिति छानेर "हेर्नुहोस्" थिच्नुहोस्'
+                ? 'à¤®à¤¾à¤¥à¤¿ à¤¦à¥‡à¤–à¤¿/à¤¸à¤®à¥à¤® à¤®à¤¿à¤¤à¤¿ à¤›à¤¾à¤¨à¥‡à¤° "à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥" à¤¥à¤¿à¤šà¥à¤¨à¥à¤¹à¥‹à¤¸à¥'
                 : 'Choose from/to dates above and click View'}
             </p>
           </div>

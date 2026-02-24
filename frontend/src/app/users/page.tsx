@@ -9,7 +9,7 @@ import EmployeeDetailModal from "@/components/EmployeeDetailModal";
 import { FileText,
   Users, UserPlus, Search, Edit, Trash2, Shield, UserCheck,
   CheckCircle, XCircle, Save, Key, Mail, User, X, AlertCircle,
-  RefreshCw,
+  RefreshCw, Copy, Eye, EyeOff,
 } from 'lucide-react';
 
 interface UserData {
@@ -19,6 +19,118 @@ interface UserData {
   shiftStartTime?: string | null;
   shiftEndTime?: string | null;
 }
+
+// ── PIN Reveal Modal ──────────────────────────────────────────
+function PinRevealModal({
+  pin,
+  employeeName,
+  employeeId,
+  isNp,
+  onClose,
+}: {
+  pin: string;
+  employeeName: string;
+  employeeId: string;
+  isNp: boolean;
+  onClose: () => void;
+}) {
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+
+  const copyPin = () => {
+    navigator.clipboard.writeText(pin);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
+        {/* Header */}
+        <div className="bg-amber-50 border-b border-amber-100 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-100">
+              <Key className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">
+                {isNp ? 'उपस्थिति PIN' : 'Attendance PIN'}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {employeeName} · {employeeId}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Warning */}
+          <div className="flex items-start gap-2.5 p-3 bg-rose-50 rounded-xl border border-rose-200">
+            <AlertCircle className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-rose-700 leading-relaxed">
+              {isNp
+                ? 'यो PIN एक पटक मात्र देखाइनेछ। अहिले नै लेख्नुहोस् वा कर्मचारीलाई दिनुहोस्।'
+                : 'This PIN will not be shown again. Note it down or give it to the employee now.'}
+            </p>
+          </div>
+
+          {/* PIN Display */}
+          <div className="text-center">
+            <p className="text-xs text-slate-500 mb-3">
+              {isNp ? 'हाजिरी PIN' : 'Attendance PIN'}
+            </p>
+            <div className="relative inline-flex items-center justify-center">
+              <div className="text-5xl font-mono font-bold tracking-[0.4em] text-slate-900 px-6 py-4 bg-slate-50 rounded-2xl border-2 border-slate-200 select-all">
+                {revealed ? pin : '••••'}
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <button
+                onClick={() => setRevealed(!revealed)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200"
+              >
+                {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {revealed ? (isNp ? 'लुकाउनुहोस्' : 'Hide') : (isNp ? 'देखाउनुहोस्' : 'Reveal')}
+              </button>
+              <button
+                onClick={copyPin}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200"
+              >
+                {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? (isNp ? 'कपी भयो!' : 'Copied!') : (isNp ? 'कपी गर्नुहोस्' : 'Copy PIN')}
+              </button>
+            </div>
+          </div>
+
+          {/* Acknowledgement checkbox */}
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+              className="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-200"
+            />
+            <span className="text-xs text-slate-600 leading-relaxed">
+              {isNp
+                ? 'मैले यो PIN लेखेको छु र कर्मचारीलाई दिन तयार छु।'
+                : 'I have noted this PIN and will give it to the employee.'}
+            </span>
+          </label>
+
+          <button
+            onClick={onClose}
+            disabled={!acknowledged}
+            className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isNp ? 'बुझेँ, बन्द गर्नुहोस्' : 'Done, close'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
   const { user: currentUser, isLoading, language } = useAuth();
@@ -39,6 +151,14 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [empCap, setEmpCap] = useState<{ current: number; max: number } | null>(null);
+  const [resettingPinId, setResettingPinId] = useState<string | null>(null);
+
+  // PIN reveal state
+  const [pinModal, setPinModal] = useState<{
+    pin: string;
+    employeeName: string;
+    employeeId: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     email: '', password: '', firstName: '', lastName: '',
@@ -115,12 +235,41 @@ export default function UsersPage() {
       const res = await api.post('/api/users', formData);
       if (res.error) { setError(res.error.message); }
       else {
-        setSuccess(isNp ? 'प्रयोगकर्ता सिर्जना गरियो' : 'User created');
-        setShowModal(false); loadUsers();
-        setTimeout(() => setSuccess(''), 3000);
+        const created = res.data as any;
+        setShowModal(false);
+        loadUsers();
+        // Show PIN reveal modal
+        if (created?.pin) {
+          setPinModal({
+            pin: created.pin,
+            employeeName: `${formData.firstName} ${formData.lastName}`,
+            employeeId: created.employeeId || '',
+          });
+        } else {
+          setSuccess(isNp ? 'प्रयोगकर्ता सिर्जना गरियो' : 'User created');
+          setTimeout(() => setSuccess(''), 3000);
+        }
       }
     }
     setSaving(false);
+  };
+
+  const handleResetPin = async (u: UserData) => {
+    if (!confirm(isNp ? `${u.firstName} ${u.lastName} को PIN रिसेट गर्ने?` : `Reset PIN for ${u.firstName} ${u.lastName}?`)) return;
+    setResettingPinId(u.id);
+    const res = await api.patch(`/api/users/${u.id}/attendance-pin`, {});
+    setResettingPinId(null);
+    if (res.error) { setError(res.error.message); }
+    else {
+      const data = res.data as any;
+      if (data?.pin) {
+        setPinModal({
+          pin: data.pin,
+          employeeName: `${u.firstName} ${u.lastName}`,
+          employeeId: u.employeeId,
+        });
+      }
+    }
   };
 
   const toggleStatus = async (u: UserData) => {
@@ -161,7 +310,7 @@ export default function UsersPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header with title and refresh */}
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
@@ -189,7 +338,7 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* Alerts - Minimal */}
+        {/* Alerts */}
         {error && (
           <div className="flex items-center justify-between p-3.5 bg-rose-50 rounded-lg border border-rose-200">
             <div className="flex items-center gap-2.5">
@@ -232,7 +381,7 @@ export default function UsersPage() {
           ))}
         </div>
 
-        {/* Header + Search + Filters - Clean card */}
+        {/* Search + Filters */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -259,16 +408,16 @@ export default function UsersPage() {
           <div className="flex flex-col md:flex-row gap-3 mt-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <input 
-                type="text" 
-                value={searchTerm} 
+              <input
+                type="text"
+                value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder={isNp ? 'नाम, इमेल, ID खोज्नुहोस्...' : 'Search name, email, ID...'}
                 className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 placeholder:text-slate-400"
               />
             </div>
-            <select 
-              value={roleFilter} 
+            <select
+              value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value as any)}
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
@@ -276,8 +425,8 @@ export default function UsersPage() {
               <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
               <option value="EMPLOYEE">{isNp ? 'कर्मचारी' : 'Employee'}</option>
             </select>
-            <select 
-              value={statusFilter} 
+            <select
+              value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
@@ -288,30 +437,18 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* Users Table - Clean */}
+        {/* Users Table */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    {isNp ? 'कर्मचारी' : 'Employee'}
-                  </th>
-                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    {isNp ? 'इमेल' : 'Email'}
-                  </th>
-                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    {isNp ? 'भूमिका' : 'Role'}
-                  </th>
-                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    {isNp ? 'स्थिति' : 'Status'}
-                  </th>
-                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden lg:table-cell">
-                    {isNp ? 'शिफ्ट' : 'Shift'}
-                  </th>
-                  <th className="text-right py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    {isNp ? 'कार्य' : 'Actions'}
-                  </th>
+                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'कर्मचारी' : 'Employee'}</th>
+                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'इमेल' : 'Email'}</th>
+                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'भूमिका' : 'Role'}</th>
+                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'स्थिति' : 'Status'}</th>
+                  <th className="text-left py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden lg:table-cell">{isNp ? 'शिफ्ट' : 'Shift'}</th>
+                  <th className="text-right py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">{isNp ? 'कार्य' : 'Actions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -342,16 +479,9 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="py-3 px-5">
-                        <button 
-                          onClick={() => toggleStatus(u)}
-                          className="flex items-center gap-1.5"
-                        >
-                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                            isActive ? 'bg-emerald-500' : 'bg-rose-500'
-                          }`} />
-                          <span className={`text-xs font-medium ${
-                            isActive ? 'text-emerald-700' : 'text-rose-700'
-                          }`}>
+                        <button onClick={() => toggleStatus(u)} className="flex items-center gap-1.5">
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                          <span className={`text-xs font-medium ${isActive ? 'text-emerald-700' : 'text-rose-700'}`}>
                             {isActive ? (isNp ? 'सक्रिय' : 'Active') : (isNp ? 'निष्क्रिय' : 'Inactive')}
                           </span>
                         </button>
@@ -367,22 +497,32 @@ export default function UsersPage() {
                       </td>
                       <td className="py-3 px-5 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => openEdit(u)} 
+                          <button
+                            onClick={() => openEdit(u)}
                             className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            title={isNp ? 'सम्पादन' : 'Edit'}
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
-                          <button 
-                            onClick={() => router.push(`/users/${u.id}`)} 
-                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" 
-                            title="Documents" 
-                          > 
-                            <FileText className="w-3.5 h-3.5" /> 
+                          <button
+                            onClick={() => handleResetPin(u)}
+                            disabled={resettingPinId === u.id}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                            title={isNp ? 'PIN रिसेट' : 'Reset PIN'}
+                          >
+                            <Key className={`w-3.5 h-3.5 ${resettingPinId === u.id ? 'animate-pulse' : ''}`} />
                           </button>
-                          <button 
-                            onClick={() => deleteUser(u)} 
+                          <button
+                            onClick={() => router.push(`/users/${u.id}`)}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            title={isNp ? 'कागजात' : 'Documents'}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteUser(u)}
                             className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title={isNp ? 'मेटाउनुहोस्' : 'Delete'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -413,28 +553,39 @@ export default function UsersPage() {
       </div>
 
       <EmployeeDetailModal isOpen={!!docUserId} onClose={() => setDocUserId(null)} user={users.find(u => u.id === docUserId) || null} language={language} />
-      {/* Create/Edit Modal - Clean */}
+
+      {/* PIN Reveal Modal */}
+      {pinModal && (
+        <PinRevealModal
+          pin={pinModal.pin}
+          employeeName={pinModal.employeeName}
+          employeeId={pinModal.employeeId}
+          isNp={isNp}
+          onClose={() => setPinModal(null)}
+        />
+      )}
+
+      {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden border border-slate-200">
-            {/* Modal Header - No gradients */}
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 rounded-lg bg-slate-100">
-                  {editingUser ? (
-                    <Edit className="w-4 h-4 text-slate-600" />
-                  ) : (
-                    <UserPlus className="w-4 h-4 text-slate-600" />
+                  {editingUser ? <Edit className="w-4 h-4 text-slate-600" /> : <UserPlus className="w-4 h-4 text-slate-600" />}
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">
+                    {editingUser ? (isNp ? 'प्रयोगकर्ता सम्पादन' : 'Edit user') : (isNp ? 'नयाँ प्रयोगकर्ता' : 'New user')}
+                  </h2>
+                  {!editingUser && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {isNp ? 'हाजिरी PIN स्वचालित रूपमा उत्पन्न हुनेछ' : 'Attendance PIN will be auto-generated'}
+                    </p>
                   )}
                 </div>
-                <h2 className="text-sm font-semibold text-slate-900">
-                  {editingUser ? (isNp ? 'प्रयोगकर्ता सम्पादन' : 'Edit user') : (isNp ? 'नयाँ प्रयोगकर्ता' : 'New user')}
-                </h2>
               </div>
-              <button 
-                onClick={() => setShowModal(false)} 
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
+              <button onClick={() => setShowModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -452,23 +603,13 @@ export default function UsersPage() {
                   <label className="block text-xs font-medium text-slate-500 mb-1">
                     {isNp ? 'पहिलो नाम' : 'First name'} <span className="text-rose-500">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    value={formData.firstName} 
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
-                  />
+                  <input type="text" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1">
                     {isNp ? 'थर' : 'Last name'} <span className="text-rose-500">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    value={formData.lastName} 
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
-                  />
+                  <input type="text" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                 </div>
               </div>
 
@@ -479,12 +620,7 @@ export default function UsersPage() {
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                    <input 
-                      type="email" 
-                      value={formData.email} 
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
-                    />
+                    <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                   </div>
                 </div>
               )}
@@ -496,31 +632,18 @@ export default function UsersPage() {
                 </label>
                 <div className="relative">
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input 
-                    type="password" 
-                    value={formData.password} 
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder={editingUser ? (isNp ? 'खाली छोड्नुहोस्' : 'Leave blank to keep') : ''}
-                    className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
-                  />
+                  <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={editingUser ? (isNp ? 'खाली छोड्नुहोस्' : 'Leave blank to keep') : ''} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
-                  {isNp ? 'भूमिका' : 'Role'}
-                </label>
-                <select 
-                  value={formData.role} 
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
-                >
+                <label className="block text-xs font-medium text-slate-500 mb-1">{isNp ? 'भूमिका' : 'Role'}</label>
+                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as any })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white">
                   <option value="EMPLOYEE">{isNp ? 'कर्मचारी' : 'Employee'}</option>
                   <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
                 </select>
               </div>
 
-              {/* Shift Override */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">
                   {isNp ? 'कार्य समय (ऐच्छिक)' : 'Work shift (optional)'}
@@ -531,37 +654,20 @@ export default function UsersPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-slate-400 mb-1">{isNp ? 'सुरु' : 'Start'}</label>
-                    <input
-                      type="time"
-                      value={formData.shiftStartTime}
-                      onChange={(e) => setFormData({ ...formData, shiftStartTime: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
-                    />
+                    <input type="time" value={formData.shiftStartTime} onChange={(e) => setFormData({ ...formData, shiftStartTime: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-400 mb-1">{isNp ? 'अन्त्य' : 'End'}</label>
-                    <input
-                      type="time"
-                      value={formData.shiftEndTime}
-                      onChange={(e) => setFormData({ ...formData, shiftEndTime: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
-                    />
+                    <input type="time" value={formData.shiftEndTime} onChange={(e) => setFormData({ ...formData, shiftEndTime: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button 
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                >
+                <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                   {isNp ? 'रद्द' : 'Cancel'}
                 </button>
-                <button 
-                  onClick={handleSubmit} 
-                  disabled={saving}
-                  className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
+                <button onClick={handleSubmit} disabled={saving} className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   <Save className="w-3.5 h-3.5" />
                   {saving ? (isNp ? 'सुरक्षित गर्दै...' : 'Saving...') : editingUser ? (isNp ? 'अपडेट' : 'Update') : (isNp ? 'सिर्जना' : 'Create')}
                 </button>

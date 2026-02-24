@@ -1,4 +1,4 @@
-import { Router, Response, NextFunction } from 'express';
+﻿import { Router, Response, NextFunction } from 'express';
 import { userService } from '../services/user.service';
 import { validate } from '../middleware/validate';
 import { createUserSchema, updateUserSchema, userIdParamSchema } from '../schemas/user.schema';
@@ -43,6 +43,16 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
 router.delete('/:id', validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await userService.deleteUser(req.params.id, req.user!);
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/users/:id/attendance-pin
+router.patch('/:id/attendance-pin', validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await userService.resetAttendancePin(req.params.id, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);

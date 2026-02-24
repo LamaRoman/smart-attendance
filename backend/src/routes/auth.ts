@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+﻿import { Router, Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 import { validate } from '../middleware/validate';
 import { loginSchema } from '../schemas/auth.schema';
@@ -51,4 +51,23 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response, next: Ne
   }
 });
 
+// PATCH /api/auth/attendance-pin - self-service PIN change
+router.patch('/attendance-pin', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { currentPin, newPin } = req.body;
+    if (!currentPin || !/^\d{4}$/.test(currentPin)) {
+      res.status(400).json({ error: { message: 'Current PIN must be 4 digits', code: 'VALIDATION_ERROR' } }); return;
+    }
+    if (!newPin || !/^\d{4}$/.test(newPin)) {
+      res.status(400).json({ error: { message: 'New PIN must be 4 digits', code: 'VALIDATION_ERROR' } }); return;
+    }
+    if (currentPin === newPin) {
+      res.status(400).json({ error: { message: 'New PIN must be different from current PIN', code: 'VALIDATION_ERROR' } }); return;
+    }
+    const result = await authService.changeAttendancePin(req.user!.userId, currentPin, newPin);
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
 export default router;
