@@ -2,53 +2,19 @@
 import { generateToken, hashToken, getTokenExpiration, JWTPayload } from '../lib/jwt';
 import { verifyPassword } from '../lib/password';
 import { AuthenticationError } from '../lib/errors';
+import { checkLockout, recordFailedAttempt, clearFailedAttempts } from '../lib/lockout';
 import { createLogger } from '../logger';
 import { LoginInput } from '../schemas/auth.schema';
 
 const log = createLogger('auth-service');
 
 
-// Account lockout â€” track failed login attempts
-const failedAttempts: Map<string, { count: number; lockedUntil: number }> = new Map();
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
-
-function checkLockout(email: string): void {
-  const record = failedAttempts.get(email);
-  if (record && record.lockedUntil > Date.now()) {
-    const mins = Math.ceil((record.lockedUntil - Date.now()) / 60000);
-    throw new AuthenticationError('Account locked. Try again in ' + mins + ' minute(s).');
-  }
-}
-
-function recordFailedAttempt(email: string): void {
-  const record = failedAttempts.get(email) || { count: 0, lockedUntil: 0 };
-  record.count++;
-  if (record.count >= MAX_ATTEMPTS) {
-    record.lockedUntil = Date.now() + LOCKOUT_DURATION;
-    log.warn({ email, attempts: record.count }, 'Account locked after failed attempts');
-  }
-  failedAttempts.set(email, record);
-}
-
-function clearFailedAttempts(email: string): void {
-  failedAttempts.delete(email);
-}
-
-// Cleanup expired lockouts every 30 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [email, record] of failedAttempts) {
-    if (record.lockedUntil < now && record.count > 0) failedAttempts.delete(email);
-  }
-}, 30 * 60 * 1000);
-
 export class AuthService {
   /**
    * Authenticate user and create session
    */
   async login(input: LoginInput) {
-    checkLockout(input.email);
+    await checkLockout(input.email);
 
     const user = await prisma.user.findUnique({
       where: { email: input.email },
@@ -67,7 +33,7 @@ export class AuthService {
     });
 
     if (!user) {
-      recordFailedAttempt(input.email);
+      await recordFailedAttempt(input.email);
       throw new AuthenticationError('Invalid email or password');
     }
 
@@ -77,10 +43,10 @@ export class AuthService {
 
     const isValidPassword = await verifyPassword(input.password, user.password);
     if (!isValidPassword) {
-      recordFailedAttempt(input.email);
+      await recordFailedAttempt(input.email);
       throw new AuthenticationError('Invalid email or password');
     }
-    clearFailedAttempts(input.email);
+    await clearFailedAttempts(input.email);
 
     // Generate JWT with organizationId included
     const token = generateToken({
@@ -197,3 +163,4 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
+
