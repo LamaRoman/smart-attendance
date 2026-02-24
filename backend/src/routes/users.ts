@@ -49,16 +49,10 @@ router.delete('/:id', validate(userIdParamSchema, 'params'), async (req: AuthReq
   }
 });
 
-
 // PATCH /api/users/:id/attendance-pin
 router.patch('/:id/attendance-pin', validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { pin } = req.body;
-    if (!pin || !/^\d{4}$/.test(pin)) {
-      res.status(400).json({ error: { message: 'PIN must be exactly 4 digits' } });
-      return;
-    }
-    const result = await userService.setAttendancePin(req.params.id, pin, req.user!);
+    const result = await userService.resetAttendancePin(req.params.id, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -66,4 +60,3 @@ router.patch('/:id/attendance-pin', validate(userIdParamSchema, 'params'), async
 });
 
 export default router;
-

@@ -87,6 +87,8 @@ export class UserService {
     }
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+    const plainPin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
+    const attendancePinHash = await hashPassword(plainPin);
     const user = await prisma.user.create({
       data: {
         email: input.email,
@@ -100,6 +102,7 @@ export class UserService {
         shiftStartTime: input.shiftStartTime || null,
         shiftEndTime: input.shiftEndTime || null,
         isActive: true,
+        attendancePinHash,
         organizationId,
       },
       select: USER_SELECT,
@@ -136,8 +139,7 @@ export class UserService {
     } catch (err) {
       log.error({ err }, 'Failed to send welcome email');
     }
-
-    return user;
+    return { ...user, pin: plainPin };
   }
 
   /**
@@ -216,17 +218,19 @@ export class UserService {
     return user;
   }
 
-  async setAttendancePin(userId: string, pin: string, currentUser: JWTPayload) {
+  async resetAttendancePin(userId: string, currentUser: JWTPayload) {
     const user = await prisma.user.findFirst({
       where: { id: userId, organizationId: currentUser.organizationId!, deletedAt: null },
     });
     if (!user) throw new NotFoundError('User not found');
+    const pin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
     const attendancePinHash = await hashPassword(pin);
     await prisma.user.update({
       where: { id: userId },
       data: { attendancePinHash },
     });
-    return { message: 'Attendance PIN updated successfully' };
+    log.info({ userId, resetBy: currentUser.userId }, 'Attendance PIN reset');
+    return { pin, message: 'Attendance PIN reset successfully' };
   }
   async deleteUser(userId: string, currentUser: JWTPayload) {
     if (userId === currentUser.userId) {
@@ -371,3 +375,4 @@ export class UserService {
 }
 
 export const userService = new UserService();
+
