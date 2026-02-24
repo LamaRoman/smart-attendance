@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Clock, FileText, Download } from 'lucide-react';
 import ProBlurOverlay from '@/components/ProBlurOverlay';
@@ -24,7 +24,7 @@ export default function AnnualTab({
   const handleCsvDownload = async () => {
     const res = await fetch(
       `${API_BASE}/api/payroll/annual-report/csv?bsYear=${annualYear}`,
-      { credentials: 'include' },
+      { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
     );
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -37,11 +37,11 @@ export default function AnnualTab({
 
   return (
     <div className="space-y-6">
-      {/* Filter card — always visible, no blur */}
+      {/* Filter card â€” always visible, no blur */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="text-sm font-semibold text-slate-900">
-            {isNp ? 'वार्षिक कर विवरण' : 'Annual tax & SSF report'}
+            {isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤•à¤° à¤µà¤¿à¤µà¤°à¤£' : 'Annual tax & SSF report'}
           </h2>
           <div className="flex items-center gap-3 flex-wrap">
             <select
@@ -57,16 +57,16 @@ export default function AnnualTab({
               className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
               {loadingAnnual
-                ? isNp ? 'लोड हुँदैछ...' : 'Loading...'
-                : isNp ? 'रिपोर्ट हेर्नुहोस्' : 'Load report'}
+                ? isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading...'
+                : isNp ? 'à¤°à¤¿à¤ªà¥‹à¤°à¥à¤Ÿ à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Load report'}
             </button>
 
-            {/* FIX (MEDIUM): CSV button always rendered — disabled with PRO badge on Starter */}
+            {/* FIX (MEDIUM): CSV button always rendered â€” disabled with PRO badge on Starter */}
             {annualData && (
               <button
                 disabled={isStarter}
                 onClick={handleCsvDownload}
-                title={isStarter ? (isNp ? 'Operations प्लान आवश्यक छ' : 'Requires Operations plan') : undefined}
+                title={isStarter ? (isNp ? 'Operations à¤ªà¥à¤²à¤¾à¤¨ à¤†à¤µà¤¶à¥à¤¯à¤• à¤›' : 'Requires Operations plan') : undefined}
                 className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-md text-xs font-medium hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-50"
               >
                 {isStarter && (
@@ -75,7 +75,7 @@ export default function AnnualTab({
                   </span>
                 )}
                 <Download className="w-3 h-3" />
-                {isNp ? 'CSV डाउनलोड' : 'Download CSV'}
+                {isNp ? 'CSV à¤¡à¤¾à¤‰à¤¨à¤²à¥‹à¤¡' : 'Download CSV'}
               </button>
             )}
           </div>
@@ -91,7 +91,7 @@ export default function AnnualTab({
         <EmptyCard isNp={isNp} />
       ) : null}
 
-      {/* Blurred skeleton preview for Starter — shown when no real data loaded */}
+      {/* Blurred skeleton preview for Starter â€” shown when no real data loaded */}
       {isStarter && !annualData && (
         <div className="relative rounded-xl overflow-hidden border border-slate-200">
           {/* Skeleton table */}
@@ -146,21 +146,21 @@ export default function AnnualTab({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[2px]">
             <div className="bg-white rounded-xl border border-amber-200 shadow-lg p-6 text-center max-w-sm mx-4">
               <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
-                <span className="text-2xl">📊</span>
+                <span className="text-2xl">ðŸ“Š</span>
               </div>
               <h3 className="text-sm font-bold text-slate-900 mb-1">
-                {isNp ? 'वार्षिक कर रिपोर्ट' : 'Annual Tax & SSF Report'}
+                {isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤•à¤° à¤°à¤¿à¤ªà¥‹à¤°à¥à¤Ÿ' : 'Annual Tax & SSF Report'}
               </h3>
               <p className="text-xs text-slate-500 mb-4">
                 {isNp
-                  ? 'सबै कर्मचारीको वार्षिक TDS, SSF र खुद तलब एकै ठाउँमा हेर्नुहोस्।'
+                  ? 'à¤¸à¤¬à¥ˆ à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€à¤•à¥‹ à¤µà¤¾à¤°à¥à¤·à¤¿à¤• TDS, SSF à¤° à¤–à¥à¤¦ à¤¤à¤²à¤¬ à¤à¤•à¥ˆ à¤ à¤¾à¤‰à¤à¤®à¤¾ à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥à¥¤'
                   : 'See every employee\'s annual TDS, SSF and net salary in one place. Export to CSV for IRD filing.'}
               </p>
               <button
                 onClick={onUpgrade}
                 className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors"
               >
-                {isNp ? 'अपग्रेड गर्नुहोस्' : 'Upgrade to Operations'}
+                {isNp ? 'à¤…à¤ªà¤—à¥à¤°à¥‡à¤¡ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Upgrade to Operations'}
               </button>
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function AnnualTab({
   );
 }
 
-/* ── Annual data table ── */
+/* â”€â”€ Annual data table â”€â”€ */
 function AnnualTable({ data, isNp }: { data: any; isNp: boolean }) {
   const sum = (key: string) =>
     data.employees.reduce((s: number, e: any) => s + (e[key] || 0), 0);
@@ -182,15 +182,15 @@ function AnnualTable({ data, isNp }: { data: any; isNp: boolean }) {
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
               {[
-                { label: isNp ? 'कर्मचारी'       : 'Employee',     align: 'left'   },
-                { label: isNp ? 'महिना'           : 'Months',       align: 'center' },
-                { label: isNp ? 'वार्षिक आधारभूत': 'Annual basic',  align: 'right'  },
-                { label: isNp ? 'वार्षिक कुल'    : 'Annual gross',  align: 'right'  },
+                { label: isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€'       : 'Employee',     align: 'left'   },
+                { label: isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾'           : 'Months',       align: 'center' },
+                { label: isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤†à¤§à¤¾à¤°à¤­à¥‚à¤¤': 'Annual basic',  align: 'right'  },
+                { label: isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤•à¥à¤²'    : 'Annual gross',  align: 'right'  },
                 { label: 'SSF',                                      align: 'right'  },
                 { label: 'PF',                                       align: 'right'  },
                 { label: 'CIT',                                      align: 'right'  },
                 { label: 'TDS',                                      align: 'right'  },
-                { label: isNp ? 'वार्षिक खुद'    : 'Annual net',    align: 'right'  },
+                { label: isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤–à¥à¤¦'    : 'Annual net',    align: 'right'  },
               ].map((h, i) => (
                 <th
                   key={i}
@@ -210,7 +210,7 @@ function AnnualTable({ data, isNp }: { data: any; isNp: boolean }) {
                   </div>
                   <div className="text-xs text-slate-400">
                     {e.employee.employeeId}
-                    {e.isMarried ? ` • ${isNp ? 'विवाहित' : 'Married'}` : ''}
+                    {e.isMarried ? ` â€¢ ${isNp ? 'à¤µà¤¿à¤µà¤¾à¤¹à¤¿à¤¤' : 'Married'}` : ''}
                   </div>
                 </td>
                 <td className="py-3 px-4 text-center text-sm text-slate-600">{e.monthsProcessed}</td>
@@ -237,7 +237,7 @@ function AnnualTable({ data, isNp }: { data: any; isNp: boolean }) {
           <tfoot>
             <tr className="bg-slate-100 font-semibold">
               <td className="py-3 px-4 text-sm text-slate-900" colSpan={2}>
-                {isNp ? 'जम्मा' : 'TOTAL'}
+                {isNp ? 'à¤œà¤®à¥à¤®à¤¾' : 'TOTAL'}
               </td>
               <td className="py-3 px-4 text-right text-sm text-slate-900">{fmt(sum('totalBasic'))}</td>
               <td className="py-3 px-4 text-right text-sm text-slate-900">{fmt(sum('totalGross'))}</td>
@@ -260,7 +260,7 @@ function LoadingCard({ isNp }: { isNp: boolean }) {
       <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
         <Clock className="w-6 h-6 text-slate-400 animate-spin" />
       </div>
-      <p className="text-sm text-slate-500">{isNp ? 'लोड हुँदैछ...' : 'Loading...'}</p>
+      <p className="text-sm text-slate-500">{isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading...'}</p>
     </div>
   );
 }
@@ -272,10 +272,10 @@ function EmptyCard({ isNp }: { isNp: boolean }) {
         <FileText className="w-8 h-8 text-slate-400" />
       </div>
       <h3 className="text-sm font-semibold text-slate-900 mb-1">
-        {isNp ? 'कुनै डाटा छैन' : 'No data'}
+        {isNp ? 'à¤•à¥à¤¨à¥ˆ à¤¡à¤¾à¤Ÿà¤¾ à¤›à¥ˆà¤¨' : 'No data'}
       </h3>
       <p className="text-xs text-slate-500">
-        {isNp ? 'यो वर्षको तलब गणना गरिएको छैन' : 'No payroll generated for this year'}
+        {isNp ? 'à¤¯à¥‹ à¤µà¤°à¥à¤·à¤•à¥‹ à¤¤à¤²à¤¬ à¤—à¤£à¤¨à¤¾ à¤—à¤°à¤¿à¤à¤•à¥‹ à¤›à¥ˆà¤¨' : 'No payroll generated for this year'}
       </p>
     </div>
   );
