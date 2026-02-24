@@ -1,4 +1,4 @@
-﻿import prisma from '../lib/prisma';
+import prisma from '../lib/prisma';
 import { generateToken, hashToken, getTokenExpiration, JWTPayload } from '../lib/jwt';
 import { verifyPassword } from '../lib/password';
 import { AuthenticationError } from '../lib/errors';
@@ -7,7 +7,6 @@ import { createLogger } from '../logger';
 import { LoginInput } from '../schemas/auth.schema';
 
 const log = createLogger('auth-service');
-
 
 export class AuthService {
   /**
@@ -86,63 +85,63 @@ export class AuthService {
   /**
    * Get current user profile
    */
- async getMe(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      employeeId: true,
-      platformId: true,
-      role: true,
-      isActive: true,
-      organizationId: true,
-      organization: {
-        select: {
-          id: true,
-          name: true,
-          calendarMode: true,
-          language: true,
-          staticQREnabled: true,
-          rotatingQREnabled: true,
+  async getMe(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        employeeId: true,
+        platformId: true,
+        role: true,
+        isActive: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            calendarMode: true,
+            language: true,
+            staticQREnabled: true,
+            rotatingQREnabled: true,
+          },
         },
+        createdAt: true,
       },
-      createdAt: true,
-    },
-  });
+    });
 
-  if (!user) throw new AuthenticationError('User not found');
+    if (!user) throw new AuthenticationError('User not found');
 
-  // For org users, attach effective plan features
-  if (user.organizationId) {
-    const { getOrgPlan } = await import('./plan.service');
-    const plan = await getOrgPlan(user.organizationId);
-    return {
-      ...user,
-      planFeatures: plan ? {
-        isActive: plan.isActive,
-        tier: plan.tier,
-        featureLeave: plan.featureLeave,
-        featureFullPayroll: plan.featureFullPayroll,
-        featurePayrollWorkflow: plan.featurePayrollWorkflow,
-        featureReports: plan.featureReports,
-        featureManualCorrection: plan.featureManualCorrection,
-        featureNotifications: plan.featureNotifications,
-        featureOnboarding: plan.featureOnboarding,
-        featureAuditLog: plan.featureAuditLog,
-        featureFileDownload: plan.featureFileDownload,
-        featureDownloadReports: plan.featureDownloadReports,
-        featureDownloadPayslips: plan.featureDownloadPayslips,
-        featureDownloadAuditLog: plan.featureDownloadAuditLog,
-        featureDownloadLeaveRecords: plan.featureDownloadLeaveRecords,
-      } : null,
-    };
+    // For org users, attach effective plan features
+    if (user.organizationId) {
+      const { getOrgPlan } = await import('./plan.service');
+      const plan = await getOrgPlan(user.organizationId);
+      return {
+        ...user,
+        planFeatures: plan ? {
+          isActive: plan.isActive,
+          tier: plan.tier,
+          featureLeave: plan.featureLeave,
+          featureFullPayroll: plan.featureFullPayroll,
+          featurePayrollWorkflow: plan.featurePayrollWorkflow,
+          featureReports: plan.featureReports,
+          featureManualCorrection: plan.featureManualCorrection,
+          featureNotifications: plan.featureNotifications,
+          featureOnboarding: plan.featureOnboarding,
+          featureAuditLog: plan.featureAuditLog,
+          featureFileDownload: plan.featureFileDownload,
+          featureDownloadReports: plan.featureDownloadReports,
+          featureDownloadPayslips: plan.featureDownloadPayslips,
+          featureDownloadAuditLog: plan.featureDownloadAuditLog,
+          featureDownloadLeaveRecords: plan.featureDownloadLeaveRecords,
+        } : null,
+      };
+    }
+
+    return user;
   }
-
-  return user;
-}
 
   /**
    * Clean up expired sessions (call periodically)
@@ -156,11 +155,28 @@ export class AuthService {
         ],
       },
     });
-
     log.info({ count: deleted.count }, 'Cleaned expired sessions');
     return deleted.count;
+  }
+
+  /**
+   * Change attendance PIN (self-service — requires current PIN)
+   */
+  async changeAttendancePin(userId: string, currentPin: string, newPin: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, attendancePinHash: true },
+    });
+    if (!user) throw new AuthenticationError('User not found');
+    if (!user.attendancePinHash) throw new AuthenticationError('No attendance PIN set. Contact your administrator.');
+    const isValid = await verifyPassword(currentPin, user.attendancePinHash);
+    if (!isValid) throw new AuthenticationError('Current PIN is incorrect');
+    const { hashPassword } = await import('../lib/password');
+    const newHash = await hashPassword(newPin);
+    await prisma.user.update({ where: { id: userId }, data: { attendancePinHash: newHash } });
+    log.info({ userId }, 'Attendance PIN changed by employee');
+    return { message: 'Attendance PIN changed successfully' };
   }
 }
 
 export const authService = new AuthService();
-
