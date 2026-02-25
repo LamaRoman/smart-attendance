@@ -5,6 +5,7 @@ import { AuthenticationError } from './errors';
 
 export interface JWTPayload {
   userId: string;
+  id:string;
   email: string;
   role: string;
   organizationId: string | null;
