@@ -119,7 +119,7 @@ export default function MySalaryHistoryPage() {
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
-      doc.text(user?.organizationName || 'Organization', 36, 28);
+      doc.text((user as any)?.organizationName || user?.organization || 'Organization', 36, 28);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
