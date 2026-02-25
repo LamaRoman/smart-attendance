@@ -55,8 +55,8 @@ export default function LateArrivalsPage() {
     
     const res = await api.get(url);
     if (res.data) {
-      setLateArrivals(res.data.records || []);
-      setStats(res.data.stats || null);
+      setLateArrivals((res.data as any).records || []);
+      setStats((res.data as any).stats || null);
     }
     setLoading(false);
   };
