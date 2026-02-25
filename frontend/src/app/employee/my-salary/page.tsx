@@ -305,7 +305,7 @@ export default function MySalaryHistoryPage() {
       doc.setFontSize(7.5);
       doc.setTextColor(148, 163, 184);
       doc.text(
-        (user?.organizationName || 'Organization') + '  â€¢  ' + rangeLabel + '  â€¢  Generated ' + new Date().toLocaleString('en-IN'),
+        ((user as any)?.organizationName || user?.organization || 'Organization') + '  •  ' + rangeLabel + '  •  Generated ' + new Date().toLocaleString('en-IN'),
         pageW / 2, finalY - 10, { align: 'center' }
       );
 
