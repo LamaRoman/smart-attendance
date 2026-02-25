@@ -66,7 +66,7 @@ interface ImportStat {
 const MONTH_NAMES_NP = ['', 'बैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कार्तिक', 'मंसिर', 'पुष', 'माघ', 'फागुन', 'चैत्र'];
 const MONTH_NAMES_EN = ['', 'Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'];
 
-const StatCard = ({ icon: Icon, label, value, sublabel, color }: { icon: LucideIcon; label: string; value: string | number; sublabel?: string; color: string }) => (
+const StatCard = ({ icon: Icon, label, value, sublabel, color }: { icon: typeof LucideIcon; label: string; value: string | number; sublabel?: string; color: string }) => (
   <div className="bg-white rounded-2xl p-6 border border-slate-200 hover:border-slate-300 transition-all hover:shadow-lg hover:-translate-y-0.5">
     <div className="flex items-start justify-between mb-4">
       <div className={`p-3 rounded-xl bg-gradient-to-br ${color} shadow-lg shadow-${color.split(' ')[1]}/20`}>
