@@ -68,8 +68,8 @@ export default function MySalaryHistoryPage() {
   
   useEffect(() => {
     api.get('/api/payroll/my-earliest-year').then((res) => {
-      if (!res.error && res.data?.earliestBsYear) {
-        setEarliestBsYear(res.data.earliestBsYear);
+      if (!res.error && (res.data as any)?.earliestBsYear) {
+        setEarliestBsYear((res.data as any).earliestBsYear);
       } else {
         setEarliestBsYear(currentBsYear);
       }
