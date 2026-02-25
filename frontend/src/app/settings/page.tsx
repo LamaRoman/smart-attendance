@@ -33,7 +33,7 @@ import {
 
 // Dynamically import the map component with no SSR
 const GeofenceMap = dynamic(
-  () => import('@/components/GeofenceMap'),
+  () => import('@/components/GeoFenceMap'),
   { ssr: false }
 );
 
