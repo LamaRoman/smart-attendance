@@ -41,7 +41,7 @@ function ScanPageContent() {
 
   const handleSubmit = async () => {
     if (!employeeId.trim()) {
-      setErrorMsg(isNp ? 'à¤•à¥ƒà¤ªà¤¯à¤¾ à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€ à¤†à¤ˆà¤¡à¥€ à¤¹à¤¾à¤²à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Please enter your Employee ID');
+      setErrorMsg(isNp ? 'कृपया कर्मचारी आईडी हाल्नुहोस्' : 'Please enter your Employee ID');
       return;
     }
     if (!pin.trim() || pin.length !== 4) {
@@ -49,7 +49,7 @@ function ScanPageContent() {
       return;
     }
     if (!isValidQR) {
-      setErrorMsg(isNp ? 'à¤…à¤®à¤¾à¤¨à¥à¤¯ QR à¤•à¥‹à¤¡' : 'Invalid QR code');
+      setErrorMsg(isNp ? 'अमान्य QR कोड' : 'Invalid QR code');
       return;
     }
 
@@ -68,7 +68,7 @@ function ScanPageContent() {
 
       if (!response.ok) {
         setStep('error');
-        setErrorMsg(data.error?.message || (isNp ? 'à¤¤à¥à¤°à¥à¤Ÿà¤¿ à¤­à¤¯à¥‹' : 'Something went wrong'));
+        setErrorMsg(data.error?.message || (isNp ? 'त्रुटि भयो' : 'Something went wrong'));
         return;
       }
 
@@ -82,7 +82,7 @@ function ScanPageContent() {
       }, 8000);
     } catch (err) {
       setStep('error');
-      setErrorMsg(isNp ? 'à¤¸à¤°à¥à¤­à¤°à¤¸à¤à¤— à¤œà¤¡à¤¾à¤¨ à¤¹à¥à¤¨ à¤¸à¤•à¥‡à¤¨' : 'Could not connect to server');
+      setErrorMsg(isNp ? 'सर्भरसँग जडान हुन सकेन' : 'Could not connect to server');
     }
   };
 
@@ -101,10 +101,10 @@ function ScanPageContent() {
             <XCircle className="w-8 h-8 text-red-500" />
           </div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">
-            {isNp ? 'à¤…à¤®à¤¾à¤¨à¥à¤¯ QR à¤•à¥‹à¤¡' : 'Invalid QR Code'}
+            {isNp ? 'अमान्य QR कोड' : 'Invalid QR Code'}
           </h1>
           <p className="text-gray-500 text-sm">
-            {isNp ? 'à¤•à¥ƒà¤ªà¤¯à¤¾ à¤•à¤¾à¤°à¥à¤¯à¤¾à¤²à¤¯à¤®à¤¾ à¤°à¤¹à¥‡à¤•à¥‹ QR à¤•à¥‹à¤¡ à¤¸à¥à¤•à¥à¤¯à¤¾à¤¨ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥à¥¤' : 'Please scan the QR code at your office.'}
+            {isNp ? 'कृपया कार्यालयमा रहेको QR कोड स्क्यान गर्नुहोस्।' : 'Please scan the QR code at your office.'}
           </p>
         </div>
       </div>
@@ -121,7 +121,7 @@ function ScanPageContent() {
           className="flex items-center gap-1.5 px-3 py-1.5 bg-white/80 border border-gray-200 rounded-lg hover:bg-white hover:shadow-md transition-all text-xs font-medium text-gray-600"
         >
           <Globe className="w-3.5 h-3.5" />
-          {isNp ? 'EN' : 'à¤¨à¥‡'}
+          {isNp ? 'EN' : 'ने'}
         </button>
       </div>
 
@@ -136,10 +136,10 @@ function ScanPageContent() {
                   <Shield className="w-7 h-7 text-white" />
                 </div>
                 <h1 className="text-xl font-bold text-white">
-                  {isNp ? 'à¤¸à¥à¤®à¤¾à¤°à¥à¤Ÿ à¤‰à¤ªà¤¸à¥à¤¥à¤¿à¤¤à¤¿' : 'Smart Attendance'}
+                  {isNp ? 'स्मार्ट उपस्थिति' : 'Smart Attendance'}
                 </h1>
                 <p className="text-white/70 text-sm mt-1">
-                  {isNp ? 'à¤•à¥ƒà¤ªà¤¯à¤¾ à¤†à¤«à¥à¤¨à¥‹ à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€ à¤†à¤ˆà¤¡à¥€ à¤¹à¤¾à¤²à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Enter your Employee ID'}
+                  {isNp ? 'कृपया आफ्नो कर्मचारी आईडी हाल्नुहोस्' : 'Enter your Employee ID'}
                 </p>
               </div>
               <div className="p-6 space-y-4">
@@ -151,7 +151,7 @@ function ScanPageContent() {
                 )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€ à¤†à¤ˆà¤¡à¥€' : 'Employee ID'}
+                    {isNp ? 'कर्मचारी आईडी' : 'Employee ID'}
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -160,7 +160,7 @@ function ScanPageContent() {
                       value={employeeId}
                       onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                      placeholder={isNp ? 'à¤‰à¤¦à¤¾: EMP-10001' : 'e.g., EMP-10001'}
+                      placeholder={isNp ? 'उदा: EMP-10001' : 'e.g., EMP-10001'}
                       className="w-full pl-11 pr-4 py-3.5 border border-gray-300 rounded-xl text-lg font-medium focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-transparent transition-all text-center tracking-wider"
                       autoFocus
                       autoComplete="off"
@@ -188,10 +188,10 @@ function ScanPageContent() {
                   className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3.5 rounded-xl font-semibold text-lg hover:bg-slate-800 transition-all shadow-sm hover:shadow active:scale-[0.98]"
                 >
                   <Clock className="w-5 h-5" />
-                  {isNp ? 'à¤‰à¤ªà¤¸à¥à¤¥à¤¿à¤¤à¤¿ à¤œà¤¨à¤¾à¤‰à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Record Attendance'}
+                  {isNp ? 'उपस्थिति जनाउनुहोस्' : 'Record Attendance'}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
-                  {isNp ? 'à¤¤à¤ªà¤¾à¤ˆà¤‚à¤•à¥‹ à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€ à¤†à¤ˆà¤¡à¥€ à¤¤à¤ªà¤¾à¤ˆà¤‚à¤•à¥‹ à¤†à¤ˆà¤¡à¥€ à¤•à¤¾à¤°à¥à¤¡à¤®à¤¾ à¤›' : 'Your Employee ID is on your ID card'}
+                  {isNp ? 'तपाईंको कर्मचारी आईडी तपाईंको आईडी कार्डमा छ' : 'Your Employee ID is on your ID card'}
                 </p>
               </div>
             </div>
@@ -204,10 +204,10 @@ function ScanPageContent() {
                 <Loader2 className="w-10 h-10 text-slate-700 animate-spin" />
               </div>
               <p className="text-lg font-semibold text-gray-700">
-                {isNp ? 'à¤ªà¥à¤°à¤¶à¥‹à¤§à¤¨ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Processing...'}
+                {isNp ? 'प्रशोधन हुँदैछ...' : 'Processing...'}
               </p>
               <p className="text-sm text-gray-400 mt-1">
-                {isNp ? 'à¤•à¥ƒà¤ªà¤¯à¤¾ à¤ªà¤°à¥à¤–à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Please wait'}
+                {isNp ? 'कृपया पर्खनुहोस्' : 'Please wait'}
               </p>
             </div>
           )}
@@ -227,17 +227,17 @@ function ScanPageContent() {
                 </div>
                 <h2 className="text-2xl font-bold text-white">
                   {result.action === 'CLOCK_IN'
-                    ? isNp ? 'à¤šà¥‡à¤• à¤‡à¤¨ à¤¸à¤«à¤²!' : 'Clocked In!'
-                    : isNp ? 'à¤šà¥‡à¤• à¤†à¤‰à¤Ÿ à¤¸à¤«à¤²!' : 'Clocked Out!'}
+                    ? isNp ? 'चेक इन सफल!' : 'Clocked In!'
+                    : isNp ? 'चेक आउट सफल!' : 'Clocked Out!'}
                 </h2>
                 <p className="text-white/90 text-lg mt-2">
-                  {isNp ? 'à¤¨à¤®à¤¸à¥à¤¤à¥‡' : 'Hello'}, {result.user.firstName} {result.user.lastName}
+                  {isNp ? 'नमस्ते' : 'Hello'}, {result.user.firstName} {result.user.lastName}
                 </p>
                 <p className="text-white/70 text-sm mt-1">{result.user.employeeId}</p>
               </div>
               <div className="p-6 space-y-3">
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                  <span className="text-sm text-gray-500">{isNp ? 'à¤¸à¤®à¤¯' : 'Time'}</span>
+                  <span className="text-sm text-gray-500">{isNp ? 'समय' : 'Time'}</span>
                   <span className="text-sm font-semibold text-gray-900">
                     {result.action === 'CLOCK_IN'
                       ? new Date(result.record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -248,14 +248,14 @@ function ScanPageContent() {
                 </div>
                 {result.action === 'CLOCK_OUT' && result.record.duration && (
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <span className="text-sm text-gray-500">{isNp ? 'à¤…à¤µà¤§à¤¿' : 'Duration'}</span>
+                    <span className="text-sm text-gray-500">{isNp ? 'अवधि' : 'Duration'}</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {Math.floor(result.record.duration / 60)}{isNp ? ' à¤˜à¤£à¥à¤Ÿà¤¾ ' : 'h '}{result.record.duration % 60}{isNp ? ' à¤®à¤¿à¤¨à¥‡à¤Ÿ' : 'm'}
+                      {Math.floor(result.record.duration / 60)}{isNp ? ' घण्टा ' : 'h '}{result.record.duration % 60}{isNp ? ' मिनेट' : 'm'}
                     </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                  <span className="text-sm text-gray-500">{isNp ? 'à¤®à¤¿à¤¤à¤¿' : 'Date'}</span>
+                  <span className="text-sm text-gray-500">{isNp ? 'मिति' : 'Date'}</span>
                   <span className="text-sm font-semibold text-gray-900">
                     {new Date().toLocaleDateString(isNp ? 'ne-NP' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                   </span>
@@ -265,10 +265,10 @@ function ScanPageContent() {
                   className="w-full mt-2 flex items-center justify-center gap-2 py-3 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50 transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  {isNp ? 'à¤«à¤¿à¤°à¥à¤¤à¤¾ à¤œà¤¾à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Back'}
+                  {isNp ? 'फिर्ता जानुहोस्' : 'Back'}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
-                  {isNp ? 'à¥® à¤¸à¥‡à¤•à¥‡à¤¨à¥à¤¡à¤®à¤¾ à¤¸à¥à¤µà¤šà¤¾à¤²à¤¿à¤¤ à¤°à¤¿à¤¸à¥‡à¤Ÿ à¤¹à¥à¤¨à¥à¤›' : 'Auto-resets in 8 seconds'}
+                  {isNp ? '८ सेकेन्डमा स्वचालित रिसेट हुन्छ' : 'Auto-resets in 8 seconds'}
                 </p>
               </div>
             </div>
@@ -281,7 +281,7 @@ function ScanPageContent() {
                 <XCircle className="w-10 h-10 text-red-500" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">
-                {isNp ? 'à¤¤à¥à¤°à¥à¤Ÿà¤¿!' : 'Error!'}
+                {isNp ? 'त्रुटि!' : 'Error!'}
               </h2>
               <p className="text-gray-600 mb-6">{errorMsg}</p>
               <button
@@ -289,7 +289,7 @@ function ScanPageContent() {
                 className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-semibold hover:bg-slate-800 transition-all"
               >
                 <ArrowLeft className="w-5 h-5" />
-                {isNp ? 'à¤ªà¥à¤¨: à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Try Again'}
+                {isNp ? 'पुन: प्रयास गर्नुहोस्' : 'Try Again'}
               </button>
             </div>
           )}
