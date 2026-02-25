@@ -119,6 +119,10 @@ export default function SuperAdminPage() {
     if (!createForm.name || !createForm.adminEmail || !createForm.adminPassword || !createForm.adminFirstName || !createForm.adminLastName) {
       setError('Please fill in all required fields'); return;
     }
+    const pw = createForm.adminPassword;
+    if (pw.length < 8 || !/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/[0-9]/.test(pw)) {
+      setError('Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number'); return;
+    }
     setLoading(true); setError('');
     const res = await api.post('/api/super-admin/organizations', createForm);
     if (res.error) { setError(res.error.message); }
@@ -553,7 +557,29 @@ export default function SuperAdminPage() {
                       onChange={(e) => setCreateForm({ ...createForm, adminPassword: e.target.value })}
                       placeholder="••••••••"
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
-                    <p className="text-[10px] text-slate-400 mt-1">Min 8 characters, 1 uppercase, 1 lowercase, 1 number</p>
+                    {createForm.adminPassword && (
+                      <div className="mt-2 space-y-1">
+                        {[
+                          { test: createForm.adminPassword.length >= 8, label: 'At least 8 characters' },
+                          { test: /[A-Z]/.test(createForm.adminPassword), label: 'One uppercase letter' },
+                          { test: /[a-z]/.test(createForm.adminPassword), label: 'One lowercase letter' },
+                          { test: /[0-9]/.test(createForm.adminPassword), label: 'One number' },
+                          { test: /[^A-Za-z0-9]/.test(createForm.adminPassword), label: 'One special character' },
+                        ].map((rule) => (
+                          <div key={rule.label} className="flex items-center gap-1.5">
+                            {rule.test
+                              ? <CheckCircle className="w-3 h-3 text-emerald-500" />
+                              : <XCircle className="w-3 h-3 text-slate-300" />}
+                            <span className={`text-[11px] ${rule.test ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {rule.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {!createForm.adminPassword && (
+                      <p className="text-[10px] text-slate-400 mt-1">Min 8 characters, 1 uppercase, 1 lowercase, 1 number</p>
+                    )}
                   </div>
                 </div>
               </div>
