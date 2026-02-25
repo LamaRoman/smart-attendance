@@ -159,7 +159,7 @@ export default function OrgSettingsPage() {
       setSuccess(isNepali ? 'सेटिङ्स सफलतापूर्वक अपडेट गरियो।' : 'Settings updated successfully.');
       const updated = res.data as any;
       setSettings(updated);
-      setFormData({
+     setFormData({
         name: updated.name,
         email: updated.email || '',
         phone: updated.phone || '',
@@ -167,6 +167,7 @@ export default function OrgSettingsPage() {
         language: updated.language,
         calendarMode: updated.calendarMode,
         geofenceEnabled: updated.geofenceEnabled || false,
+        attendanceMode: updated.attendanceMode || 'QR_ONLY',
         officeLat: updated.officeLat || '',
         officeLng: updated.officeLng || '',
         geofenceRadius: updated.geofenceRadius || 100,
