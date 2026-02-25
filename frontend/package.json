@@ -13,10 +13,12 @@
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
     "leaflet": "^1.9.4",
+    "logger": "^0.0.1",
     "lucide-react": "^0.563.0",
     "next": "14.2.5",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "resend": "^6.9.2"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.21",

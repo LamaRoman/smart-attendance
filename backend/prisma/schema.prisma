@@ -908,13 +908,15 @@ model PlatformConfig {
 model PasswordResetToken {
   id        String   @id @default(uuid())
   userId    String
-  token     String   @unique
+  token     String?  @unique
+  tokenHash String?  @unique
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
+  @@index([tokenHash])
   @@index([userId])
   @@map("password_reset_tokens")
 }

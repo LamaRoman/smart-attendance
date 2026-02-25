@@ -178,6 +178,88 @@ export class AuthService {
     log.info({ userId }, 'Attendance PIN changed by employee');
     return { message: 'Attendance PIN changed successfully' };
   }
+
+  /**
+   * Request password reset — sends email with token
+   */
+  async forgotPassword(email: string) {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, isActive: true },
+    });
+
+    // Always return success to prevent email enumeration
+    if (!user || !user.isActive) {
+      log.info({ email }, 'Password reset requested for unknown/inactive email');
+      return { message: 'If that email exists, a reset link has been sent.' };
+    }
+
+    // Generate a random token
+    const crypto = await import('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // Store token with 1 hour expiry — delete any existing tokens first
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+      },
+    });
+
+    // Send email
+    const { sendPasswordResetEmail } = await import('../lib/email');
+    await sendPasswordResetEmail(user.email, resetToken);
+
+    log.info({ userId: user.id }, 'Password reset token created');
+    return { message: 'If that email exists, a reset link has been sent.' };
+  }
+
+  /**
+   * Reset password using token
+   */
+  async resetPassword(token: string, newPassword: string) {
+    const crypto = await import('crypto');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const resetRecord = await prisma.passwordResetToken.findFirst({
+      where: {
+        tokenHash,
+        expiresAt: { gt: new Date() },
+        usedAt: null,
+      },
+      include: { user: { select: { id: true, email: true } } },
+    });
+
+    if (!resetRecord) {
+      throw new AuthenticationError('Invalid or expired reset token');
+    }
+
+    // Hash new password and update
+    const { hashPassword } = await import('../lib/password');
+    const hashedPassword = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: resetRecord.userId },
+      data: { password: hashedPassword },
+    });
+
+    // Mark token as used
+    await prisma.passwordResetToken.update({
+      where: { id: resetRecord.id },
+      data: { usedAt: new Date() },
+    });
+
+    // Invalidate all sessions for security
+    await prisma.userSession.deleteMany({
+      where: { userId: resetRecord.userId },
+    });
+
+    log.info({ userId: resetRecord.userId }, 'Password reset successfully');
+    return { message: 'Password reset successfully. Please log in with your new password.' };
+  }
 }
 
 export const authService = new AuthService();

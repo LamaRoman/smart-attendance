@@ -70,4 +70,38 @@ router.patch('/attendance-pin', authenticate, async (req: AuthRequest, res: Resp
     next(error);
   }
 });
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ error: { message: 'Email is required', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+    const result = await authService.forgotPassword(email);
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      res.status(400).json({ error: { message: 'Token and new password are required', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      res.status(400).json({ error: { message: 'Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+    const result = await authService.resetPassword(token, newPassword);
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
 export default router;
