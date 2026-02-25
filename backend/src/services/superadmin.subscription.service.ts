@@ -1,4 +1,4 @@
-// src/services/superadmin.subscription.service.ts
+﻿// src/services/superadmin.subscription.service.ts
 import prisma from '../lib/prisma';
 import { SubscriptionStatus, TierName, Prisma } from '@prisma/client';
 import { NotFoundError, ConflictError } from '../lib/errors';
@@ -10,7 +10,7 @@ const log = createLogger('superadmin-subscription-service');
 
 export class SuperAdminSubscriptionService {
 
-  // ── List all org subscriptions ─────────────────────────────
+  // â”€â”€ List all org subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async listSubscriptions(query: {
     page?: number;
     limit?: number;
@@ -85,11 +85,11 @@ export class SuperAdminSubscriptionService {
 
     const countMap: Record<string, { employeeCount: number; adminCount: number }> = {};
     for (const row of userCounts) {
-      if (!countMap[row.organizationId]) {
-        countMap[row.organizationId] = { employeeCount: 0, adminCount: 0 };
+      if (!countMap[row.organizationId!]) {
+        countMap[row.organizationId!] = { employeeCount: 0, adminCount: 0 };
       }
-      if (row.role === 'EMPLOYEE') countMap[row.organizationId].employeeCount = row._count._all;
-      if (row.role === 'ORG_ADMIN')  countMap[row.organizationId].adminCount   = row._count._all;
+      if (row.role === 'EMPLOYEE') countMap[row.organizationId!].employeeCount = row._count._all;
+      if (row.role === 'ORG_ADMIN')  countMap[row.organizationId!].adminCount   = row._count._all;
     }
 
     const enriched = subscriptions.map(sub => ({
@@ -104,7 +104,7 @@ export class SuperAdminSubscriptionService {
     };
   }
 
-  // ── Get single org subscription ────────────────────────────
+  // â”€â”€ Get single org subscription â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getSubscription(organizationId: string) {
     const subscription = await prisma.orgSubscription.findUnique({
       where: { organizationId },
@@ -119,16 +119,16 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // ── Assign / change tier ────────────────────────────────────
+  // â”€â”€ Assign / change tier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
   // Trial enforcement:
   //   - Trial is one-time per organization (isTrialUsed flag)
-  //   - If org has already used a trial → straight to ACTIVE
-  //   - If plan has no trial days configured → straight to ACTIVE
-  // ──────────────────────────────────────────────────────────
+  //   - If org has already used a trial â†’ straight to ACTIVE
+  //   - If plan has no trial days configured â†’ straight to ACTIVE
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async assignTier(
     organizationId: string,
-    input: { tier: TierName; note?: string },
+    input: { tier: TierName; note?: string; forceTrial?: boolean; billingCycle?: string },
     currentUser: JWTPayload
   ) {
     const org = await prisma.organization.findUnique({ where: { id: organizationId } });
@@ -142,7 +142,7 @@ export class SuperAdminSubscriptionService {
     const existing = await prisma.orgSubscription.findUnique({ where: { organizationId } });
     const now = new Date();
 
-    // Trial is one-time per org — uses trialDaysMonthly only (no annual billing)
+    // Trial is one-time per org â€” uses trialDaysMonthly only (no annual billing)
     const canUseTrial = (input.forceTrial === true) || (plan.trialDaysMonthly > 0 && !(existing?.isTrialUsed ?? false));
 
     const trialEndsAt = canUseTrial
@@ -154,7 +154,7 @@ export class SuperAdminSubscriptionService {
       : SubscriptionStatus.ACTIVE;
 
     if (!canUseTrial && plan.trialDaysMonthly > 0 && existing?.isTrialUsed) {
-      log.info({ organizationId }, 'Trial skipped — org has already used their free trial');
+      log.info({ organizationId }, 'Trial skipped â€” org has already used their free trial');
     }
 
     const subscription = await prisma.$transaction(async (tx) => {
@@ -198,7 +198,7 @@ export class SuperAdminSubscriptionService {
           subscriptionId: sub.id,
           organizationId,
           event:       existing ? 'PLAN_CHANGED' : 'PLAN_ASSIGNED',
-          note:        input.note ?? `Tier set to ${input.tier} by super admin${canUseTrial ? ' — trial started' : ' — no trial (already used)'}`,
+          note:        input.note ?? `Tier set to ${input.tier} by super admin${canUseTrial ? ' â€” trial started' : ' â€” no trial (already used)'}`,
           performedBy: currentUser.userId,
         },
       });
@@ -217,7 +217,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // ── Override pricing ────────────────────────────────────────
+  // â”€â”€ Override pricing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async overridePricing(
     organizationId: string,
     input: {
@@ -270,7 +270,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // ── Waive setup fee ─────────────────────────────────────────
+  // â”€â”€ Waive setup fee â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async waiveSetupFee(
     organizationId: string,
     input: { reason: string },
@@ -306,7 +306,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // ── Suspend ─────────────────────────────────────────────────
+  // â”€â”€ Suspend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async suspendSubscription(
     organizationId: string,
     input: { reason: string },
@@ -350,7 +350,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // ── Mark as Expired (manual) ────────────────────────────────
+  // â”€â”€ Mark as Expired (manual) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async markAsExpired(
     organizationId: string,
     input: { reason: string },
@@ -396,12 +396,12 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // ── Extend Trial ────────────────────────────────────────────
+  // â”€â”€ Extend Trial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
   // Adds N days to trialEndsAt for TRIALING or GRACE_PERIOD orgs.
   // If org is in GRACE_PERIOD, clears graceEndsAt and resets to
   // TRIALING so the full grace period applies after the new trial ends.
-  // ──────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async extendTrial(
     organizationId: string,
     input: { days: number; note?: string },
@@ -440,7 +440,7 @@ export class SuperAdminSubscriptionService {
           subscriptionId: sub.id,
           organizationId,
           event:       'TRIAL_EXTENDED',
-          note:        input.note ?? `Trial extended by ${input.days} days — new end: ${newTrialEndsAt.toISOString().split('T')[0]}`,
+          note:        input.note ?? `Trial extended by ${input.days} days â€” new end: ${newTrialEndsAt.toISOString().split('T')[0]}`,
           performedBy: currentUser.userId,
         },
       });
@@ -453,7 +453,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // ── Reactivate ──────────────────────────────────────────────
+  // â”€â”€ Reactivate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async reactivateSubscription(
     organizationId: string,
     input: { note?: string },
@@ -493,7 +493,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // ── Add admin note ──────────────────────────────────────────
+  // â”€â”€ Add admin note â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async addNote(
     organizationId: string,
     input: { note: string },
@@ -511,7 +511,7 @@ export class SuperAdminSubscriptionService {
     });
   }
 
-  // ── Get billing log ─────────────────────────────────────────
+  // â”€â”€ Get billing log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getBillingLog(organizationId: string) {
     const existing = await prisma.orgSubscription.findUnique({ where: { organizationId } });
     if (!existing) throw new NotFoundError('No subscription found for this organization');
@@ -524,3 +524,4 @@ export class SuperAdminSubscriptionService {
 }
 
 export const superAdminSubscriptionService = new SuperAdminSubscriptionService();
+

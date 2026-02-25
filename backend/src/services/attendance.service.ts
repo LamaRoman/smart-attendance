@@ -1,10 +1,6 @@
 ﻿import prisma from '../lib/prisma';
-<<<<<<< HEAD
-import { parseQRPayload, verifyQRSignature, verifyTOTPCode } from '../lib/crypto';
-=======
 import { parseQRPayload, verifyQRSignature } from '../lib/crypto';
 import { verifyPassword } from '../lib/password';
->>>>>>> dev
 import { adToBS } from '../lib/nepali-date';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
 import { createLogger } from '../logger';
@@ -58,15 +54,9 @@ function validateTimestamp(raw: string, fieldName: string): Date {
 }
 
 export class AttendanceService {
-<<<<<<< HEAD
-  /**
-   * Public QR scan â€” uses employee ID instead of auth
-   */
-=======
 
   // ======== QR / mobile scans ========
 
->>>>>>> dev
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
       where: { employeeId: input.employeeId },
@@ -80,9 +70,6 @@ export class AttendanceService {
 
     if (!user) return;
     if (!user.isActive) {
-<<<<<<< HEAD
-      await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
-=======
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
     // C-07: Verify attendance PIN
@@ -92,7 +79,6 @@ export class AttendanceService {
     const isPinValid = await verifyPassword(input.pin, user!.attendancePinHash!);
     if (!isPinValid) {
       await this.logAudit({ employeeId: input.employeeId, userId: user!.id, organizationId: user!.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'INVALID_PIN', ipAddress, userAgent });
->>>>>>> dev
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
@@ -114,10 +100,6 @@ export class AttendanceService {
     }
     const result = await this.performClockActionSafe(user.id, user.organizationId!, 'QR_SCAN');
 
-<<<<<<< HEAD
-    const result = await this.performClockActionSafe(user.id, user.organizationId!, 'QR_SCAN');
-=======
->>>>>>> dev
 
     await this.logAudit({
       employeeId: input.employeeId,
@@ -150,8 +132,6 @@ export class AttendanceService {
     if (!user.isActive) {
       await this.logAudit({ employeeId: input.employeeId, userId: user.id, organizationId: user.organizationId!, action: 'FAILED', method: 'MOBILE_CHECKIN', success: false, failureReason: 'ACCOUNT_INACTIVE', ipAddress, userAgent });
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
-<<<<<<< HEAD
-=======
     }
     // C-07: Verify attendance PIN
     if (!user.attendancePinHash) {
@@ -161,7 +141,6 @@ export class AttendanceService {
     if (!isPinValid) {
       await this.logAudit({ employeeId: input.employeeId, userId: user!.id, organizationId: user!.organizationId!, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'INVALID_PIN', ipAddress, userAgent });
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
->>>>>>> dev
     }
     const org = await prisma.organization.findUnique({
       where: { id: user.organizationId! },
@@ -528,12 +507,6 @@ export class AttendanceService {
     return { records, pagination: { total, limit, offset, hasMore: offset + records.length < total } };
   }
 
-<<<<<<< HEAD
-  /**
-   * List all attendance records (admin) â€” org-scoped
-   */
-=======
->>>>>>> dev
   async listAttendance(currentUser: JWTPayload, limit: number, offset: number, filters: { userId?: string; status?: string }) {
     const where: Record<string, unknown> = {};
 
@@ -681,52 +654,6 @@ export class AttendanceService {
     }
   }
 
-<<<<<<< HEAD
-
-  private async performClockActionSafe(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
-    return prisma.$transaction(async (tx) => {
-      const cooldownTime = new Date(Date.now() - SCAN_COOLDOWN_MINUTES * 60 * 1000);
-      const recentAction = await tx.attendanceRecord.findFirst({
-        where: { userId, OR: [{ checkInTime: { gte: cooldownTime } }, { checkOutTime: { gte: cooldownTime } }] },
-        orderBy: { updatedAt: 'desc' },
-      });
-      if (recentAction) {
-        const lastActionTime = recentAction.checkOutTime || recentAction.checkInTime;
-        const timeSince = Math.floor((Date.now() - lastActionTime.getTime()) / 1000);
-        const waitTime = SCAN_COOLDOWN_MINUTES * 60 - timeSince;
-        if (waitTime > 0) throw new ValidationError('Please wait before scanning again', 'COOLDOWN_ACTIVE');
-      }
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-      const todayCount = await tx.attendanceRecord.count({ where: { userId, checkInTime: { gte: todayStart, lte: todayEnd } } });
-      if (todayCount >= MAX_DAILY_SCANS) throw new ValidationError('Daily scan limit reached', 'DAILY_LIMIT_REACHED');
-      const openRecord = await tx.attendanceRecord.findFirst({ where: { userId, status: 'CHECKED_IN' } });
-      if (openRecord) {
-        const checkOutTime = new Date();
-        const durationMinutes = Math.floor((checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000);
-        const record = await tx.attendanceRecord.update({
-          where: { id: openRecord.id },
-          data: { checkOutTime, checkOutMethod: method, duration: durationMinutes, status: 'CHECKED_OUT' },
-          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-        });
-        return { action: 'CLOCK_OUT' as const, record };
-      } else {
-        const now = new Date();
-        const bs = adToBS(now);
-        const record = await tx.attendanceRecord.create({
-          data: { userId, organizationId, checkInMethod: method, status: 'CHECKED_IN', bsYear: bs.year, bsMonth: bs.month, bsDay: bs.day },
-          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-        });
-        this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => log.error({ err }, 'Late arrival check failed'));
-        return { action: 'CLOCK_IN' as const, record };
-      }
-    });
-  }
-
-  private async performClockAction(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
-    const openRecord = await prisma.attendanceRecord.findFirst({
-      where: { userId, status: 'CHECKED_IN' },
-=======
   // FIX C-11: Serializable transaction prevents duplicate CLOCK_IN race conditions
   private async performClockActionSafe(userId: string, organizationId: string, method: 'QR_SCAN' | 'MANUAL' | 'MOBILE_CHECKIN') {
     return prisma.$transaction(async (tx) => {
@@ -739,7 +666,6 @@ export class AttendanceService {
       const openRecord = await tx.attendanceRecord.findFirst({ where: { userId, status: 'CHECKED_IN' } });
       if (openRecord) { const checkOutTime = new Date(); const durationMinutes = Math.floor((checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000); const record = await tx.attendanceRecord.update({ where: { id: openRecord.id }, data: { checkOutTime, checkOutMethod: method, duration: durationMinutes, status: 'CHECKED_OUT' }, include: { user: { select: { firstName: true, lastName: true, employeeId: true } } } }); return { action: 'CLOCK_OUT' as const, record }; }
       else { const now = new Date(); const bs = adToBS(now); const record = await tx.attendanceRecord.create({ data: { userId, organizationId, checkInMethod: method, status: 'CHECKED_IN', bsYear: bs.year, bsMonth: bs.month, bsDay: bs.day }, include: { user: { select: { firstName: true, lastName: true, employeeId: true } } } }); this.checkAndNotifyLateArrival(userId, organizationId, now, record.id).catch(err => log.error({ err }, 'Late arrival check failed')); return { action: 'CLOCK_IN' as const, record }; }
->>>>>>> dev
     });
   }
 
@@ -827,127 +753,12 @@ export class AttendanceService {
       log.error({ err, data }, 'Failed to write audit log');
     }
   }
-<<<<<<< HEAD
-
-  /**
-   * Admin edits an attendance record
-   */
-  async editAttendance(recordId: string, input: { checkInTime?: string; checkOutTime?: string; note: string; markPresent?: boolean }, currentUser: JWTPayload) {
-    const record = await prisma.attendanceRecord.findFirst({
-      where: { id: recordId, organizationId: currentUser.organizationId! },
-    });
-
-    if (!record) {
-      throw new NotFoundError('Attendance record not found');
-    }
-
-    const updateData: any = {
-      modifiedBy: currentUser.userId,
-      modifiedAt: new Date(),
-      modificationNote: input.note,
-    };
-
-    if (!record.originalCheckIn) {
-      updateData.originalCheckIn = record.checkInTime;
-    }
-    if (!record.originalCheckOut && record.checkOutTime) {
-      updateData.originalCheckOut = record.checkOutTime;
-    }
-
-    if (input.checkInTime) {
-      updateData.checkInTime = new Date(input.checkInTime);
-    }
-
-    if (input.checkOutTime) {
-      updateData.checkOutTime = new Date(input.checkOutTime);
-      updateData.status = 'CHECKED_OUT';
-      const checkIn = input.checkInTime ? new Date(input.checkInTime) : record.checkInTime;
-      const checkOut = new Date(input.checkOutTime);
-      updateData.duration = Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60));
-    }
-
-    const updated = await prisma.attendanceRecord.update({
-      where: { id: recordId },
-      data: updateData,
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-    });
-
-    log.info({ recordId, adminId: currentUser.userId, note: input.note }, 'Attendance record edited by admin');
-    return updated;
-  }
-
-  /**
-   * Admin creates a manual present entry for an absent employee
-   */
-  async markPresent(input: { userId: string; date: string; checkInTime: string; checkOutTime?: string; note: string }, currentUser: JWTPayload) {
-    const employee = await prisma.user.findFirst({
-      where: { id: input.userId, organizationId: currentUser.organizationId },
-    });
-
-    if (!employee) {
-      throw new NotFoundError('Employee not found');
-    }
-
-    const dateStart = new Date(input.date);
-    dateStart.setHours(0, 0, 0, 0);
-    const dateEnd = new Date(input.date);
-    dateEnd.setHours(23, 59, 59, 999);
-
-    const existing = await prisma.attendanceRecord.findFirst({
-      where: {
-        userId: input.userId,
-        organizationId: currentUser.organizationId!,
-        checkInTime: { gte: dateStart, lte: dateEnd },
-        isActive: true,
-      },
-    });
-
-    if (existing) {
-      throw new ConflictError('Attendance record already exists for this date');
-    }
-
-    const checkIn = new Date(input.checkInTime);
-    const checkOut = input.checkOutTime ? new Date(input.checkOutTime) : null;
-    const duration = checkOut ? Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60)) : null;
-
-    const bs = adToBS(checkIn);
-
-    const record = await prisma.attendanceRecord.create({
-      data: {
-        userId: input.userId,
-        organizationId: currentUser.organizationId!,
-        checkInTime: checkIn,
-        checkOutTime: checkOut,
-        checkInMethod: 'MANUAL',
-        checkOutMethod: checkOut ? 'MANUAL' : undefined,
-        duration,
-        status: checkOut ? 'CHECKED_OUT' : 'CHECKED_IN',
-        isManualEntry: true,
-        modifiedBy: currentUser.userId,
-        modifiedAt: new Date(),
-        modificationNote: input.note,
-        notes: 'Manual entry: ' + input.note,
-        bsYear: bs.year,
-        bsMonth: bs.month,
-        bsDay: bs.day,
-      },
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
-    });
-
-    log.info({ userId: input.userId, adminId: currentUser.userId, date: input.date, note: input.note }, 'Employee marked present by admin');
-    return record;
-  }
-=======
->>>>>>> dev
 }
 
 export const attendanceService = new AttendanceService();
 
 
 
-<<<<<<< HEAD
-=======
 
 
 
->>>>>>> dev

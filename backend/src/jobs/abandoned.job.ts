@@ -76,6 +76,7 @@ export async function runAbandonedJob(): Promise<void> {
         await tx.subscriptionBillingLog.create({
           data: {
             subscriptionId: sub.id,
+            organizationId: sub.organizationId,
             event: 'EXPIRED_ABANDONED',
             note:  `Marked EXPIRED by system — suspended for ${daysSuspended} days (threshold: ${abandonedAfterDays} days). Suspended at: ${sub.suspendedAt?.toISOString().split('T')[0] ?? 'unknown'}`,
           },

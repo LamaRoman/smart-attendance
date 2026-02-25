@@ -26,8 +26,8 @@ export const paySettingsSchema = z.object({
 export const generatePayrollSchema = z.object({
   bsYear: z.coerce.number().int().min(2070).max(2090),
   bsMonth: z.coerce.number().int().min(1).max(12),
+  organizationId: z.string().optional(),
 });
-
 export const payrollRecordsQuerySchema = z.object({
   bsYear: z.coerce.number().int().min(2070).max(2090),
   bsMonth: z.coerce.number().int().min(1).max(12),

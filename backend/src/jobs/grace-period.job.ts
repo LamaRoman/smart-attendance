@@ -115,6 +115,7 @@ export async function runGracePeriodJob(): Promise<void> {
           await tx.subscriptionBillingLog.create({
             data: {
               subscriptionId: sub.id,
+              organizationId: sub.organizationId,
               event: 'DOWNGRADED_TO_STARTER',
               note: `Grace period expired — auto-downgraded to ${starterPlan.displayName} (${employeeCount} employees ≤ free threshold of ${freeThreshold})`,
             },
@@ -144,6 +145,7 @@ export async function runGracePeriodJob(): Promise<void> {
           await tx.subscriptionBillingLog.create({
             data: {
               subscriptionId: sub.id,
+              organizationId: sub.organizationId,
               event: 'SUSPENDED_GRACE_EXPIRED',
               note: `Grace period expired — subscription suspended (${employeeCount} employees > free threshold of ${freeThreshold}). Payment required to reactivate.`,
             },

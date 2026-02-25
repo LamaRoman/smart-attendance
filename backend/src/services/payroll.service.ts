@@ -504,7 +504,7 @@ export class PayrollService {
     const record = await prisma.payrollRecord.findFirst({
       where: {
         id: payrollRecordId,
-        ...(currentUser.role !== 'SUPER_ADMIN' && { organizationId: currentUser.organizationId }),
+        ...(currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
       },
     });
     if (!record) throw new NotFoundError('Payroll record not found');

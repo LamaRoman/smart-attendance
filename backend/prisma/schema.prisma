@@ -55,6 +55,7 @@ enum PayrollStatus {
   PROCESSED
   APPROVED
   PAID
+  NEEDS_RECALCULATION
 }
 
 enum LeaveType {
@@ -147,6 +148,7 @@ model User {
   id         String  @id @default(uuid())
   email      String  @unique
   password   String
+  attendancePinHash  String?
   firstName  String
   lastName   String
   employeeId String? @unique
@@ -737,6 +739,8 @@ model PricingPlan {
 
   // Relations
   subscriptions OrgSubscription[]
+
+  featureTotp  Boolean  @default(false)
 
   @@map("pricing_plans")
 }

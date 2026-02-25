@@ -79,6 +79,7 @@ export async function runTrialExpiryJob(): Promise<void> {
           await tx.subscriptionBillingLog.create({
             data: {
               subscriptionId: sub.id,
+              organizationId: sub.organizationId,
               event: 'GRACE_PERIOD_STARTED',
               note: `Trial ended — grace period of ${gracePeriodDays} days started. Grace ends: ${graceEndsAt.toISOString().split('T')[0]}`,
             },

@@ -55,18 +55,18 @@ export async function runBillingJob(): Promise<void> {
       const effectivePrice = sub.customPricePerEmployee !== null
         ? Number(sub.customPricePerEmployee)
         : sub.plan.pricePerEmployee;
-      const amountDue = effectivePrice * sub.currentEmployeeCount;
+      const amountDue = Number(effectivePrice) * sub.currentEmployeeCount;
 
       try {
         await emailService.sendBillingReminder({
-          to: sub.organization.email,
+          to: sub.organization.email ?? '',
           orgName: sub.organization.name,
           daysUntilBilling,
           amountDue,
           planName: sub.plan.displayName,
           billingDate: sub.nextBillingDate!,
           employeeCount: sub.currentEmployeeCount,
-          pricePerEmployee: effectivePrice,
+          pricePerEmployee: Number(effectivePrice),
         });
 
         await prisma.orgSubscription.update({
@@ -96,7 +96,7 @@ export async function runBillingJob(): Promise<void> {
       const effectivePrice = sub.customPricePerEmployee !== null
         ? Number(sub.customPricePerEmployee)
         : sub.plan.pricePerEmployee;
-      const amountDue = effectivePrice * sub.currentEmployeeCount;
+      const amountDue = Number(effectivePrice) * sub.currentEmployeeCount;
 
       await prisma.orgSubscription.update({
         where: { id: sub.id },
@@ -120,12 +120,12 @@ export async function runBillingJob(): Promise<void> {
 
       try {
         await emailService.sendPaymentDueNotice({
-          to: sub.organization.email,
+          to: sub.organization.email ?? '',
           orgName: sub.organization.name,
           amountDue,
           planName: sub.plan.displayName,
           employeeCount: sub.currentEmployeeCount,
-          pricePerEmployee: effectivePrice,
+          pricePerEmployee: Number(effectivePrice),
           gracePeriodDays,
         });
       } catch (err) {
@@ -170,7 +170,7 @@ export async function runBillingJob(): Promise<void> {
 
       try {
         await emailService.sendSuspensionNotice({
-          to: sub.organization.email,
+          to: sub.organization.email ?? '',
           orgName: sub.organization.name,
           gracePeriodDays,
         });

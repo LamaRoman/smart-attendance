@@ -12,20 +12,6 @@ import { Request, Response, NextFunction } from 'express';
 import { PricingPlan } from '@prisma/client';
 import { getOrgPlan, PlanError } from '../services/plan.service';
 
-// â”€â”€ Assumes your auth middleware sets req.user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Adjust the type to match your actual User type
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        organizationId: string | null;
-        role: string;
-      };
-    }
-  }
-}
-
 // â”€â”€ Feature labels â€” shown in error messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const FEATURE_LABELS: Partial<Record<keyof PricingPlan, string>> = {
   featureLeave:            'Leave management',
@@ -172,3 +158,4 @@ export async function requireActivePlan(
     next(error);
   }
 }
+

@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma';
+﻿import prisma from '../lib/prisma';
 import { hashPassword } from '../lib/password';
 import { Role } from '@prisma/client';
 import { NotFoundError, ConflictError } from '../lib/errors';
@@ -36,9 +36,9 @@ export class SuperAdminService {
 
     const roleMap: Record<string, { employees: number; admins: number }> = {};
     for (const row of roleCounts) {
-      if (!roleMap[row.organizationId]) roleMap[row.organizationId] = { employees: 0, admins: 0 };
-      if (row.role === 'EMPLOYEE') roleMap[row.organizationId].employees = row._count._all;
-      if (row.role === 'ORG_ADMIN') roleMap[row.organizationId].admins = row._count._all;
+      if (!roleMap[row.organizationId!]) roleMap[row.organizationId!] = { employees: 0, admins: 0 };
+      if (row.role === 'EMPLOYEE') roleMap[row.organizationId!].employees = row._count._all;
+      if (row.role === 'ORG_ADMIN') roleMap[row.organizationId!].admins = row._count._all;
     }
 
     return organizations.map((org) => ({

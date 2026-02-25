@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import {Role} from '@prisma/client'
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireFeature } from "../middleware/feature.guard";
 import multer from 'multer';
@@ -44,7 +45,7 @@ router.post(
       const document = await uploadDocument({
         userId: req.params.id,
         uploaderId: req.user!.userId,
-        uploaderRole: req.user!.role,
+        uploaderRole: req.user!.role as Role,
         uploaderOrgId: req.user!.organizationId!,
         file: req.file,
         documentTypeId: req.body.documentTypeId,
@@ -65,7 +66,7 @@ router.get('/documents/user/:id', authenticate, async (req: AuthRequest, res: Re
     const documents = await listDocuments({
       userId: req.params.id,
       requesterId: req.user!.userId,
-      requesterRole: req.user!.role,
+      requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
     });
     return res.json(documents);
@@ -80,7 +81,7 @@ router.get('/documents/:id/download', authenticate, async (req: AuthRequest, res
     const { filePath, originalName, mimeType } = await getDocumentForDownload({
       documentId: req.params.id,
       requesterId: req.user!.userId,
-      requesterRole: req.user!.role,
+      requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
     });
 
@@ -98,7 +99,7 @@ router.delete('/documents/:id', authenticate, async (req: AuthRequest, res: Resp
     const result = await deleteDocument({
       documentId: req.params.id,
       requesterId: req.user!.userId,
-      requesterRole: req.user!.role,
+      requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
     });
     return res.json(result);

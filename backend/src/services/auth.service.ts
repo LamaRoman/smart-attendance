@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma';
+﻿import prisma from '../lib/prisma';
 import { generateToken, hashToken, getTokenExpiration, JWTPayload } from '../lib/jwt';
 import { verifyPassword } from '../lib/password';
 import { AuthenticationError } from '../lib/errors';
@@ -50,6 +50,7 @@ export class AuthService {
     // Generate JWT with organizationId included
     const token = generateToken({
       userId: user.id,
+      id: user.id,
       email: user.email,
       role: user.role,
       organizationId: user.organizationId,
@@ -160,7 +161,7 @@ export class AuthService {
   }
 
   /**
-   * Change attendance PIN (self-service — requires current PIN)
+   * Change attendance PIN (self-service â€” requires current PIN)
    */
   async changeAttendancePin(userId: string, currentPin: string, newPin: string) {
     const user = await prisma.user.findUnique({
@@ -180,3 +181,4 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
+
