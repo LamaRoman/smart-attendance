@@ -34,7 +34,7 @@ const STATUS_META: Record<string, { label: string; dot: string; badge: string; i
   ACTIVE:    { label: 'Active',    dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle },
   TRIALING:  { label: 'Trial',     dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200',          icon: Clock },
   EXPIRED:   { label: 'Expired',   dot: 'bg-red-400',     badge: 'bg-red-50 text-red-700 border-red-200',             icon: XCircle },
-  GRACE_PERIOD: { label: 'Grace Period', badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-400' },
+  GRACE_PERIOD: { label: 'Grace Period', badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-400', icon: CheckCircle },
   SUSPENDED: { label: 'Suspended', dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700 border-orange-200',    icon: AlertTriangle },
   CANCELLED: { label: 'Cancelled', dot: 'bg-slate-400',   badge: 'bg-slate-100 text-slate-600 border-slate-200',      icon: XCircle },
 };

@@ -70,7 +70,7 @@ const StatCard = ({ icon: Icon, label, value, sublabel, color }: { icon: typeof 
   <div className="bg-white rounded-2xl p-6 border border-slate-200 hover:border-slate-300 transition-all hover:shadow-lg hover:-translate-y-0.5">
     <div className="flex items-start justify-between mb-4">
       <div className={`p-3 rounded-xl bg-gradient-to-br ${color} shadow-lg shadow-${color.split(' ')[1]}/20`}>
-        <Icon className="w-5 h-5 text-white" />
+        <Icon className="w-5 h-5 text-white" iconNode={[]} />
       </div>
       {sublabel && (
         <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-1 rounded-full">

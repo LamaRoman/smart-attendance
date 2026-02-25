@@ -337,7 +337,7 @@ export default function SuperAdminPage() {
                     {/* Feature pills */}
                     <div className="col-span-2 flex items-center gap-1.5">
                       {FEATURE_CONFIG.map((f) => {
-                        const enabled = (org as Record<string, unknown>)[f.key] as boolean;
+                        const enabled = (org as unknown as Record<string, unknown>)[f.key] as boolean;
                         return (
                           <span key={f.key} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${enabled ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}>
                             <f.icon className="w-2.5 h-2.5" />
@@ -412,7 +412,7 @@ export default function SuperAdminPage() {
                           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Features</p>
                           <div className="space-y-2 mb-4">
                             {FEATURE_CONFIG.map((f) => {
-                              const enabled = (org as Record<string, unknown>)[f.key] as boolean;
+                              const enabled = (org as unknown as Record<string, unknown>)[f.key] as boolean;
                               return (
                                 <button
                                   key={f.key}

@@ -51,7 +51,7 @@ export default function NotificationBell() {
   const loadUnreadCount = async () => {
     const res = await api.get('/api/notifications/count');
     if (res.data) {
-      setUnreadCount(res.data.count);
+      setUnreadCount((res.data as any).count);
     }
   };
 
@@ -59,7 +59,7 @@ export default function NotificationBell() {
     setLoading(true);
     const res = await api.get('/api/notifications/unread');
     if (res.data) {
-      setNotifications(res.data);
+      setNotifications(res.data as any);
     }
     setLoading(false);
   };
