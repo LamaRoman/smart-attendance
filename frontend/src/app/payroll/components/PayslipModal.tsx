@@ -83,16 +83,16 @@ export default function PayslipModal({ record, isNp, isStarter, onClose, onError
 
         <div className="p-5 space-y-4">
           {/* Attendance */}
-          <Section label={isNp ? 'à¤‰à¤ªà¤¸à¥à¤¥à¤¿à¤¤à¤¿' : 'Attendance'}>
+          <Section label={isNp ? 'à¤‰à¤ªस्थिति' : 'Attendance'}>
             <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-              <StatBox label={isNp ? 'à¤•à¤¾à¤°à¥à¤¯ à¤¦à¤¿à¤¨' : 'Working'} value={record.workingDaysInMonth} />
+              <StatBox label={isNp ? 'à¤•à¤¾à¤°à¥à¤¯ दिन' : 'Working'} value={record.workingDaysInMonth} />
               <StatBox label={isNp ? 'à¤‰à¤ªà¤¸à¥à¤¥à¤¿à¤¤' : 'Present'} value={record.daysPresent} className="bg-emerald-50" valueClass="text-emerald-700" />
               <StatBox label={isNp ? 'à¤…à¤¨à¥à¤ªà¤¸à¥à¤¥à¤¿à¤¤' : 'Absent'} value={record.daysAbsent} className="bg-rose-50" valueClass="text-rose-700" />
               {(record as any).paidLeaveDays > 0 && (
                 <StatBox label={isNp ? 'à¤¸à¤¶à¥à¤²à¥à¤• à¤¬à¤¿à¤¦à¤¾' : 'Paid leave'} value={(record as any).paidLeaveDays} className="bg-blue-50" valueClass="text-blue-700" />
               )}
               {(record as any).unpaidLeaveDays > 0 && (
-                <StatBox label={isNp ? 'à¤¬à¤¿à¤¨à¤¾ à¤¤à¤²à¤¬ à¤¬à¤¿à¤¦à¤¾' : 'Unpaid leave'} value={(record as any).unpaidLeaveDays} className="bg-amber-50" valueClass="text-amber-700" />
+                <StatBox label={isNp ? 'बिना तलब बिदा' : 'Unpaid leave'} value={(record as any).unpaidLeaveDays} className="bg-amber-50" valueClass="text-amber-700" />
               )}
             </div>
           </Section>
@@ -102,10 +102,10 @@ export default function PayslipModal({ record, isNp, isStarter, onClose, onError
             <div className="space-y-1 text-xs">
               {([
                 [isNp ? 'à¤†à¤§à¤¾à¤°à¤­à¥‚à¤¤ à¤¤à¤²à¤¬' : 'Basic salary',     record.basicSalary],
-                [isNp ? 'à¤®à¤¹à¤à¤—à¥€ à¤­à¤¤à¥à¤¤à¤¾'  : 'DA',              record.dearnessAllowance],
-                [isNp ? 'à¤¯à¤¾à¤¤à¤¾à¤¯à¤¾à¤¤ à¤­à¤¤à¥à¤¤à¤¾': 'Transport',        record.transportAllowance],
-                [isNp ? 'à¤šà¤¿à¤•à¤¿à¤¤à¥à¤¸à¤¾ à¤­à¤¤à¥à¤¤à¤¾': 'Medical',        record.medicalAllowance],
-                [isNp ? 'à¤…à¤¨à¥à¤¯ à¤­à¤¤à¥à¤¤à¤¾'   : 'Other',           record.otherAllowances],
+                [isNp ? 'à¤®à¤¹à¤à¤—à¥€ भत्ता'  : 'DA',              record.dearnessAllowance],
+                [isNp ? 'यातायात भत्ता': 'Transport',        record.transportAllowance],
+                [isNp ? 'à¤šà¤¿à¤•à¤¿à¤¤à¥à¤¸à¤¾ भत्ता': 'Medical',        record.medicalAllowance],
+                [isNp ? 'à¤…à¤¨à¥à¤¯ भत्ता'   : 'Other',           record.otherAllowances],
                 [isNp ? 'à¤“à¤­à¤°à¤Ÿà¤¾à¤‡à¤®'      : 'Overtime',        record.overtimePay],
                 ...(record.dashainBonus > 0
                   ? [[isNp ? 'à¤¦à¤¶à¥ˆà¤‚ à¤¬à¥‹à¤¨à¤¸' : 'Dashain bonus', record.dashainBonus]]
@@ -128,7 +128,7 @@ export default function PayslipModal({ record, isNp, isStarter, onClose, onError
           <Section label={isNp ? 'à¤•à¤Ÿà¥Œà¤¤à¥€' : 'Deductions'}>
             <div className="space-y-1 text-xs">
               {([
-                [isNp ? 'à¤…à¤¨à¥à¤ªà¤¸à¥à¤¥à¤¿à¤¤à¤¿ à¤•à¤Ÿà¥Œà¤¤à¥€' : 'Absence deduction', record.absenceDeduction],
+                [isNp ? 'à¤…à¤¨à¥à¤ªस्थिति à¤•à¤Ÿà¥Œà¤¤à¥€' : 'Absence deduction', record.absenceDeduction],
                 [`SSF (${isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€' : 'Employee'})`,        record.employeeSsf],
                 [`PF (${isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€' : 'Employee'})`,         record.employeePf],
                 ['CIT',                                             record.citDeduction],
@@ -183,7 +183,7 @@ export default function PayslipModal({ record, isNp, isStarter, onClose, onError
             </div>
             {record.isMarried && (
               <p className="text-[10px] text-slate-500 mt-1">
-                {isNp ? '* à¤µà¤¿à¤µà¤¾à¤¹à¤¿à¤¤ à¤•à¤° à¤¸à¥à¤²à¥à¤¯à¤¾à¤¬ à¤²à¤¾à¤—à¥‚' : '* Married tax slab applied'}
+                {isNp ? '* विवाहित à¤•à¤° à¤¸à¥à¤²à¥à¤¯à¤¾à¤¬ à¤²à¤¾à¤—à¥‚' : '* Married tax slab applied'}
               </p>
             )}
           </div>

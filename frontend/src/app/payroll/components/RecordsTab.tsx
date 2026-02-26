@@ -121,13 +121,13 @@ export default function RecordsTab({
                 <tr className="border-b border-slate-100 bg-slate-50/50">
                   {[
                     { label: isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€' : 'Employee',   align: 'left'   },
-                    { label: isNp ? 'à¤¦à¤¿à¤¨'       : 'Days',       align: 'center' },
+                    { label: isNp ? 'दिन'       : 'Days',       align: 'center' },
                     { label: isNp ? 'à¤•à¥à¤²'       : 'Gross',      align: 'right'  },
                     { label: 'SSF',                              align: 'right'  },
                     { label: 'PF',                               align: 'right'  },
                     { label: 'TDS',                              align: 'right'  },
                     { label: isNp ? 'à¤–à¥à¤¦'       : 'Net',        align: 'right'  },
-                    { label: isNp ? 'à¤¸à¥à¤¥à¤¿à¤¤à¤¿'    : 'Status',     align: 'center' },
+                    { label: isNp ? 'स्थिति'    : 'Status',     align: 'center' },
                     { label: '',                                 align: 'center' },
                   ].map((h, i) => (
                     <th

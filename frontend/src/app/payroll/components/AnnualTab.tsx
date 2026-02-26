@@ -41,7 +41,7 @@ export default function AnnualTab({
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="text-sm font-semibold text-slate-900">
-            {isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤•à¤° à¤µà¤¿à¤µà¤°à¤£' : 'Annual tax & SSF report'}
+            {isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤•à¤° विवरण' : 'Annual tax & SSF report'}
           </h2>
           <div className="flex items-center gap-3 flex-wrap">
             <select
@@ -183,7 +183,7 @@ function AnnualTable({ data, isNp }: { data: any; isNp: boolean }) {
             <tr className="border-b border-slate-100 bg-slate-50/50">
               {[
                 { label: isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€'       : 'Employee',     align: 'left'   },
-                { label: isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾'           : 'Months',       align: 'center' },
+                { label: isNp ? 'महिना'           : 'Months',       align: 'center' },
                 { label: isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤†à¤§à¤¾à¤°à¤­à¥‚à¤¤': 'Annual basic',  align: 'right'  },
                 { label: isNp ? 'à¤µà¤¾à¤°à¥à¤·à¤¿à¤• à¤•à¥à¤²'    : 'Annual gross',  align: 'right'  },
                 { label: 'SSF',                                      align: 'right'  },
@@ -210,7 +210,7 @@ function AnnualTable({ data, isNp }: { data: any; isNp: boolean }) {
                   </div>
                   <div className="text-xs text-slate-400">
                     {e.employee.employeeId}
-                    {e.isMarried ? ` â€¢ ${isNp ? 'à¤µà¤¿à¤µà¤¾à¤¹à¤¿à¤¤' : 'Married'}` : ''}
+                    {e.isMarried ? ` â€¢ ${isNp ? 'विवाहित' : 'Married'}` : ''}
                   </div>
                 </td>
                 <td className="py-3 px-4 text-center text-sm text-slate-600">{e.monthsProcessed}</td>

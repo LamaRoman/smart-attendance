@@ -288,7 +288,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
         <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
           <p className="text-xs text-amber-700">
             {isNp
-              ? 'à¤…à¤¹à¤¿à¤²à¥‡à¤¸à¤®à¥à¤® à¤•à¥à¤¨à¥ˆ à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤ªà¥à¤°à¤•à¤¾à¤° à¤¸à¥‡à¤Ÿ à¤—à¤°à¤¿à¤à¤•à¥‹ à¤›à¥ˆà¤¨à¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤•à¤²à¤¾à¤ˆ à¤¸à¤®à¥à¤ªà¤°à¥à¤• à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥à¥¤'
+              ? 'à¤…à¤¹à¤¿à¤²à¥‡सम्म à¤•à¥à¤¨à¥ˆ à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤ªà¥à¤°à¤•à¤¾à¤° à¤¸à¥‡à¤Ÿ à¤—à¤°à¤¿à¤à¤•à¥‹ à¤›à¥ˆà¤¨à¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤•à¤²à¤¾à¤ˆ à¤¸à¤®à¥à¤ªà¤°à¥à¤• à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥à¥¤'
               : 'No document types have been configured yet. Please ask your admin to set them up in Settings.'}
           </p>
         </div>
@@ -359,7 +359,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">
-                {isNp ? 'à¤µà¤¿à¤µà¤°à¤£' : 'Description'}<span className="text-slate-400 ml-1">({isNp ? 'à¤à¤šà¥à¤›à¤¿à¤•' : 'optional'})</span>
+                {isNp ? 'विवरण' : 'Description'}<span className="text-slate-400 ml-1">({isNp ? 'à¤à¤šà¥à¤›à¤¿à¤•' : 'optional'})</span>
               </label>
               <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={isNp ? 'à¤¨à¥‹à¤Ÿ à¤¥à¤ªà¥à¤¨à¥à¤¹à¥‹à¤¸à¥...' : 'Add a note...'} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-200" />
             </div>

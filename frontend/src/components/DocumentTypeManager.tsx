@@ -226,7 +226,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-700">
               {editingId
-                ? (isNp ? 'à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤ªà¥à¤°à¤•à¤¾à¤° à¤¸à¤®à¥à¤ªà¤¾à¤¦à¤¨' : 'Edit Document Type')
+                ? (isNp ? 'à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤ªà¥à¤°à¤•à¤¾à¤° सम्पादन' : 'Edit Document Type')
                 : (isNp ? 'à¤¨à¤¯à¤¾à¤ à¤•à¤¾à¤—à¤œà¤¾à¤¤ à¤ªà¥à¤°à¤•à¤¾à¤°' : 'New Document Type')}
             </span>
             <button onClick={resetForm} className="p-1 hover:bg-slate-100 rounded-md transition-colors">
@@ -265,7 +265,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
 
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">
-              {isNp ? 'à¤µà¤¿à¤µà¤°à¤£' : 'Description'}
+              {isNp ? 'विवरण' : 'Description'}
             </label>
             <input
               type="text"
@@ -395,7 +395,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
                 <button
                   onClick={() => startEdit(t)}
                   className="p-1.5 hover:bg-slate-100 rounded-md transition-colors"
-                  title={isNp ? 'à¤¸à¤®à¥à¤ªà¤¾à¤¦à¤¨' : 'Edit'}
+                  title={isNp ? 'सम्पादन' : 'Edit'}
                 >
                   <Pencil className="w-3.5 h-3.5 text-slate-400" />
                 </button>

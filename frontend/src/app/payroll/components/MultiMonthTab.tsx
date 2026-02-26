@@ -53,11 +53,11 @@ export default function MultiMonthTab({
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold text-slate-900 mb-1">
-              {isNp ? 'à¤¬à¤¹à¥-à¤®à¤¹à¤¿à¤¨à¤¾ à¤¤à¤²à¤¬ à¤¦à¥ƒà¤¶à¥à¤¯' : 'Multi-Month Salary View'}
+              {isNp ? 'à¤¬à¤¹à¥-महिना à¤¤à¤²à¤¬ à¤¦à¥ƒà¤¶à¥à¤¯' : 'Multi-Month Salary View'}
             </h2>
             <p className="text-xs text-slate-500">
               {isNp
-                ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€à¤¹à¤°à¥‚à¤•à¥‹ à¤§à¥‡à¤°à¥ˆ à¤®à¤¹à¤¿à¤¨à¤¾à¤•à¥‹ à¤¤à¤²à¤¬ à¤à¤•à¥ˆ à¤ªà¤Ÿà¤• à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥'
+                ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€à¤¹à¤°à¥‚à¤•à¥‹ à¤§à¥‡à¤°à¥ˆ महिनाà¤•à¥‹ à¤¤à¤²à¤¬ à¤à¤•à¥ˆ à¤ªà¤Ÿà¤• à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥'
                 : 'View salary across multiple months'}
             </p>
           </div>
@@ -71,7 +71,7 @@ export default function MultiMonthTab({
               onMonthChange={onSetFromMonth}
             />
             <MonthRangeSelector
-              label={isNp ? 'à¤¸à¤®à¥à¤®' : 'To'}
+              label={isNp ? 'सम्म' : 'To'}
               year={multiToYear}
               month={multiToMonth}
               isNp={isNp}
@@ -178,11 +178,11 @@ export default function MultiMonthTab({
                 <span className="text-2xl">ðŸ“…</span>
               </div>
               <h3 className="text-sm font-bold text-slate-900 mb-1">
-                {isNp ? 'à¤¬à¤¹à¥-à¤®à¤¹à¤¿à¤¨à¤¾ à¤¤à¤²à¤¬ à¤¦à¥ƒà¤¶à¥à¤¯' : 'Multi-Month Salary View'}
+                {isNp ? 'à¤¬à¤¹à¥-महिना à¤¤à¤²à¤¬ à¤¦à¥ƒà¤¶à¥à¤¯' : 'Multi-Month Salary View'}
               </h3>
               <p className="text-xs text-slate-500 mb-4">
                 {isNp
-                  ? 'à¤à¤•à¥ˆ à¤ªà¤Ÿà¤• à¤§à¥‡à¤°à¥ˆ à¤®à¤¹à¤¿à¤¨à¤¾à¤•à¥‹ à¤¤à¤²à¤¬ à¤¤à¥à¤²à¤¨à¤¾ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥ à¤° CSV à¤¨à¤¿à¤°à¥à¤¯à¤¾à¤¤ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥à¥¤'
+                  ? 'à¤à¤•à¥ˆ à¤ªà¤Ÿà¤• à¤§à¥‡à¤°à¥ˆ महिनाà¤•à¥‹ à¤¤à¤²à¤¬ à¤¤à¥à¤²à¤¨à¤¾ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥ à¤° CSV à¤¨à¤¿à¤°à¥à¤¯à¤¾à¤¤ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥à¥¤'
                   : 'Compare salaries across months side-by-side and export to CSV for payroll audits.'}
               </p>
               <button
@@ -303,7 +303,7 @@ function DataTable({
                       Rs. {fmt(emp.totals.netSalary)}
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      {emp.totals.monthsProcessed} {isNp ? 'à¤®à¤¹à¤¿à¤¨à¤¾' : 'months'}
+                      {emp.totals.monthsProcessed} {isNp ? 'महिना' : 'months'}
                     </div>
                   </td>
                 </tr>
