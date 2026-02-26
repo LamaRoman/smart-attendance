@@ -38,6 +38,16 @@ import documentTypeRoutes from './routes/documentTypes';
 import documentRoutes from './routes/documents';
 
 const app = express();
+app.set('trust proxy',1);
+// Redirect HTTP to HTTPS in production
+if (config.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] !== 'https') {
+      return res.redirect(301, `https://${req.hostname}${req.url}`);
+    }
+    next();
+  });
+}
 
 // ============================================================
 // Security Middleware
