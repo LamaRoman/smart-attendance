@@ -37,7 +37,7 @@ export default function AnnualTab({
 
   return (
     <div className="space-y-6">
-      {/* Filter card â€” always visible, no blur */}
+      {/* Filter card -- always visible, no blur */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="text-sm font-semibold text-slate-900">
@@ -61,7 +61,7 @@ export default function AnnualTab({
                 : isNp ? 'à¤°à¤¿à¤ªà¥‹à¤°à¥à¤Ÿ à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Load report'}
             </button>
 
-            {/* FIX (MEDIUM): CSV button always rendered â€” disabled with PRO badge on Starter */}
+            {/* FIX (MEDIUM): CSV button always rendered -- disabled with PRO badge on Starter */}
             {annualData && (
               <button
                 disabled={isStarter}
@@ -91,7 +91,7 @@ export default function AnnualTab({
         <EmptyCard isNp={isNp} />
       ) : null}
 
-      {/* Blurred skeleton preview for Starter â€” shown when no real data loaded */}
+      {/* Blurred skeleton preview for Starter -- shown when no real data loaded */}
       {isStarter && !annualData && (
         <div className="relative rounded-xl overflow-hidden border border-slate-200">
           {/* Skeleton table */}
@@ -170,7 +170,7 @@ export default function AnnualTab({
   );
 }
 
-/* â”€â”€ Annual data table â”€â”€ */
+/* --€--€ Annual data table --€--€ */
 function AnnualTable({ data, isNp }: { data: any; isNp: boolean }) {
   const sum = (key: string) =>
     data.employees.reduce((s: number, e: any) => s + (e[key] || 0), 0);
@@ -210,7 +210,7 @@ function AnnualTable({ data, isNp }: { data: any; isNp: boolean }) {
                   </div>
                   <div className="text-xs text-slate-400">
                     {e.employee.employeeId}
-                    {e.isMarried ? ` â€¢ ${isNp ? 'विवाहित' : 'Married'}` : ''}
+                    {e.isMarried ? ` --¢ ${isNp ? 'विवाहित' : 'Married'}` : ''}
                   </div>
                 </td>
                 <td className="py-3 px-4 text-center text-sm text-slate-600">{e.monthsProcessed}</td>

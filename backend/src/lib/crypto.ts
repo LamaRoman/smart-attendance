@@ -3,7 +3,7 @@ import { config } from '../config';
 
 // ============================================================
 // QR Token Generation & Verification
-// Uses QR_SECRET â€” completely separate from JWT_SECRET
+// Uses QR_SECRET -- completely separate from JWT_SECRET
 // ============================================================
 
 // Generate a random token for QR code
@@ -28,7 +28,7 @@ export function verifyQRSignature(token: string, signature: string): boolean {
       Buffer.from(expectedSignature)
     );
   } catch {
-    // Buffers of different lengths will throw â€” means signature is invalid
+    // Buffers of different lengths will throw -- means signature is invalid
     return false;
   }
 }

@@ -15,7 +15,7 @@ import {
   ShieldOff,
 } from 'lucide-react';
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€--€ Types --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 interface DocType {
   id: string;
@@ -34,7 +34,7 @@ interface DocumentTypeManagerProps {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
-// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€--€ Component --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTypeManagerProps) {
   const isNp = language === 'NEPALI';
@@ -56,7 +56,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // â”€â”€ Fetch â”€â”€
+  // --€--€ Fetch --€--€
   const fetchTypes = useCallback(async () => {
     try {
       setLoading(true);
@@ -79,7 +79,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
     }
   }, [error, success]);
 
-  // â”€â”€ Form helpers â”€â”€
+  // --€--€ Form helpers --€--€
   const resetForm = () => {
     setShowForm(false);
     setEditingId(null);
@@ -98,7 +98,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
     setShowForm(true);
   };
 
-  // â”€â”€ Save (create or update) â”€â”€
+  // --€--€ Save (create or update) --€--€
   const handleSave = async () => {
     if (!formName.trim()) {
       setError(isNp ? 'à¤¨à¤¾à¤® à¤†à¤µà¤¶à¥à¤¯à¤• à¤›' : 'Name is required');
@@ -144,7 +144,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
     }
   };
 
-  // â”€â”€ Toggle active â”€â”€
+  // --€--€ Toggle active --€--€
   const handleToggleActive = async (t: DocType) => {
     try {
       const res = await fetch(`${API_URL}/api/org/document-types/${t.id}`, {
@@ -160,7 +160,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
     }
   };
 
-  // â”€â”€ Delete â”€â”€
+  // --€--€ Delete --€--€
   const handleDelete = async (id: string) => {
     try {
       const res = await fetch(`${API_URL}/api/org/document-types/${id}`, {
@@ -180,7 +180,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
     }
   };
 
-  // â”€â”€ Render â”€â”€
+  // --€--€ Render --€--€
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -327,7 +327,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
           </p>
           <p className="text-xs text-slate-300 mt-1">
             {isNp
-              ? '"à¤¨à¤¯à¤¾à¤ à¤ªà¥à¤°à¤•à¤¾à¤°" à¤¥à¤¿à¤šà¥à¤¨à¥à¤¹à¥‹à¤¸à¥ â€” à¤œà¤¸à¥à¤¤à¥ˆ à¤¨à¤¾à¤—à¤°à¤¿à¤•à¤¤à¤¾, à¤ªà¥à¤¯à¤¾à¤¨ à¤•à¤¾à¤°à¥à¤¡, à¤®à¥‡à¤¡à¤¿à¤•à¤² à¤°à¤¿à¤ªà¥‹à¤°à¥à¤Ÿ'
+              ? '"à¤¨à¤¯à¤¾à¤ à¤ªà¥à¤°à¤•à¤¾à¤°" à¤¥à¤¿à¤šà¥à¤¨à¥à¤¹à¥‹à¤¸à¥ -- à¤œà¤¸à¥à¤¤à¥ˆ à¤¨à¤¾à¤—à¤°à¤¿à¤•à¤¤à¤¾, à¤ªà¥à¤¯à¤¾à¤¨ à¤•à¤¾à¤°à¥à¤¡, à¤®à¥‡à¤¡à¤¿à¤•à¤² à¤°à¤¿à¤ªà¥‹à¤°à¥à¤Ÿ'
               : 'Click "Add Type" to create ones like Citizenship, PAN Card, Medical Report'}
           </p>
         </div>

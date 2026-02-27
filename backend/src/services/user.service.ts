@@ -30,7 +30,7 @@ const USER_SELECT = {
 export class UserService {
 
   /**
-   * List users â€” scoped to organization
+   * List users -- scoped to organization
    */
   async listUsers(currentUser: JWTPayload) {
     const where: Record<string, unknown> = {};
@@ -47,7 +47,7 @@ export class UserService {
   }
 
   /**
-   * Create user â€” assigned to current user's organization
+   * Create user -- assigned to current user's organization
    */
   async createUser(input: CreateUserInput, currentUser: JWTPayload) {
     if ((input as any).role === 'SUPER_ADMIN') {
@@ -68,8 +68,8 @@ export class UserService {
       throw new Error('No organization assigned to current user');
     }
 
-    // â”€â”€ Employee cap check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Super admin bypasses cap â€” they can always create users
+    // --€--€ Employee cap check --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+    // Super admin bypasses cap -- they can always create users
     if (organizationId && currentUser.role !== 'SUPER_ADMIN') {
       const subscription = await prisma.orgSubscription.findUnique({
         where: { organizationId },
@@ -85,7 +85,7 @@ export class UserService {
         }
       }
     }
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
     const plainPin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
     const attendancePinHash = await hashPassword(plainPin);
@@ -117,7 +117,7 @@ export class UserService {
 
     // FIX C-12: Never send the plaintext password in email.
     // Instead send a password-reset link so the employee sets their own password.
-    // The admin-typed password is already hashed and stored â€” it is NOT sent.
+    // The admin-typed password is already hashed and stored -- it is NOT sent.
     try {
       const org = await prisma.organization.findUnique({
         where: { id: organizationId! },
@@ -143,7 +143,7 @@ export class UserService {
   }
 
   /**
-   * Update user â€” with org isolation check and last-admin guard
+   * Update user -- with org isolation check and last-admin guard
    */
   async updateUser(userId: string, input: UpdateUserInput, currentUser: JWTPayload) {
     const existingUser = await prisma.user.findUnique({
@@ -164,7 +164,7 @@ export class UserService {
 
     // FIX C-13: Before downgrading an ORG_ADMIN to EMPLOYEE, ensure at least
     // one other ORG_ADMIN remains in the org. Without this check, an org can
-    // end up with zero admins â€” making payroll, leave approval, and user
+    // end up with zero admins -- making payroll, leave approval, and user
     // management permanently inaccessible.
     if (
       input.role &&
@@ -183,7 +183,7 @@ export class UserService {
 
       if (adminCount < 1) {
         throw new ConflictError(
-          'Cannot demote this admin â€” they are the last admin in the organization. Assign another admin first.'
+          'Cannot demote this admin -- they are the last admin in the organization. Assign another admin first.'
         );
       }
     }
@@ -209,7 +209,7 @@ export class UserService {
 
     log.info({ userId, updatedFields: Object.keys(updateData) }, 'User updated');
 
-    // Sync employee count if active status changed â€” affects billing
+    // Sync employee count if active status changed -- affects billing
     const activeStatusChanged = input.isActive !== undefined && input.isActive !== existingUser.isActive;
     if (activeStatusChanged && existingUser.organizationId) {
       await this.syncEmployeeCount(existingUser.organizationId);
@@ -253,7 +253,7 @@ export class UserService {
       throw new NotFoundError('User not found');
     }
 
-    // FIX H-12: Last-admin guard on deletion â€” same logic as updateUser demotion.
+    // FIX H-12: Last-admin guard on deletion -- same logic as updateUser demotion.
     // Without this, deleting the last admin locks the org out of all admin functions.
     if (user.role === 'ORG_ADMIN' && user.organizationId) {
       const adminCount = await prisma.user.count({
@@ -267,14 +267,14 @@ export class UserService {
 
       if (adminCount < 1) {
         throw new ConflictError(
-          'Cannot delete this admin â€” they are the last admin in the organization. Assign another admin first.'
+          'Cannot delete this admin -- they are the last admin in the organization. Assign another admin first.'
         );
       }
     }
 
     // FIX H-10: Soft delete instead of hard delete.
     // Hard deleting a user cascades and permanently removes payroll records,
-    // attendance history, leave records, and audit logs â€” violating legal
+    // attendance history, leave records, and audit logs -- violating legal
     // data retention requirements for financial records.
     // Instead: deactivate the account and record the deletion timestamp.
     await prisma.user.update({
@@ -322,7 +322,7 @@ export class UserService {
 
       log.info({ organizationId, count }, 'Employee count synced');
     } catch (err) {
-      // Non-fatal â€” log and continue. Never block user operations for a count sync failure.
+      // Non-fatal -- log and continue. Never block user operations for a count sync failure.
       log.error({ err, organizationId }, 'Failed to sync employee count');
     }
   }
@@ -343,7 +343,7 @@ export class UserService {
       const existing = await prisma.user.findFirst({
         where: {
           employeeId,
-          // Scope to org if available â€” different orgs can share the same number
+          // Scope to org if available -- different orgs can share the same number
           ...(organizationId ? { organizationId } : {}),
         },
       });

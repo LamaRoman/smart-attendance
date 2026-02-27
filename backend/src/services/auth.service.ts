@@ -161,7 +161,7 @@ export class AuthService {
   }
 
   /**
-   * Change attendance PIN (self-service â€” requires current PIN)
+   * Change attendance PIN (self-service -- requires current PIN)
    */
   async changeAttendancePin(userId: string, currentPin: string, newPin: string) {
     const user = await prisma.user.findUnique({

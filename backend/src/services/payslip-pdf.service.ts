@@ -326,7 +326,7 @@ export function generatePayslipPDF(data: PayslipData): PassThrough {
   const generated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   doc.fillColor(MUTED).font('Helvetica').fontSize(7)
     .text(
-      `This is a computer-generated payslip. Generated on ${generated} â€¢ Document #${docNo}`,
+      `This is a computer-generated payslip. Generated on ${generated} --¢ Document #${docNo}`,
       L, y, { width: W, align: 'center' }
     );
 

@@ -12,7 +12,7 @@ import { Request, Response, NextFunction } from 'express';
 import { PricingPlan } from '@prisma/client';
 import { getOrgPlan, PlanError } from '../services/plan.service';
 
-// â”€â”€ Feature labels â€” shown in error messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€ Feature labels -- shown in error messages --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 const FEATURE_LABELS: Partial<Record<keyof PricingPlan, string>> = {
   featureLeave:            'Leave management',
   featureManualCorrection: 'Manual attendance correction',
@@ -25,14 +25,14 @@ const FEATURE_LABELS: Partial<Record<keyof PricingPlan, string>> = {
   featureFileDownload:     'File downloads',
 };
 
-// â”€â”€ Middleware factory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€ Middleware factory --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 /**
  * requireFeature
  * Returns an Express middleware that blocks the request if the
  * org's current plan does not have the given feature enabled.
  *
- * SUPER_ADMIN bypasses all feature checks â€” they have full access.
+ * SUPER_ADMIN bypasses all feature checks -- they have full access.
  *
  * @example
  * router.get('/leaves', requireFeature('featureLeave'), leaveController.getAll)
@@ -120,7 +120,7 @@ export function requireFeature(feature: keyof PricingPlan) {
 
 /**
  * requireActivePlan
- * Lighter check â€” just verifies the org has an active subscription.
+ * Lighter check -- just verifies the org has an active subscription.
  * Use on routes that don't gate a specific feature but still
  * require a paid/trialing status (e.g. dashboard, profile).
  *

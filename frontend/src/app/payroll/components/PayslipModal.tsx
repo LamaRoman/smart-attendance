@@ -47,7 +47,7 @@ export default function PayslipModal({ record, isNp, isStarter, onClose, onError
               {isNp ? 'à¤ªà¥‡-à¤¸à¥à¤²à¤¿à¤ª' : 'Payslip'}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              {record.user?.firstName} {record.user?.lastName} â€” {monthLabel} {record.bsYear}
+              {record.user?.firstName} {record.user?.lastName} -- {monthLabel} {record.bsYear}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -193,7 +193,7 @@ export default function PayslipModal({ record, isNp, isStarter, onClose, onError
   );
 }
 
-/* â”€â”€ Sub-components â”€â”€ */
+/* --€--€ Sub-components --€--€ */
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (

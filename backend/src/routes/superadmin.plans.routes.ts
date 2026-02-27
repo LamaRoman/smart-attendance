@@ -77,7 +77,7 @@ router.patch('/:tier/setup-fee', async (req: AuthRequest, res: Response, next: N
 });
 
 // PATCH /api/super-admin/plans/:tier/trial-days
-// Only monthly trial days â€” annual billing is not supported
+// Only monthly trial days -- annual billing is not supported
 router.patch('/:tier/trial-days', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { tier } = req.params;

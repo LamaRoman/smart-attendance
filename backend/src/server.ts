@@ -76,7 +76,7 @@ app.use(helmet({
 app.use(generalRateLimiter);
 
 // ============================================================
-// Request ID â€” unique per request for log correlation
+// Request ID -- unique per request for log correlation
 // FIX L-02: Validate x-request-id before accepting it (max 36 chars, alphanumeric+hyphen only)
 // ============================================================
 app.use((req, res, next) => {
@@ -89,11 +89,11 @@ app.use((req, res, next) => {
 });
 
 // ============================================================
-// CSRF Protection â€” Custom Header Check (C-04)
+// CSRF Protection -- Custom Header Check (C-04)
 // Any state-changing request (POST/PUT/PATCH/DELETE) must include
 // the X-Requested-With header. Browsers cannot set custom headers
-// on cross-origin requests without CORS preflight â€” which our
-// CORS policy blocks â€” making CSRF from malicious sites impossible.
+// on cross-origin requests without CORS preflight -- which our
+// CORS policy blocks -- making CSRF from malicious sites impossible.
 //
 // Exemptions:
 //   - GET/HEAD/OPTIONS (safe methods)
@@ -112,7 +112,7 @@ app.use((req, res, next) => {
       method: req.method,
       path: req.path,
       ip: req.ip,
-    }, 'CSRF check failed â€” missing X-Requested-With header');
+    }, 'CSRF check failed -- missing X-Requested-With header');
     return res.status(403).json({
       error: { message: 'CSRF check failed', code: 'CSRF_REJECTED' },
     });
@@ -124,13 +124,13 @@ app.use((req, res, next) => {
 // Core Middleware
 // FIX C-01: express.json() MUST come before sanitizeInput.
 // Previously sanitizeInput ran first, meaning req.body was always
-// undefined when sanitization ran â€” all JSON bodies were unsanitized.
+// undefined when sanitization ran -- all JSON bodies were unsanitized.
 // ============================================================
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(cookieParser());
-app.use(express.json({ limit: '100kb' }));          // â† parse body FIRST
+app.use(express.json({ limit: '100kb' }));          // ← parse body FIRST
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
-app.use(sanitizeInput);                              // â† then sanitize
+app.use(sanitizeInput);                              // ← then sanitize
 
 // Request logging
 app.use((req, res, next) => {
@@ -172,7 +172,7 @@ app.use('/api/super-admin/subscriptions', superAdminSubscriptionRouter);
 app.use('/api/super-admin/platform-config', platformConfigRouter);
 app.use("/api/super-admin/plans", superAdminPlansRouter);
 
-// Enhanced health check â€” includes DB connectivity
+// Enhanced health check -- includes DB connectivity
 app.get('/api/health', async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -216,7 +216,7 @@ const server = app.listen(PORT, () => {
     try { await notificationService.deleteOldNotifications(); } catch (e) { /* ignore */ }
   }, 24 * 60 * 60 * 1000);
 
-  // Trial expiry cron â€” runs daily at 08:00 NPT
+  // Trial expiry cron -- runs daily at 08:00 NPT
   startTrialExpiryJob();
   startBillingJob();
   startPriceExpiryJob();

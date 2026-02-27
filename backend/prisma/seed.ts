@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('ðŸŒ± Seeding database...\n');
+  console.log('🌱 Seeding database...\n');
 
   // ============================================================
   // 1. Super Admin
@@ -136,7 +136,7 @@ async function main() {
           tdsEnabled: true,
         },
       });
-      console.log(`âœ“ Pay settings created for: ${emp.firstName} ${emp.lastName} â€” NPR ${salaries[i]}`);
+      console.log(`âœ“ Pay settings created for: ${emp.firstName} ${emp.lastName} -- NPR ${salaries[i]}`);
     }
   }
 
@@ -227,7 +227,7 @@ async function main() {
   console.log(`âœ“ Pricing plan seeded: ${operationsPlan.displayName}`);
 
   // ============================================================
-  // 8. OrgSubscription for Demo Company (Operations â€” Founding)
+  // 8. OrgSubscription for Demo Company (Operations -- Founding)
   // ============================================================
   const existingSubscription = await prisma.orgSubscription.findUnique({
     where: { organizationId: org.id },
@@ -242,18 +242,18 @@ async function main() {
         billingCycle: 'MONTHLY',
         isPriceLockedForever: true,
         setupFeeWaived: true,
-        setupFeeWaivedNote: 'Demo org â€” founding member',
+        setupFeeWaivedNote: 'Demo org -- founding member',
         currentEmployeeCount: 5,
         assignedBy: superAdmin.id,
         assignedAt: new Date(),
       },
     });
-    console.log(`âœ“ Subscription created for: ${org.name} (Operations â€” Founding Member)`);
+    console.log(`âœ“ Subscription created for: ${org.name} (Operations -- Founding Member)`);
   } else {
     console.log(`âœ“ Subscription already exists for: ${org.name}`);
   }
 
-  console.log('\nâœ… Seeding complete!\n');
+  console.log('\n✅ Seeding complete!\n');
   console.log('=== Login Credentials ===');
   console.log(`Super Admin:  ${superAdminEmail} / ${superAdminPassword}`);
   console.log(`Org Admin:    ${orgAdminEmail} / OrgAdmin@123`);

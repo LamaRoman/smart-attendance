@@ -7,7 +7,7 @@ import { BS_MONTHS_NP, BS_MONTHS_EN, fmt, API_BASE } from '../utils';
 interface Props {
   isNp: boolean;
   isStarter: boolean;
-  /** Specific feature flag â€” false on STARTER plan */
+  /** Specific feature flag -- false on STARTER plan */
   featurePayrollWorkflow: boolean;
   recYear: number;
   recMonth: number;
@@ -70,7 +70,7 @@ export default function RecordsTab({
 
             {records.length > 0 && (
               <div className="flex gap-2 flex-wrap">
-                {/* â”€â”€ FIX (HIGH): Process / Approve / Paid gated by featurePayrollWorkflow â”€â”€ */}
+                {/* --€--€ FIX (HIGH): Process / Approve / Paid gated by featurePayrollWorkflow --€--€ */}
                 <WorkflowButton
                   label={isNp ? 'à¤ªà¥à¤°à¤¶à¥‹à¤§à¤¨' : 'Process'}
                   allowed={featurePayrollWorkflow}
@@ -90,7 +90,7 @@ export default function RecordsTab({
                   className="bg-slate-100 text-slate-900 hover:bg-slate-200"
                 />
 
-                {/* â”€â”€ FIX (MEDIUM): Bank CSV shows disabled PRO badge rather than vanishing â”€â”€ */}
+                {/* --€--€ FIX (MEDIUM): Bank CSV shows disabled PRO badge rather than vanishing --€--€ */}
                 <button
                   disabled={isStarter}
                   onClick={handleBankCsv}
@@ -193,7 +193,7 @@ export default function RecordsTab({
   );
 }
 
-/* â”€â”€ Workflow button with PRO badge when locked â”€â”€ */
+/* --€--€ Workflow button with PRO badge when locked --€--€ */
 function WorkflowButton({
   label, allowed, onClick, className,
 }: {

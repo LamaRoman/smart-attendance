@@ -32,7 +32,7 @@ const statusColors: Record<string, string> = {
 const statusIcons: Record<string, string> = {
   DRAFT:     'ðŸ“',
   PROCESSED: 'ðŸ”„',
-  APPROVED:  'âœ…',
+  APPROVED:  '✅',
   PAID:      'ðŸ’°',
 };
 
@@ -58,7 +58,7 @@ export default function MySalaryHistoryPage() {
   const [singleYear, setSingleYear]   = useState(2082);
   const [singleMonth, setSingleMonth] = useState(1);
 
-  // Tooltips â€” state-based so they show instantly
+  // Tooltips -- state-based so they show instantly
   const [showSummaryTooltip, setShowSummaryTooltip] = useState(false);
   const [showRowTooltip, setShowRowTooltip]         = useState<string | null>(null);
 
@@ -103,7 +103,7 @@ export default function MySalaryHistoryPage() {
     setLoadingData(false);
   };
 
-  // â”€â”€ Client-side PDF generation using jsPDF + jspdf-autotable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --€--€ Client-side PDF generation using jsPDF + jspdf-autotable --€--€--€--€--€--€--€--€--€--€--€--€--€--€
   const downloadSummaryPDF = () => {
     if (!salaryData || !employeeData) return;
 
@@ -128,7 +128,7 @@ export default function MySalaryHistoryPage() {
 
       const fromLabel  = BS_MONTHS_EN[fromMonth - 1] + ' ' + fromYear;
       const toLabel    = BS_MONTHS_EN[toMonth   - 1] + ' ' + toYear;
-      const rangeLabel = fromLabel + ' â€“ ' + toLabel;
+      const rangeLabel = fromLabel + ' -- ' + toLabel;
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
@@ -233,7 +233,7 @@ export default function MySalaryHistoryPage() {
         const md        = employeeData.months[monthKey];
         const monthName = BS_MONTHS_EN[m.bsMonth - 1] + ' ' + m.bsYear;
         if (!md) {
-          tableRows.push([monthName, 'â€”', 'â€”', 'â€”', 'â€”', 'â€”', 'â€”', 'â€”', 'â€”', 'â€”']);
+          tableRows.push([monthName, '--', '--', '--', '--', '--', '--', '--', '--', '--']);
           return;
         }
         const allowances =
@@ -259,7 +259,7 @@ export default function MySalaryHistoryPage() {
         'TOTAL',
         employeeData.totals.monthsProcessed + ' mo',
         fmtPDF(employeeData.totals.basicSalary),
-        'â€”',
+        '--',
         fmtPDF(employeeData.totals.grossSalary),
         fmtPDF(employeeData.totals.employeeSsf),
         fmtPDF(employeeData.totals.employeePf),
@@ -319,7 +319,7 @@ export default function MySalaryHistoryPage() {
     setSummaryDownloading(false);
   };
 
-  // â”€â”€ Per-row payslip preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --€--€ Per-row payslip preview --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
   const [preview,        setPreview]        = useState<{ blobUrl: string; filename: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -497,7 +497,7 @@ export default function MySalaryHistoryPage() {
                 </div>
               </div>
             ) : (
-              /* Original From/To layout â€” unchanged */
+              /* Original From/To layout -- unchanged */
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <label className="block text-xs text-slate-500 mb-1 font-medium">
@@ -627,7 +627,7 @@ export default function MySalaryHistoryPage() {
                   {isNp ? 'à¤®à¤¾à¤¸à¤¿à¤• विवरण' : 'Monthly Breakdown'}
                 </h3>
 
-                {/* FIX: Summary PDF â€” gated on downloadPayslips */}
+                {/* FIX: Summary PDF -- gated on downloadPayslips */}
                 {canDownloadPayslips ? (
                   <button
                     onClick={downloadSummaryPDF}
@@ -729,7 +729,7 @@ export default function MySalaryHistoryPage() {
                             </span>
                           </td>
 
-                          {/* FIX: Per-row PDF â€” gated on downloadPayslips */}
+                          {/* FIX: Per-row PDF -- gated on downloadPayslips */}
                           <td className="py-3 px-4 text-center">
                             {canDownloadPayslips ? (
                               <button
@@ -769,7 +769,7 @@ export default function MySalaryHistoryPage() {
                     <tr className="bg-slate-100 font-semibold border-t-2 border-slate-300">
                       <td className="py-3 px-4 text-sm text-slate-900">{isNp ? 'à¤œà¤®à¥à¤®à¤¾' : 'TOTAL'}</td>
                       <td className="py-3 px-4 text-right text-sm text-slate-900">{fmtDisplay(employeeData.totals.basicSalary)}</td>
-                      <td className="py-3 px-4 text-right text-sm text-slate-900">â€”</td>
+                      <td className="py-3 px-4 text-right text-sm text-slate-900">--</td>
                       <td className="py-3 px-4 text-right text-sm text-slate-900">{fmtDisplay(employeeData.totals.grossSalary)}</td>
                       <td className="py-3 px-4 text-right text-sm text-rose-700">{fmtDisplay(employeeData.totals.employeeSsf)}</td>
                       <td className="py-3 px-4 text-right text-sm text-rose-700">{fmtDisplay(employeeData.totals.employeePf)}</td>

@@ -21,7 +21,7 @@ const router = Router();
 
 router.use(authenticate, requireSuperAdmin);
 
-// Inline schema for mark-expired â€” reason required, same pattern as suspend
+// Inline schema for mark-expired -- reason required, same pattern as suspend
 const markExpiredSchema = z.object({
   reason: z.string().min(1, 'Reason is required').max(500),
 });

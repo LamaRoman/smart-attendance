@@ -48,7 +48,7 @@ export default function MultiMonthTab({
 
   return (
     <div className="space-y-6">
-      {/* Filter card â€” always visible */}
+      {/* Filter card -- always visible */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -142,7 +142,7 @@ export default function MultiMonthTab({
                 {[
                   ['Rajesh Sharma', ['31,500','31,500','33,000','33,000'], '1,29,000'],
                   ['Sita Thapa',    ['36,750','36,750','38,500','38,500'], '1,50,500'],
-                  ['Bikash Karki',  ['24,000','â€”','24,000','24,000'],      '72,000'],
+                  ['Bikash Karki',  ['24,000','--','24,000','24,000'],      '72,000'],
                   ['Anita Rai',     ['43,500','43,500','45,500','45,500'], '1,78,000'],
                 ].map(([name, months, total]) => (
                   <tr key={name as string}>
@@ -152,7 +152,7 @@ export default function MultiMonthTab({
                     </td>
                     {(months as string[]).map((v, i) => (
                       <td key={i} className="py-3 px-4 text-center text-sm font-medium text-slate-700">
-                        {v === 'â€”' ? <span className="text-slate-300">â€”</span> : `Rs. ${v}`}
+                        {v === '--' ? <span className="text-slate-300">--</span> : `Rs. ${v}`}
                       </td>
                     ))}
                     <td className="py-3 px-4 text-right text-sm font-bold text-emerald-600">Rs. {total}</td>
@@ -199,7 +199,7 @@ export default function MultiMonthTab({
   );
 }
 
-/* â”€â”€ Month range selector â”€â”€ */
+/* --€--€ Month range selector --€--€ */
 function MonthRangeSelector({
   label, year, month, isNp, onYearChange, onMonthChange,
 }: {
@@ -231,7 +231,7 @@ function MonthRangeSelector({
   );
 }
 
-/* â”€â”€ Main data table â”€â”€ */
+/* --€--€ Main data table --€--€ */
 function DataTable({
   data, isNp, expandedEmployee, onToggleExpand,
 }: {
@@ -288,12 +288,12 @@ function DataTable({
                               <span
                                 className={`inline-flex px-1.5 py-0.5 rounded-md font-medium ${STATUS_COLORS[monthData.status] || ''}`}
                               >
-                                {monthData.status === 'PAID' ? 'âœ…' : monthData.status === 'APPROVED' ? 'â³' : 'ðŸ“'}
+                                {monthData.status === 'PAID' ? '✅' : monthData.status === 'APPROVED' ? 'â³' : 'ðŸ“'}
                               </span>
                             </div>
                           </>
                         ) : (
-                          <span className="text-slate-300 text-xs">â€”</span>
+                          <span className="text-slate-300 text-xs">--</span>
                         )}
                       </td>
                     );
@@ -313,7 +313,7 @@ function DataTable({
                   <tr>
                     <td colSpan={data.months.length + 2} className="px-4 py-4 bg-slate-50">
                       <div className="text-xs font-semibold text-slate-900 mb-3">
-                        {isNp ? 'à¤µà¤¿à¤¸à¥à¤¤à¥ƒà¤¤' : 'Details'} â€” {emp.employee.firstName}
+                        {isNp ? 'à¤µà¤¿à¤¸à¥à¤¤à¥ƒà¤¤' : 'Details'} -- {emp.employee.firstName}
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs">
@@ -337,7 +337,7 @@ function DataTable({
                                       key={`${m.bsYear}-${m.bsMonth}`}
                                       className={`py-2 px-3 text-right ${cellClass}`}
                                     >
-                                      {monthData ? fmt(monthData[key]) : 'â€”'}
+                                      {monthData ? fmt(monthData[key]) : '--'}
                                     </td>
                                   );
                                 })}

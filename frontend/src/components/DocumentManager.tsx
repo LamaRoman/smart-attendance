@@ -14,7 +14,7 @@ import {
   Loader2,
 } from 'lucide-react';
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€--€ Types --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 interface DocType {
   id: string;
@@ -39,7 +39,7 @@ interface DocumentManagerProps {
   readOnly?: boolean;
 }
 
-// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€--€ Constants --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -72,7 +72,7 @@ function formatDate(dateStr: string): string {
   });
 }
 
-// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€--€ Component --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 export default function DocumentManager({ userId, language = 'ENGLISH', readOnly = false }: DocumentManagerProps) {
   const isNp = language === 'NEPALI';
@@ -181,7 +181,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
     }
   };
 
-  // â”€â”€ Preview (view only, no download) â”€â”€
+  // --€--€ Preview (view only, no download) --€--€
   const handlePreview = async (doc: Document) => {
     setPreviewDoc(doc);
     setPreviewLoading(true);
@@ -339,7 +339,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
               <div>
                 <Upload className="w-6 h-6 text-slate-300 mx-auto mb-2" />
                 <p className="text-xs text-slate-500">{isNp ? 'à¤«à¤¾à¤‡à¤² à¤›à¤¾à¤¨à¥à¤¨à¥à¤¹à¥‹à¤¸à¥ à¤µà¤¾ à¤¯à¤¹à¤¾à¤ à¤¡à¥à¤°à¥à¤¯à¤¾à¤— à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Click to select or drag and drop'}</p>
-                <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG â€” Max 5MB</p>
+                <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG -- Max 5MB</p>
               </div>
             )}
           </div>
@@ -397,7 +397,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
                   {isPdf ? <FileText className="w-4 h-4 text-rose-500" /> : <Image className="w-4 h-4 text-blue-500" />}
                 </button>
 
-                {/* Info â€” clickable name */}
+                {/* Info -- clickable name */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 truncate cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handlePreview(doc)}>
                     {doc.originalName}
@@ -410,7 +410,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
                   {doc.description && <p className="text-xs text-slate-400 mt-0.5 truncate">{doc.description}</p>}
                 </div>
 
-                {/* Actions â€” view only, no download */}
+                {/* Actions -- view only, no download */}
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => handlePreview(doc)} className="p-1.5 hover:bg-slate-100 rounded-md transition-colors" title={isNp ? 'à¤¹à¥‡à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'View'}>
                     <Eye className="w-3.5 h-3.5 text-slate-500" />
@@ -440,7 +440,7 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
         </div>
       )}
 
-      {/* â”€â”€ Preview Modal (View Only â€” No Download) â”€â”€ */}
+      {/* --€--€ Preview Modal (View Only -- No Download) --€--€ */}
       {previewDoc && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closePreview} />

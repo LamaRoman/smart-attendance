@@ -6,24 +6,24 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
-  // JWT â€” no fallback, must be explicitly set
+  // JWT -- no fallback, must be explicitly set
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().default('7d'),
 
-  // QR / TOTP â€” separate from JWT
+  // QR / TOTP -- separate from JWT
   QR_SECRET: z.string().min(32, 'QR_SECRET must be at least 32 characters'),
 
   // App
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('5001'),
 
-  // CORS â€” comma-separated origins
+  // CORS -- comma-separated origins
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
 
   // Frontend URL (for QR code scan URLs)
   FRONTEND_URL: z.string().default('http://localhost:3000'),
 
-  // Calendarific API (optional â€” holiday sync)
+  // Calendarific API (optional -- holiday sync)
   CALENDARIFIC_API_KEY: z.string().optional(),
 });
 

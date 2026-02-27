@@ -153,7 +153,7 @@ export default function EmployeeDetailModal({
                 <InfoItem
                   icon={<Hash className="w-3.5 h-3.5" />}
                   label={isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€ à¤†à¤ˆà¤¡à¥€' : 'Employee ID'}
-                  value={displayUser.employeeId || 'â€”'}
+                  value={displayUser.employeeId || '--'}
                 />
                 <InfoItem
                   icon={<Mail className="w-3.5 h-3.5" />}
@@ -163,7 +163,7 @@ export default function EmployeeDetailModal({
                 <InfoItem
                   icon={<Phone className="w-3.5 h-3.5" />}
                   label={isNp ? 'à¤«à¥‹à¤¨' : 'Phone'}
-                  value={displayUser.phone || 'â€”'}
+                  value={displayUser.phone || '--'}
                 />
                 <InfoItem
                   icon={<Briefcase className="w-3.5 h-3.5" />}
@@ -197,7 +197,7 @@ export default function EmployeeDetailModal({
   );
 }
 
-// â”€â”€ Info Item sub-component â”€â”€
+// --€--€ Info Item sub-component --€--€
 function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-start gap-3 p-3 bg-slate-50/50 rounded-lg">

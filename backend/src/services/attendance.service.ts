@@ -297,7 +297,7 @@ export class AttendanceService {
     input: { checkInTime?: string; checkOutTime?: string; note: string; markPresent?: boolean },
     currentUser: JWTPayload
   ) {
-    // FIX H-08: org always enforced â€” SUPER_ADMIN must have an org in context
+    // FIX H-08: org always enforced -- SUPER_ADMIN must have an org in context
     if (!currentUser.organizationId) {
       throw new ValidationError('Organization context required to edit attendance records', 'ORG_REQUIRED');
     }
@@ -456,7 +456,7 @@ export class AttendanceService {
       record,
       // Frontend can show a banner when this is non-null
       payrollWarning: payrollFlag.flagged
-        ? `A payslip for ${bs.year}/${bs.month} already existed (was: ${payrollFlag.previousStatus}). It has been flagged for recalculation â€” please regenerate it before the next payroll run.`
+        ? `A payslip for ${bs.year}/${bs.month} already existed (was: ${payrollFlag.previousStatus}). It has been flagged for recalculation -- please regenerate it before the next payroll run.`
         : null,
     };
   }
@@ -719,7 +719,7 @@ export class AttendanceService {
     }, { isolationLevel: 'Serializable' });
   }
 
-  // Fire-and-forget payroll flag â€” errors logged, never thrown to caller
+  // Fire-and-forget payroll flag -- errors logged, never thrown to caller
   private flagPayrollAfterAttendanceChange(
     userId: string,
     organizationId: string,

@@ -2,14 +2,14 @@
 // ============================================================
 // Fetches and caches an org's active plan + feature flags.
 // Everything in the app that needs to check features calls this.
-// Uses in-memory cache with 5-min TTL â€” no Redis needed yet.
+// Uses in-memory cache with 5-min TTL -- no Redis needed yet.
 // ============================================================
 
 import { PrismaClient, PricingPlan, OrgSubscription, SubscriptionStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€ Types --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 export type OrgPlan = PricingPlan & {
   subscription: OrgSubscription;
@@ -17,7 +17,7 @@ export type OrgPlan = PricingPlan & {
   effectivePricePerEmployee: number; // Respects custom price overrides
 };
 
-// â”€â”€ In-memory cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€ In-memory cache --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -28,14 +28,14 @@ interface CacheEntry {
 
 const planCache = new Map<string, CacheEntry>();
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€ Helpers --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 function isCacheValid(entry: CacheEntry): boolean {
   return Date.now() - entry.cachedAt < CACHE_TTL_MS;
 }
 
 /**
- * Active statuses â€” org can use the product
+ * Active statuses -- org can use the product
  * TRIALING and ACTIVE are both considered usable
  */
 const ACTIVE_STATUSES: SubscriptionStatus[] = [
@@ -43,7 +43,7 @@ const ACTIVE_STATUSES: SubscriptionStatus[] = [
   SubscriptionStatus.ACTIVE,
 ];
 
-// â”€â”€ Core function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€ Core function --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 /**
  * getOrgPlan
@@ -116,7 +116,7 @@ export function invalidatePlanCache(organizationId: string): void {
 
 /**
  * hasFeature
- * Direct boolean check â€” use this inside service functions
+ * Direct boolean check -- use this inside service functions
  * when you need to branch logic rather than throw an error.
  *
  * @example
@@ -168,7 +168,7 @@ export async function assertFeature(
   }
 }
 
-// â”€â”€ Error class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --€--€ Error class --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
 export type PlanErrorCode =
   | 'NO_SUBSCRIPTION'

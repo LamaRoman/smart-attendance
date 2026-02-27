@@ -36,7 +36,7 @@ ${footer || 'This is an automated message from ' + APP_NAME + '. Please do not r
 // Email Service
 // ============================================================
 class EmailService {
-  // 1. Welcome Email â€” New user created
+  // 1. Welcome Email -- New user created
   async sendWelcomeEmail(params: {
     to: string;
     firstName: string;
@@ -59,10 +59,10 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
 </table>
 </div>
 <p style="color:#374151;font-size:14px;">Please change your password after first login.</p>`;
-    await this.send(params.to, 'Welcome to ' + params.orgName + ' â€” ' + APP_NAME, content);
+    await this.send(params.to, 'Welcome to ' + params.orgName + ' -- ' + APP_NAME, content);
   }
 
-  // 2. Leave Request Submitted â€” Notify admin
+  // 2. Leave Request Submitted -- Notify admin
   async sendLeaveRequestNotification(params: {
     adminEmail: string;
     adminName: string;
@@ -91,7 +91,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
     await this.send(params.adminEmail, 'Leave Request from ' + params.employeeName, content);
   }
 
-  // 3. Leave Approved/Rejected â€” Notify employee
+  // 3. Leave Approved/Rejected -- Notify employee
   async sendLeaveDecisionNotification(params: {
     to: string;
     employeeName: string;
@@ -103,7 +103,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
   }) {
     if (!isConfigured()) { log.warn('Email not configured, skipping leave decision'); return; }
     const isApproved = params.status === 'APPROVED';
-    const emoji = isApproved ? 'âœ…' : 'âŒ';
+    const emoji = isApproved ? '✅' : 'âŒ';
     const color = isApproved ? '#059669' : '#dc2626';
     const bgColor = isApproved ? '#ecfdf5' : '#fef2f2';
     const borderColor = isApproved ? '#a7f3d0' : '#fecaca';
@@ -119,10 +119,10 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
 <tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Status</td><td style="color:${color};font-weight:700;padding:4px 0;font-size:14px;">${params.status}</td></tr>
 </table>
 </div>`;
-    await this.send(params.to, 'Leave ' + params.status + ' â€” ' + params.leaveType, content);
+    await this.send(params.to, 'Leave ' + params.status + ' -- ' + params.leaveType, content);
   }
 
-  // 4. Payroll Ready â€” Notify employee
+  // 4. Payroll Ready -- Notify employee
   async sendPayrollReadyNotification(params: {
     to: string;
     employeeName: string;
@@ -141,10 +141,10 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
 <p style="color:#7c3aed;font-size:28px;font-weight:700;margin:0;">Rs. ${params.netSalary}</p>
 </div>
 <p style="color:#374151;font-size:14px;">Log in to ${APP_NAME} to view the full payslip and download PDF.</p>`;
-    await this.send(params.to, 'Payslip Ready â€” ' + params.bsMonth + ' ' + params.bsYear, content);
+    await this.send(params.to, 'Payslip Ready -- ' + params.bsMonth + ' ' + params.bsYear, content);
   }
 
-  // 5. Payroll Bulk Notify â€” All employees
+  // 5. Payroll Bulk Notify -- All employees
   async sendPayrollBulkNotification(records: Array<{
     email: string;
     firstName: string;
@@ -174,7 +174,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
     return { total: records.length, sent };
   }
 
-  // 6. Trial Expiry Warning â€” 7 day and 1 day nudge
+  // 6. Trial Expiry Warning -- 7 day and 1 day nudge
   async sendTrialExpiryWarning(params: {
     to: string;
     orgName: string;
@@ -195,7 +195,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
     await this.send(params.to, `Your ${APP_NAME} trial ends in ${params.daysLeft} day${params.daysLeft === 1 ? '' : 's'}`, content);
   }
 
-  // 7. Trial Expired â€” access paused
+  // 7. Trial Expired -- access paused
   async sendTrialExpiredNotice(params: {
     to: string;
     orgName: string;
@@ -211,10 +211,10 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
 <a href="${process.env.APP_URL ?? '#'}/billing" style="background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Restore Access</a>
 </div>
 <p style="color:#9ca3af;font-size:13px;">Need help? Reply to this email and we'll sort it out.</p>`;
-    await this.send(params.to, `Your ${APP_NAME} trial has ended â€” restore access now`, content);
+    await this.send(params.to, `Your ${APP_NAME} trial has ended -- restore access now`, content);
   }
 
-  // 8. Post-trial nudge â€” 3 days after expiry (last attempt)
+  // 8. Post-trial nudge -- 3 days after expiry (last attempt)
   async sendTrialConversionNudge(params: {
     to: string;
     orgName: string;
@@ -224,15 +224,15 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
     const content = `
 <h2 style="color:#111827;margin:0 0 8px;">Still thinking about it?</h2>
 <p style="color:#6b7280;font-size:15px;">Hi ${params.adminName},</p>
-<p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> ended a few days ago. Your data is still here â€” we haven't deleted anything.</p>
+<p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> ended a few days ago. Your data is still here -- we haven't deleted anything.</p>
 <p style="color:#374151;font-size:15px;">If something stopped you from upgrading, reply to this email and let us know. We'd love to help.</p>
 <div style="margin:24px 0;">
 <a href="${process.env.APP_URL ?? '#'}/billing" style="background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade and Restore Access</a>
 </div>`;
-    await this.send(params.to, `Your ${APP_NAME} data is waiting â€” come back anytime`, content);
+    await this.send(params.to, `Your ${APP_NAME} data is waiting -- come back anytime`, content);
   }
 
-  // 9. Billing Renewal Reminder â€” 7 days before due date
+  // 9. Billing Renewal Reminder -- 7 days before due date
   async sendBillingReminder(params: {
     to: string;
     orgName: string;
@@ -267,12 +267,12 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
 <p style="color:#94a3b8;font-size:13px;margin:0">Questions? Reply to this email or reach us on WhatsApp.</p>`;
     await this.send(
       params.to,
-      `Subscription renewal in ${params.daysUntilBilling} days â€” ${params.orgName}`,
+      `Subscription renewal in ${params.daysUntilBilling} days -- ${params.orgName}`,
       content
     );
   }
 
-  // 10. Payment Due Notice â€” billing date passed, grace period started
+  // 10. Payment Due Notice -- billing date passed, grace period started
   async sendPaymentDueNotice(params: {
     to: string;
     orgName: string;
@@ -313,7 +313,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
     );
   }
 
-  // 11. Suspension Notice â€” grace period expired, account suspended
+  // 11. Suspension Notice -- grace period expired, account suspended
   async sendSuspensionNotice(params: {
     to: string;
     orgName: string;
@@ -338,7 +338,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
 <p style="color:#94a3b8;font-size:13px;margin:0">Need help? Reply to this email and we'll sort it out together.</p>`;
     await this.send(
       params.to,
-      `Account suspended â€” ${params.orgName}`,
+      `Account suspended -- ${params.orgName}`,
       content
     );
   }
