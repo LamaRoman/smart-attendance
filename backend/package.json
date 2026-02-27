@@ -82,5 +82,8 @@
   "exclude": [
     "node_modules",
     "dist"
-  ]
+  ],
+  "overrides": {
+    "fast-xml-parser": ">=5.3.8"
+  }
 }
