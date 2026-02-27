@@ -15,8 +15,11 @@ export const mobileCheckinSchema = z.object({
   longitude: z.coerce.number().min(-180).max(180),
 });
 export type MobileCheckinInput = z.infer<typeof mobileCheckinSchema>;
+
 export const scanAuthenticatedSchema = z.object({
   qrPayload: z.string().min(1, 'QR payload is required'),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
 });
 
 export const manualAttendanceSchema = z.object({

@@ -186,8 +186,24 @@ export class AttendanceService {
     }
 
     await this.validateQRPayload(input.qrPayload, user.organizationId);
-    const result = await this.performClockActionSafe(user.id, user.organizationId, 'QR_SCAN');
 
+    // Geofence check
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: { geofenceEnabled: true, officeLat: true, officeLng: true, geofenceRadius: true },
+    });
+    if (org?.geofenceEnabled && org.officeLat && org.officeLng) {
+      if (!input.latitude || !input.longitude) {
+        throw new ValidationError('Location is required. Please enable GPS on your device.');
+      }
+      const distance = calculateDistance(input.latitude, input.longitude, org.officeLat, org.officeLng);
+      if (distance > (org.geofenceRadius || 100)) {
+        await this.logAudit({ userId: user.id, organizationId: user.organizationId, action: 'FAILED', method: 'QR_SCAN', success: false, failureReason: 'OUTSIDE_GEOFENCE', ipAddress, userAgent });
+        throw new ValidationError('You are ' + Math.round(distance) + 'm from office. Must be within ' + org.geofenceRadius + 'm.');
+      }
+    }
+
+    const result = await this.performClockActionSafe(user.id, user.organizationId, 'QR_SCAN');
     await this.logAudit({
       userId: user.id,
       organizationId: user.organizationId,
