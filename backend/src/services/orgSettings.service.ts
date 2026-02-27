@@ -19,6 +19,7 @@ export class OrgSettingsService {
       select: {
         id: true,
         name: true,
+        slug:true,
         email: true,
         phone: true,
         address: true,
@@ -47,6 +48,7 @@ export class OrgSettingsService {
   async updateSettings(
     currentUser: JWTPayload,
     input: {
+      slug?:string;
       language?: 'NEPALI' | 'ENGLISH';
       calendarMode?: 'NEPALI' | 'ENGLISH';
       name?: string;
@@ -70,6 +72,14 @@ export class OrgSettingsService {
     if (input.language) data.language = input.language;
     if (input.calendarMode) data.calendarMode = input.calendarMode;
     if (input.name) data.name = input.name;
+    if (input.slug !== undefined) {
+  const cleaned = input.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  if (cleaned.length < 3) throw new AuthorizationError('Slug must be at least 3 characters');
+  if (cleaned.length > 50) throw new AuthorizationError('Slug must be less than 50 characters');
+  const existing = await prisma.organization.findUnique({ where: { slug: cleaned } });
+  if (existing && existing.id !== currentUser.organizationId) throw new AuthorizationError('This URL is already taken');
+  data.slug = cleaned;
+}
     if (input.email !== undefined) data.email = input.email;
     if (input.phone !== undefined) data.phone = input.phone;
     if (input.address !== undefined) data.address = input.address;
@@ -87,6 +97,7 @@ export class OrgSettingsService {
       select: {
         id: true,
         name: true,
+        slug:true,
         email: true,
         phone: true,
         address: true,

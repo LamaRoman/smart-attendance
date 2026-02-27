@@ -47,6 +47,18 @@ router.get("/org-mode/:orgId", async (req: Request, res: Response, next: NextFun
     res.json({ data: { id: org.id, attendanceMode: org.attendanceMode, geofenceEnabled: org.geofenceEnabled } });
   } catch (error) { next(error); }
 });
+
+// GET /api/attendance/org-slug/:slug -- Public, resolves slug to org ID and mode
+router.get("/org-slug/:slug", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const org = await prisma.organization.findUnique({
+      where: { slug: req.params.slug.toLowerCase() },
+      select: { id: true, attendanceMode: true, geofenceEnabled: true },
+    });
+    if (!org) { res.status(404).json({ error: { message: "Organization not found" } }); return; }
+    res.json({ data: org });
+  } catch (error) { next(error); }
+});
 // POST /api/attendance/mobile-checkin -- Unauthenticated, GPS-based
 router.post(
   "/mobile-checkin",

@@ -95,6 +95,7 @@ enum CalendarMode {
 model Organization {
   id                 String  @id @default(uuid())
   name               String
+  slug               String?  @unique
   email              String?
   phone              String?
   address            String?
