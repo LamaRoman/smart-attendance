@@ -1,11 +1,15 @@
-import { PrismaClient, Role } from '@prisma/client';
-import path from 'path';
+import { Role } from '@prisma/client';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { s3Client, S3_BUCKET } from '../lib/s3';
+import { createLogger } from '../logger';
+import prisma from '../lib/prisma';
 
-const prisma = new PrismaClient();
+const log = createLogger('documents');
 
-// ── Magic byte signatures for file type validation ──
+// ── File validation ──
 const MAGIC_BYTES: Record<string, Buffer[]> = {
   'application/pdf': [Buffer.from([0x25, 0x50, 0x44, 0x46])],
   'image/jpeg': [Buffer.from([0xff, 0xd8, 0xff])],
@@ -13,10 +17,8 @@ const MAGIC_BYTES: Record<string, Buffer[]> = {
 };
 
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024;   // 5MB per file
+const MAX_FILE_SIZE = 5 * 1024 * 1024;    // 5MB per file
 const MAX_TOTAL_SIZE = 20 * 1024 * 1024;  // 20MB per employee
-
-const UPLOAD_BASE = path.join(__dirname, '../../uploads/documents');
 
 function validateMagicBytes(buffer: Buffer, declaredMimeType: string): boolean {
   const signatures = MAGIC_BYTES[declaredMimeType];
@@ -34,10 +36,12 @@ function sanitizeFileName(name: string): string {
     .substring(0, 200);
 }
 
-function ensureDir(dirPath: string): void {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
+/**
+ * Build the S3 key for a document.
+ * Structure: {orgId}/documents/{userId}/{storedFileName}
+ */
+function buildS3Key(orgId: string, userId: string, fileName: string): string {
+  return `${orgId}/documents/${userId}/${fileName}`;
 }
 
 // ── Upload ──
@@ -82,19 +86,20 @@ export async function uploadDocument(params: UploadDocumentParams) {
 
   // 4. Validate MIME type
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    cleanupTempFile(file.path);
     throw { status: 400, message: 'Invalid file type. Only PDF, JPG, and PNG are allowed.' };
   }
 
   // 5. Validate magic bytes
   const fileBuffer = fs.readFileSync(file.path);
   if (!validateMagicBytes(fileBuffer, file.mimetype)) {
-    fs.unlinkSync(file.path);
+    cleanupTempFile(file.path);
     throw { status: 400, message: 'File content does not match its declared type.' };
   }
 
   // 6. Check file size
   if (file.size > MAX_FILE_SIZE) {
-    fs.unlinkSync(file.path);
+    cleanupTempFile(file.path);
     throw { status: 400, message: 'File size exceeds 5MB limit.' };
   }
 
@@ -105,25 +110,47 @@ export async function uploadDocument(params: UploadDocumentParams) {
   });
   const currentTotal = existingDocs._sum.fileSize || 0;
   if (currentTotal + file.size > MAX_TOTAL_SIZE) {
-    fs.unlinkSync(file.path);
+    cleanupTempFile(file.path);
     throw { status: 400, message: 'Total document storage exceeds 20MB limit for this employee.' };
   }
 
-  // 8. Move file to permanent storage
+  // 8. Upload to S3
   const sanitized = sanitizeFileName(file.originalname);
   const storedName = `${uuidv4()}-${sanitized}`;
-  const destDir = path.join(UPLOAD_BASE, uploaderOrgId, userId);
-  ensureDir(destDir);
-  const destPath = path.join(destDir, storedName);
-  fs.renameSync(file.path, destPath);
+  const s3Key = buildS3Key(uploaderOrgId, userId, storedName);
 
-  // 9. Create DB record
+  try {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: s3Key,
+        Body: fileBuffer,
+        ContentType: file.mimetype,
+        ServerSideEncryption: 'AES256',
+        Metadata: {
+          'original-name': encodeURIComponent(file.originalname),
+          'uploaded-by': uploaderId,
+          'organization-id': uploaderOrgId,
+        },
+      })
+    );
+    log.info({ s3Key, userId, uploaderId }, 'Document uploaded to S3');
+  } catch (err) {
+    log.error({ err, s3Key }, 'Failed to upload to S3');
+    cleanupTempFile(file.path);
+    throw { status: 500, message: 'Failed to upload document. Please try again.' };
+  }
+
+  // 9. Cleanup temp file
+  cleanupTempFile(file.path);
+
+  // 10. Create DB record — store S3 key instead of local path
   const document = await prisma.employeeDocument.create({
     data: {
       userId,
       organizationId: uploaderOrgId,
       documentTypeId,
-      fileName: storedName,
+      fileName: s3Key,
       originalName: file.originalname,
       mimeType: file.mimetype,
       fileSize: file.size,
@@ -177,7 +204,7 @@ export async function listDocuments(params: ListDocumentsParams) {
   });
 }
 
-// ── Download ──
+// ── Download (pre-signed URL) ──
 
 interface DownloadDocumentParams {
   documentId: string;
@@ -198,12 +225,24 @@ export async function getDocumentForDownload(params: DownloadDocumentParams) {
     throw { status: 403, message: 'Access denied' };
   }
 
-  const filePath = path.join(UPLOAD_BASE, doc.organizationId, doc.userId, doc.fileName);
-  if (!fs.existsSync(filePath)) {
-    throw { status: 404, message: 'File not found on disk' };
-  }
+  // Generate a pre-signed URL that expires in 15 minutes
+  try {
+    const url = await getSignedUrl(
+      s3Client,
+      new GetObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: doc.fileName, // fileName now stores the S3 key
+        ResponseContentDisposition: `inline; filename="${encodeURIComponent(doc.originalName)}"`,
+        ResponseContentType: doc.mimeType,
+      }),
+      { expiresIn: 900 } // 15 minutes
+    );
 
-  return { filePath, originalName: doc.originalName, mimeType: doc.mimeType };
+    return { url, originalName: doc.originalName, mimeType: doc.mimeType };
+  } catch (err) {
+    log.error({ err, documentId }, 'Failed to generate pre-signed URL');
+    throw { status: 500, message: 'Failed to generate download link.' };
+  }
 }
 
 // ── Delete ──
@@ -227,11 +266,31 @@ export async function deleteDocument(params: DeleteDocumentParams) {
     throw { status: 403, message: 'Access denied' };
   }
 
-  const filePath = path.join(UPLOAD_BASE, doc.organizationId, doc.userId, doc.fileName);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
+  // Delete from S3
+  try {
+    await s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: doc.fileName,
+      })
+    );
+    log.info({ s3Key: doc.fileName, documentId }, 'Document deleted from S3');
+  } catch (err) {
+    log.error({ err, documentId }, 'Failed to delete from S3 — removing DB record anyway');
   }
 
   await prisma.employeeDocument.delete({ where: { id: documentId } });
   return { success: true };
+}
+
+// ── Helpers ──
+
+function cleanupTempFile(filePath: string): void {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
 }

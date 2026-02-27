@@ -188,9 +188,8 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
     try {
       const res = await fetch(`${API_URL}/api/documents/${doc.id}/download`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!res.ok) throw new Error('Preview failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
+      const data = await res.json();
+      setPreviewUrl(data.url);
     } catch (err: any) {
       setError(err.message);
       setPreviewDoc(null);
@@ -200,7 +199,6 @@ export default function DocumentManager({ userId, language = 'ENGLISH', readOnly
   };
 
   const closePreview = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewDoc(null);
     setPreviewUrl(null);
   };

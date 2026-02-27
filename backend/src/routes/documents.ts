@@ -1,7 +1,6 @@
 import { Router, Response } from 'express';
-import {Role} from '@prisma/client'
+import { Role } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { requireFeature } from "../middleware/feature.guard";
 import multer from 'multer';
 import path from 'path';
 import os from 'os';
@@ -14,7 +13,7 @@ import {
 
 const router = Router();
 
-// ── Multer config ──
+// ── Multer config (temp storage only — files move to S3) ──
 const upload = multer({
   dest: path.join(os.tmpdir(), 'attendance-uploads'),
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
@@ -28,7 +27,7 @@ const upload = multer({
   },
 });
 
-// ── POST /api/users/:id/documents ──
+// ── POST /api/documents/user/:id ──
 router.post(
   '/documents/user/:id',
   authenticate,
@@ -59,10 +58,9 @@ router.post(
   }
 );
 
-// ── GET /api/users/:id/documents ──
+// ── GET /api/documents/user/:id ──
 router.get('/documents/user/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    console.log("DOC_LIST_DEBUG", { paramId: req.params.id, userId: req.user?.id, role: req.user?.role, orgId: req.user?.organizationId });
     const documents = await listDocuments({
       userId: req.params.id,
       requesterId: req.user!.userId,
@@ -78,16 +76,15 @@ router.get('/documents/user/:id', authenticate, async (req: AuthRequest, res: Re
 // ── GET /api/documents/:id/download ──
 router.get('/documents/:id/download', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { filePath, originalName, mimeType } = await getDocumentForDownload({
+    const { url, originalName, mimeType } = await getDocumentForDownload({
       documentId: req.params.id,
       requesterId: req.user!.userId,
       requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
     });
 
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(originalName)}"`);
-    return res.sendFile(filePath);
+    // Return pre-signed URL — frontend redirects or fetches from this URL
+    return res.json({ url, originalName, mimeType });
   } catch (err: any) {
     return res.status(err.status || 500).json({ error: err.message || 'Download failed' });
   }
