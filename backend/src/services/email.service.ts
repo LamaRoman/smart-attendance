@@ -2,7 +2,7 @@
 import { createLogger } from '../logger';
 const log = createLogger('email-service');
 const resend = new Resend(process.env.RESEND_API_KEY || '');
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@smartattendance.com';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@zentaralabs.com';
 const APP_NAME = 'Smart Attendance';
 function isConfigured(): boolean {
   const key = process.env.RESEND_API_KEY;

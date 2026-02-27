@@ -5,7 +5,7 @@ const log = createLogger('email');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@zentaralabs.com';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@zentaralabs.com';
 
 export async function sendPasswordResetEmail(to: string, resetToken: string) {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
