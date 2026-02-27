@@ -55,11 +55,6 @@ export default function EmployeeDashboard() {
   const [manualPayload, setManualPayload] = useState('');
 
   useEffect(() => {
-    if (!isLoading && !user) router.push('/login');
-    if (!isLoading && user && user.role === 'ORG_ADMIN') router.push('/admin');
-  }, [user, isLoading, router]);
-
-  useEffect(() => {
     if (user) {
       loadStatus();
       loadRecords();

@@ -47,14 +47,8 @@ export default function AdminDashboard() {
   const [docUserId, setDocUserId] = useState<string | null>(null);
   const [docUserName, setDocUserName] = useState('');
 
-  useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'ORG_ADMIN')) {
-      router.push('/login');
-    }
-  }, [user, isLoading, router]);
-
-  useEffect(() => {
-    if (user?.role === 'ORG_ADMIN') {
+useEffect(() => {
+    if (user) {
       loadStats();
       loadRecentAttendance();
     }

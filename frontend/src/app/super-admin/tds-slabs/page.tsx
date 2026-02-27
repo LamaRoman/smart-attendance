@@ -54,10 +54,6 @@ export default function TDSSlabsPage() {
     breakdown: { label: string; taxable: number; rate: number; tax: number }[];
   } | null>(null);
 
-  useEffect(() => {
-    if (!isLoading && (!user || !isSuperAdmin)) router.push('/login');
-  }, [user, isLoading, isSuperAdmin, router]);
-
   const loadSlabs = useCallback(async () => {
     setLoading(true);
     const res = await api.get('/api/super-admin/tds-slabs');
@@ -65,10 +61,9 @@ export default function TDSSlabsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (user && isSuperAdmin) loadSlabs();
-  }, [user, isSuperAdmin, loadSlabs]);
-
+useEffect(() => {
+    if (user) loadSlabs();
+  }, [user, loadSlabs]);
   const handleSave = async () => {
     setSaving(true);
     setError('');

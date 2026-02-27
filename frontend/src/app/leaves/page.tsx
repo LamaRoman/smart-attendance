@@ -114,11 +114,9 @@ export default function LeavePage() {
     type: 'CASUAL',
   });
 
-  useEffect(() => {
-    if (!isLoading && !user) router.push('/login');
+useEffect(() => {
     if (!isLoading && user && isAdmin) setActiveTab('all');
-  }, [user, isLoading, router, isAdmin]);
-
+  }, [user, isLoading, isAdmin]);
   const loadMyLeaves = useCallback(async () => {
     setLoading(true);
     const res = await api.get('/api/leaves/my?limit=50');

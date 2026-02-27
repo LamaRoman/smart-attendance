@@ -71,10 +71,6 @@ export default function SuperAdminPage() {
     adminEmail: '', adminPassword: '', adminFirstName: '', adminLastName: '',
   });
 
-  useEffect(() => {
-    if (!isLoading && (!user || !isSuperAdmin)) router.push('/login');
-  }, [user, isLoading, isSuperAdmin, router]);
-
   const loadData = useCallback(async () => {
     setLoading(true);
     const [orgsRes, statsRes, holidaysRes] = await Promise.all([
@@ -111,10 +107,9 @@ export default function SuperAdminPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (user && isSuperAdmin) loadData();
-  }, [user, isSuperAdmin, loadData]);
-
+ useEffect(() => {
+    if (user) loadData();
+  }, [user, loadData]);
   const handleCreateOrg = async () => {
     if (!createForm.name || !createForm.adminEmail || !createForm.adminPassword || !createForm.adminFirstName || !createForm.adminLastName) {
       setError('Please fill in all required fields'); return;
@@ -167,7 +162,7 @@ export default function SuperAdminPage() {
       </div>
     );
   }
-  if (!user || !isSuperAdmin) return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-white">

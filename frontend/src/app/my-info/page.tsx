@@ -45,11 +45,6 @@ export default function MyInfoPage() {
   const [pinMsg, setPinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    if (!isLoading && !user) router.push('/login');
-    if (!isLoading && user && user.role !== 'EMPLOYEE') router.push('/admin');
-  }, [user, isLoading, router]);
-
-  useEffect(() => {
     if (user) {
       const initial = {
         firstName: user.firstName || '',
