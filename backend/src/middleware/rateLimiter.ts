@@ -9,8 +9,7 @@ const log = createLogger('rate-limiter');
  */
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
-  skip: (req) => req.ip === "127.0.0.1" || req.ip === "::1",  // bypass for localhost testing // 5 attempts per 15 min per IP
+  max: 10,
   message: {
     error: {
       message: 'Too many login attempts. Please try again in 15 minutes.',

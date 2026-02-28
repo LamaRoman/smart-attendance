@@ -41,10 +41,10 @@ router.get("/org-mode/:orgId", async (req: Request, res: Response, next: NextFun
   try {
     const org = await prisma.organization.findUnique({
       where: { id: req.params.orgId },
-      select: { id: true, attendanceMode: true, geofenceEnabled: true },
+      select: { attendanceMode: true, geofenceEnabled: true },
     });
     if (!org) { res.status(404).json({ error: { message: "Organization not found" } }); return; }
-    res.json({ data: { id: org.id, attendanceMode: org.attendanceMode, geofenceEnabled: org.geofenceEnabled } });
+    res.json({ data: { attendanceMode: org.attendanceMode, geofenceEnabled: org.geofenceEnabled } });
   } catch (error) { next(error); }
 });
 
