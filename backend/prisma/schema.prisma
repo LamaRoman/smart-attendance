@@ -101,7 +101,7 @@ model Organization {
   address            String?
   isActive           Boolean @default(true)
   staticQREnabled    Boolean @default(true)
-  rotatingQREnabled  Boolean @default(false)
+  rotatingQREnabled  Boolean @default(true)
 
   // Calendar/locale preference (toggleable by org)
   calendarMode    CalendarMode @default(NEPALI)
