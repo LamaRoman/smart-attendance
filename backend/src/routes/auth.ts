@@ -11,7 +11,8 @@ const router = Router();
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: (process.env.NODE_ENV === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
+  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
+  domain: process.env.NODE_ENV === 'production' ? '.zentaralabs.com' : undefined,
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
   path: '/',
 };
@@ -34,7 +35,10 @@ router.post('/logout', authenticate, async (req: AuthRequest, res: Response, nex
     if (token) {
       await authService.logout(token);
     }
-    res.clearCookie('token', { path: '/' });
+    res.clearCookie('token', {
+      path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.zentaralabs.com' : undefined,
+    });
     res.json({ data: { message: 'Logged out successfully' } });
   } catch (error) {
     next(error);
