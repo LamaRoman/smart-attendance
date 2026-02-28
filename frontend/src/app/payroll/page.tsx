@@ -263,7 +263,7 @@ export default function PayrollPage() {
   };
 
   const bulkUpdateStatus = async (status: string) => {
-    const res = await api.patch('/api/payroll/bulk-status', { bsYear: recYear, bsMonth: recMonth, status });
+    const res = await api.put('/api/payroll/records/bulk-status', { bsYear: recYear, bsMonth: recMonth, status });
     if (res.error) { setError(res.error.message); return; }
     loadRecords();
     setSuccess(isNp ? 'स्थिति अपडेट गरियो' : 'Status updated');
