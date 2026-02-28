@@ -1,11 +1,12 @@
 import { Router, Response, NextFunction } from 'express';
 import { orgSettingsService } from '../services/orgSettings.service';
-import { authenticate, requireOrgAdmin, AuthRequest } from '../middleware/auth';
+import { authenticate, requireOrgAdmin, AuthRequest, enforceOrgIsolation } from '../middleware/auth';
 import prisma from '../lib/prisma';
 
 const router = Router();
 router.use(authenticate);
 router.use(requireOrgAdmin);
+router.use(enforceOrgIsolation);
 
 // GET /api/org-settings
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {

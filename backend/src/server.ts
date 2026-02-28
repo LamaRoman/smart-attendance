@@ -59,7 +59,7 @@ app.use(helmet({
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "http://localhost:3000", "http://localhost:5001"],
+      connectSrc: ["'self'", ...(config.NODE_ENV === 'production' ? [] : ["http://localhost:3000", "http://localhost:5001"])],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       frameSrc: ["'none'"],
