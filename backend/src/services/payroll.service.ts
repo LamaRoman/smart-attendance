@@ -200,6 +200,44 @@ export class PayrollService {
     const { daysPresent, overtimeHours } = await this.getDaysPresent(emp.id, adStart, adEnd);
     const { paidDays: paidLeaveDays, unpaidDays: unpaidLeaveDays } = await this.getApprovedLeaves(emp.id, adStart, adEnd);
     const effectivePresent = Math.min(workingDaysInMonth, daysPresent + paidLeaveDays);
+    // Zero attendance = no salary, no deductions, nothing
+    if (effectivePresent === 0) {
+      return {
+        userId: emp.id,
+        organizationId,
+        year: adYear,
+        month: adMonth,
+        bsYear,
+        bsMonth,
+        workingDaysInMonth,
+        holidaysInMonth,
+        daysPresent: 0,
+        daysAbsent: workingDaysInMonth,
+        paidLeaveDays,
+        unpaidLeaveDays,
+        overtimeHours: 0,
+        basicSalary,
+        dearnessAllowance,
+        transportAllowance,
+        medicalAllowance,
+        otherAllowances,
+        overtimePay: 0,
+        grossSalary: 0,
+        absenceDeduction: 0,
+        employeeSsf: 0,
+        employerSsf: 0,
+        tds: 0,
+        employeePf: 0,
+        employerPf: 0,
+        citDeduction: 0,
+        advanceDeduction: 0,
+        dashainBonus: 0,
+        isMarried: s.isMarried,
+        otherDeductions: 0,
+        totalDeductions: 0,
+        netSalary: 0,
+      };
+    }
     const daysAbsent = Math.max(0, workingDaysInMonth - effectivePresent);
     const totalAllowances = dearnessAllowance + transportAllowance + medicalAllowance + otherAllowances;
     const absenceDeduction = workingDaysInMonth > 0
@@ -235,7 +273,7 @@ export class PayrollService {
     }
 
     const totalDeductions = Math.round((absenceDeduction + employeeSsf + employeePf + citDeduction + advanceDeduct + tds) * 100) / 100;
-    const netSalary = Math.round((grossSalary + dashainBonus - totalDeductions) * 100) / 100;
+    const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDeductions) * 100) / 100);
 
     return {
       userId: emp.id,
@@ -329,7 +367,11 @@ export class PayrollService {
         emp, organizationId, bsYear, bsMonth,
         adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig
       );
-
+ // Skip employees with zero attendance — no payslip generated
+      if (payrollData.daysPresent === 0 && payrollData.overtimeHours === 0) {
+        log.info({ userId: emp.id, bsYear, bsMonth }, 'Skipping payroll — zero attendance');
+        continue;
+      }
       // FIX C-10: Atomic upsert in transaction
       const record = await prisma.$transaction(async (tx) => {
         // Check if a previous record existed (for audit log fromStatus)

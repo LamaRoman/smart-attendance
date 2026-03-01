@@ -41,21 +41,23 @@ export default function MySalaryHistoryPage() {
   const canDownloadPayslips = features.downloadPayslips;
   const router = useRouter();
   const isNp = language === 'NEPALI';
-
+   const now = new Date();
+  const currentBsYear = now.getMonth() >= 3 ? now.getFullYear() + 57 : now.getFullYear() + 56;
+  
   const [salaryData, setSalaryData]   = useState<any>(null);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError]             = useState('');
 
-  const [fromYear,  setFromYear]  = useState(2081);
+  const [fromYear,  setFromYear]  = useState(currentBsYear);
   const [fromMonth, setFromMonth] = useState(1);
-  const [toYear,    setToYear]    = useState(2082);
+  const [toYear,    setToYear]    = useState(currentBsYear);
   const [toMonth,   setToMonth]   = useState(10);
 
   const [summaryDownloading, setSummaryDownloading] = useState(false);
 
   // Monthly vs Range mode
   const [filterMode, setFilterMode]   = useState<'monthly' | 'range'>('range');
-  const [singleYear, setSingleYear]   = useState(2082);
+  const [singleYear, setSingleYear]   = useState(currentBsYear);
   const [singleMonth, setSingleMonth] = useState(1);
 
   // Tooltips -- state-based so they show instantly
@@ -63,9 +65,7 @@ export default function MySalaryHistoryPage() {
   const [showRowTooltip, setShowRowTooltip]         = useState<string | null>(null);
 
   const [earliestBsYear, setEarliestBsYear] = useState<number | null>(null);
-  const now = new Date();
-  const currentBsYear = now.getMonth() >= 3 ? now.getFullYear() + 57 : now.getFullYear() + 56;
-  
+ 
   useEffect(() => {
     api.get('/api/payroll/my-earliest-year').then((res) => {
       if (!res.error && (res.data as any)?.earliestBsYear) {
@@ -88,6 +88,17 @@ export default function MySalaryHistoryPage() {
     const fM = filterMode === 'monthly' ? singleMonth : fromMonth;
     const tY = filterMode === 'monthly' ? singleYear  : toYear;
     const tM = filterMode === 'monthly' ? singleMonth : toMonth;
+    const totalMonths = (tY - fY) * 12 + (tM - fM) + 1;
+    if (totalMonths > 12) {
+      setError('Maximum 12 months allowed. Please narrow your range.');
+      setLoadingData(false);
+      return;
+    }
+    if (totalMonths < 1) {
+      setError('"From" date must be before "To" date.');
+      setLoadingData(false);
+      return;
+    }
     try {
       const res = await api.get(
         '/api/payroll/my-multi-month?fromBsYear=' + fY +
@@ -119,7 +130,7 @@ export default function MySalaryHistoryPage() {
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
-      doc.text((user as any)?.organizationName || user?.organization || 'Organization', 36, 28);
+      doc.text((user as any)?.organizationName || user?.organization?.name || 'Organization', 36, 28);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
@@ -305,7 +316,7 @@ export default function MySalaryHistoryPage() {
       doc.setFontSize(7.5);
       doc.setTextColor(148, 163, 184);
       doc.text(
-        ((user as any)?.organizationName || user?.organization || 'Organization') + '  •  ' + rangeLabel + '  •  Generated ' + new Date().toLocaleString('en-IN'),
+        ((user as any)?.organizationName || user?.organization?.name || 'Organization') + '  •  ' + rangeLabel + '  •  Generated ' + new Date().toLocaleString('en-IN'),
         pageW / 2, finalY - 10, { align: 'center' }
       );
 
