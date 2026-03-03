@@ -13,7 +13,7 @@ import {
   bulkPayrollStatusSchema,
 } from '../schemas/payroll.schema';
 import { userIdParamSchema } from '../schemas/user.schema';
-import { authenticate, requireOrgAdmin, enforceOrgIsolation, AuthRequest } from '../middleware/auth';
+import { authenticate, requireOrgAdmin, requireOrgAdminOrAccountant, enforceOrgIsolation, AuthRequest } from '../middleware/auth';
 import { requireFeature } from '../middleware/feature.guard';
 const router = Router();
 
@@ -110,8 +110,7 @@ empRouter.get('/my-multi-month', async (req: AuthRequest, res: Response, next: N
   }
 });
 
-
-router.use(authenticate, requireOrgAdmin, enforceOrgIsolation);
+router.use(authenticate, requireOrgAdminOrAccountant, enforceOrgIsolation);
 // GET /api/payroll/settings
 router.get('/settings', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -125,6 +124,7 @@ router.get('/settings', async (req: AuthRequest, res: Response, next: NextFuncti
 // PUT /api/payroll/settings/:userId
 router.put(
   '/settings/:userId',
+  requireOrgAdmin,
   validate(paySettingsSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

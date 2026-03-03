@@ -98,6 +98,29 @@ export const requireOrgAdmin = (
 };
 
 /**
+ * Middleware to require ORG_ADMIN, ORG_ACCOUNTANT, or SUPER_ADMIN role.
+ * Used for routes the accountant needs read or limited-write access to.
+ */
+export const requireOrgAdminOrAccountant = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) {
+    return res.status(401).json({ error: { message: 'Authentication required' } });
+  }
+
+  if (
+    req.user.role !== Role.ORG_ADMIN &&
+    req.user.role !== Role.ORG_ACCOUNTANT &&
+    req.user.role !== Role.SUPER_ADMIN
+  ) {
+    return res.status(403).json({ error: { message: 'Organization admin or accountant access required' } });
+  }
+
+  next();
+};
+/**
  * Middleware to enforce organization data isolation
  * Ensures non-super-admin users can only access their own org's data
  *
@@ -166,8 +189,8 @@ export const canAccessUser = async (
   // Users can access their own data
   if (currentUser.userId === targetUserId) return true;
 
-  // Org admins can access users in their organization
-  if (currentUser.role === Role.ORG_ADMIN && currentUser.organizationId) {
+// Org admins and accountants can access users in their organization
+  if ((currentUser.role === Role.ORG_ADMIN || currentUser.role === Role.ORG_ACCOUNTANT) && currentUser.organizationId) {
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
       select: { organizationId: true },

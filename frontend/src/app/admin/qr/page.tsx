@@ -494,12 +494,12 @@ export default function AdminQRPage() {
             <input
               type="text"
               readOnly
-              value={typeof window !== 'undefined' ? window.location.origin + '/checkin?org=' + (user?.organizationId || '') : ''}
+              value={typeof window !== 'undefined' ? window.location.origin + (user?.organization?.slug ? '/c/' + user.organization.slug : '/checkin?org=' + (user?.organizationId || '')) : ''}
               className="flex-1 px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg text-slate-600 truncate"
             />
             <button
               onClick={() => {
-                const url = window.location.origin + '/checkin?org=' + (user?.organizationId || '');
+                const url = window.location.origin + (user?.organization?.slug ? '/c/' + user.organization.slug : '/checkin?org=' + (user?.organizationId || ''));
                 navigator.clipboard.writeText(url);
                 setSuccess(isNp ? 'लिङ्क कपी भयो' : 'Link copied');
                 setTimeout(() => setSuccess(''), 3000);

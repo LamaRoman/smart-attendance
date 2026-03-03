@@ -44,7 +44,7 @@ const securityHeaders = [
       `img-src 'self' data: blob: https: https://smart-hr-documents.s3.ap-south-1.amazonaws.com`,
       `font-src 'self' https://fonts.gstatic.com`,
       `connect-src 'self' ${backendUrl} https://*.tile.openstreetmap.org https://smart-hr-documents.s3.ap-south-1.amazonaws.com`,
-      `frame-src 'none'`,
+      `frame-src blob:`,
       `object-src 'none'`,
       `base-uri 'self'`,
       `form-action 'self'`,

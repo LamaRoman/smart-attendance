@@ -2,12 +2,12 @@ import { Router, Response, NextFunction } from 'express';
 import { reportService } from '../services/report.service';
 import { validate } from '../middleware/validate';
 import { dailyReportQuerySchema, weeklyReportQuerySchema, monthlyReportQuerySchema } from '../schemas/report.schema';
-import { authenticate, requireOrgAdmin, enforceOrgIsolation, AuthRequest } from '../middleware/auth';
+import { authenticate, requireOrgAdmin, requireOrgAdminOrAccountant,enforceOrgIsolation, AuthRequest } from '../middleware/auth';
 import { requireFeature } from '../middleware/feature.guard';
 const router = Router();
 
 
-router.use(authenticate, requireOrgAdmin, enforceOrgIsolation);
+router.use(authenticate, requireOrgAdminOrAccountant, enforceOrgIsolation);
 // GET /api/reports/daily
 router.get('/daily', validate(dailyReportQuerySchema, 'query'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

@@ -21,9 +21,10 @@ export const createUserSchema = z.object({
   firstName: z.string().min(1, 'First name is required').trim(),
   lastName: z.string().min(1, 'Last name is required').trim(),
   phone: z.string().optional(),
+  panNumber: z.string().optional(),
   shiftStartTime: timeField,
   shiftEndTime: timeField,
-  role: z.enum(['ORG_ADMIN', 'EMPLOYEE'], { errorMap: () => ({ message: 'Role must be ORG_ADMIN or EMPLOYEE' }) }).default('EMPLOYEE'),
+  role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE'], { errorMap: () => ({ message: 'Role must be ORG_ADMIN, ORG_ACCOUNTANT, or EMPLOYEE' }) }).default('EMPLOYEE'),
 });
 
 export const updateUserSchema = z.object({
@@ -39,9 +40,10 @@ export const updateUserSchema = z.object({
   firstName: z.string().min(1).trim().optional(),
   lastName: z.string().min(1).trim().optional(),
   phone: z.string().optional(),
+  panNumber: z.string().optional(),
   shiftStartTime: timeField,
   shiftEndTime: timeField,
-  role: z.enum(['ORG_ADMIN', 'EMPLOYEE']).optional(),
+  role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE']).optional(),
   isActive: z.boolean().optional(),
 });
 

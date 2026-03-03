@@ -48,7 +48,7 @@ class EmailService {
   }) {
     if (!isConfigured()) { log.warn('Email not configured, skipping welcome email'); return; }
     const content = `
-<h2 style="color:#111827;margin:0 0 8px;">Welcome to ${params.orgName}! ðŸŽ‰</h2>
+<h2 style="color:#111827;margin:0 0 8px;">Welcome to ${params.orgName}!</h2>
 <p style="color:#6b7280;font-size:15px;">Hi ${params.firstName},</p>
 <p style="color:#374151;font-size:15px;">Your account has been created on ${APP_NAME}. Here are your login details:</p>
 <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:20px;margin:20px 0;">
@@ -76,7 +76,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
   }) {
     if (!isConfigured()) { log.warn('Email not configured, skipping leave notification'); return; }
     const content = `
-<h2 style="color:#111827;margin:0 0 8px;">New Leave Request ðŸ“‹</h2>
+<h2 style="color:#111827;margin:0 0 8px;">New Leave Request</h2>
 <p style="color:#6b7280;font-size:15px;">Hi ${params.adminName},</p>
 <p style="color:#374151;font-size:15px;"><strong>${params.employeeName}</strong> (${params.employeeId}) has submitted a leave request:</p>
 <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
@@ -103,12 +103,11 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
   }) {
     if (!isConfigured()) { log.warn('Email not configured, skipping leave decision'); return; }
     const isApproved = params.status === 'APPROVED';
-    const emoji = isApproved ? '✅' : 'âŒ';
     const color = isApproved ? '#059669' : '#dc2626';
     const bgColor = isApproved ? '#ecfdf5' : '#fef2f2';
     const borderColor = isApproved ? '#a7f3d0' : '#fecaca';
     const content = `
-<h2 style="color:#111827;margin:0 0 8px;">Leave ${params.status} ${emoji}</h2>
+<h2 style="color:#111827;margin:0 0 8px;">Leave ${params.status}</h2>
 <p style="color:#6b7280;font-size:15px;">Hi ${params.employeeName},</p>
 <p style="color:#374151;font-size:15px;">Your leave request has been <strong style="color:${color};">${params.status.toLowerCase()}</strong> by ${params.approverName}.</p>
 <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:20px;margin:20px 0;">
@@ -133,7 +132,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
   }) {
     if (!isConfigured()) { log.warn('Email not configured, skipping payroll notification'); return; }
     const content = `
-<h2 style="color:#111827;margin:0 0 8px;">Payslip Ready ðŸ’°</h2>
+<h2 style="color:#111827;margin:0 0 8px;">Payslip Ready </h2>
 <p style="color:#6b7280;font-size:15px;">Hi ${params.employeeName},</p>
 <p style="color:#374151;font-size:15px;">Your payslip for <strong>${params.bsMonth} ${params.bsYear}</strong> is now available.</p>
 <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:24px;margin:20px 0;text-align:center;">
@@ -184,7 +183,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
   }) {
     if (!isConfigured()) { log.warn('Email not configured, skipping trial warning'); return; }
     const content = `
-<h2 style="color:#111827;margin:0 0 8px;">Your trial ends in ${params.daysLeft} day${params.daysLeft === 1 ? '' : 's'} â°</h2>
+<h2 style="color:#111827;margin:0 0 8px;">Your trial ends in ${params.daysLeft} day${params.daysLeft === 1 ? '' : 's'}</h2>
 <p style="color:#6b7280;font-size:15px;">Hi ${params.adminName},</p>
 <p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> expires on <strong>${params.trialEndsAt.toDateString()}</strong>.</p>
 <p style="color:#374151;font-size:15px;">To keep your attendance data, payroll records, and team access uninterrupted, upgrade to Operations before your trial ends.</p>
@@ -257,7 +256,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
   <p style="margin:0 0 8px;color:#64748b;font-size:14px">Amount due</p>
   <p style="margin:0;font-size:28px;font-weight:700;color:#1e293b">Rs. ${params.amountDue.toLocaleString()}</p>
   <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">
-    ${params.employeeCount} employees Ã— Rs. ${params.pricePerEmployee}/employee
+    ${params.employeeCount} employees X— Rs. ${params.pricePerEmployee}/employee
   </p>
 </div>
 <p style="color:#475569;margin:0 0 16px">
@@ -298,7 +297,7 @@ ${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14
   </p>
 </div>
 <p style="color:#b91c1c;font-weight:600;margin:0 0 16px">
-  âš ï¸ If payment is not received within ${params.gracePeriodDays} days, your account will be suspended.
+  If payment is not received within ${params.gracePeriodDays} days, your account will be suspended.
 </p>
 <p style="color:#475569;margin:0 0 8px">
   Please pay via bank transfer, eSewa, or Khalti and send your receipt via WhatsApp immediately.

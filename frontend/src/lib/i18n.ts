@@ -39,6 +39,18 @@ const translations: Record<string, Record<Language, string>> = {
   'common.days': { NEPALI: 'दिन', ENGLISH: 'days' },
   'common.hours': { NEPALI: 'घण्टा', ENGLISH: 'hours' },
   'common.minutes': { NEPALI: 'मिनेट', ENGLISH: 'minutes' },
+  'common.months': { NEPALI: 'महिना', ENGLISH: 'months' },
+  'common.from': { NEPALI: 'देखि', ENGLISH: 'From' },
+  'common.to': { NEPALI: 'सम्म', ENGLISH: 'To' },
+  'common.view': { NEPALI: 'हेर्नुहोस्', ENGLISH: 'View' },
+  'common.download': { NEPALI: 'डाउनलोड', ENGLISH: 'Download' },
+  'common.upgrade': { NEPALI: 'अपग्रेड गर्नुहोस्', ENGLISH: 'Upgrade to Operations' },
+  'common.opsRequired': { NEPALI: 'Operations प्लान आवश्यक छ', ENGLISH: 'Requires Operations plan' },
+  'common.preview': { NEPALI: 'पूर्वावलोकन', ENGLISH: 'Preview' },
+  'common.noData': { NEPALI: 'डाटा छैन', ENGLISH: 'No data' },
+  'common.noRecord': { NEPALI: 'कुनै रेकर्ड छैन', ENGLISH: 'No record' },
+  'common.total': { NEPALI: 'जम्मा', ENGLISH: 'Total' },
+  'common.month': { NEPALI: 'महिना', ENGLISH: 'Month' },
 
   // ===== Roles =====
   'role.admin': { NEPALI: 'प्रशासक', ENGLISH: 'Admin' },
@@ -90,9 +102,22 @@ const translations: Record<string, Record<Language, string>> = {
   'attendance.manual': { NEPALI: 'म्यानुअल प्रविष्टि', ENGLISH: 'Manual Entry' },
   'attendance.openCamera': { NEPALI: 'क्यामेरा खोल्नुहोस्', ENGLISH: 'Open Camera to Scan' },
   'attendance.myAttendance': { NEPALI: 'मेरो उपस्थिति', ENGLISH: 'My Attendance' },
+  'attendance.workingDays': { NEPALI: 'कार्य दिन', ENGLISH: 'Working' },
+  'attendance.present': { NEPALI: 'उपस्थित', ENGLISH: 'Present' },
+  'attendance.absent': { NEPALI: 'अनुपस्थित', ENGLISH: 'Absent' },
+  'attendance.paidLeave': { NEPALI: 'सशुल्क बिदा', ENGLISH: 'Paid leave' },
+  'attendance.unpaidLeave': { NEPALI: 'बिना तलब बिदा', ENGLISH: 'Unpaid leave' },
 
   // ===== Employee Dashboard =====
   'employee.title': { NEPALI: 'मेरो उपस्थिति', ENGLISH: 'My Attendance' },
+  'employee.profile': { NEPALI: 'प्रोफाइल', ENGLISH: 'Profile' },
+  'employee.shiftTime': { NEPALI: 'शिफ्ट समय', ENGLISH: 'Shift Time' },
+  'employee.orgDefault': { NEPALI: 'संगठन पूर्वनिर्धारित', ENGLISH: 'Org default' },
+  'employee.joinedDate': { NEPALI: 'सिर्जना मिति', ENGLISH: 'Joined' },
+  'employee.id': { NEPALI: 'कर्मचारी आईडी', ENGLISH: 'Employee ID' },
+  'employee.email': { NEPALI: 'इमेल', ENGLISH: 'Email' },
+  'employee.phone': { NEPALI: 'फोन', ENGLISH: 'Phone' },
+  'employee.role': { NEPALI: 'भूमिका', ENGLISH: 'Role' },
 
   // ===== Users =====
   'users.title': { NEPALI: 'प्रयोगकर्ता व्यवस्थापन', ENGLISH: 'User Management' },
@@ -138,8 +163,6 @@ const translations: Record<string, Record<Language, string>> = {
   'leave.approvedBy': { NEPALI: 'स्वीकृत गर्ने:', ENGLISH: 'Approved by' },
   'leave.rejectedBy': { NEPALI: 'अस्वीकृत गर्ने:', ENGLISH: 'Rejected by' },
   'leave.selectDate': { NEPALI: 'मिति छान्नुहोस्', ENGLISH: 'Select date' },
-
-  // Leave types
   'leave.type.SICK': { NEPALI: 'बिरामी बिदा', ENGLISH: 'Sick Leave' },
   'leave.type.CASUAL': { NEPALI: 'आकस्मिक बिदा', ENGLISH: 'Casual Leave' },
   'leave.type.ANNUAL': { NEPALI: 'वार्षिक बिदा', ENGLISH: 'Annual Leave' },
@@ -167,6 +190,8 @@ const translations: Record<string, Record<Language, string>> = {
   'reports.poor': { NEPALI: 'कमजोर', ENGLISH: 'Poor' },
 
   // ===== Payroll =====
+  'payroll.process': { NEPALI: 'प्रशोधन', ENGLISH: 'Process' },
+  'payroll.paid': { NEPALI: 'भुक्तानी', ENGLISH: 'Paid' },
   'payroll.title': { NEPALI: 'तलब व्यवस्थापन', ENGLISH: 'Payroll Management' },
   'payroll.settings': { NEPALI: 'तलब सेटिङ्स', ENGLISH: 'Pay Settings' },
   'payroll.generate': { NEPALI: 'तलब बनाउनुहोस्', ENGLISH: 'Generate Payroll' },
@@ -178,6 +203,79 @@ const translations: Record<string, Record<Language, string>> = {
   'payroll.grossSalary': { NEPALI: 'कुल तलब', ENGLISH: 'Gross Salary' },
   'payroll.tds': { NEPALI: 'कर कटौती', ENGLISH: 'TDS' },
   'payroll.ssf': { NEPALI: 'सामाजिक सुरक्षा कोष', ENGLISH: 'SSF' },
+  'payroll.payslip': { NEPALI: 'पे-स्लिप', ENGLISH: 'Payslip' },
+  'payroll.preview': { NEPALI: 'पूर्वावलोकन', ENGLISH: 'Preview' },
+  'payroll.download': { NEPALI: 'डाउनलोड', ENGLISH: 'Download' },
+  'payroll.mySalary': { NEPALI: 'मेरो तलब इतिहास', ENGLISH: 'My Salary & Payslips' },
+  'payroll.monthlyBreakdown': { NEPALI: 'मासिक विवरण', ENGLISH: 'Monthly Breakdown' },
+  'payroll.summaryPdf': { NEPALI: 'सारांश PDF', ENGLISH: 'Download Summary PDF' },
+  'payroll.generating': { NEPALI: 'तयार हुँदैछ...', ENGLISH: 'Generating...' },
+  'payroll.totalNet': { NEPALI: 'जम्मा तलब', ENGLISH: 'Total Net' },
+  'payroll.avgMonth': { NEPALI: 'औसत', ENGLISH: 'Avg/Month' },
+  'payroll.perMonth': { NEPALI: 'प्रति महिना', ENGLISH: 'per month' },
+  'payroll.recorded': { NEPALI: 'रेकर्ड', ENGLISH: 'Recorded' },
+  'payroll.total': { NEPALI: 'जम्मा', ENGLISH: 'TOTAL' },
+  'payroll.monthly': { NEPALI: 'मासिक', ENGLISH: 'Monthly' },
+  'payroll.range': { NEPALI: 'दायरा', ENGLISH: 'Range' },
+  'payroll.selectDate': { NEPALI: 'मिति छान्नुहोस्', ENGLISH: 'Select a date range' },
+  'payroll.selectDateHint': { NEPALI: 'माथि देखि/सम्म मिति छानेर "हेर्नुहोस्" थिच्नुहोस्', ENGLISH: 'Choose from/to dates above and click View' },
+  'payroll.noRecord': { NEPALI: 'कुनै रेकर्ड छैन', ENGLISH: 'No record' },
+  'payroll.upgradeBtn': { NEPALI: 'अपग्रेड गर्नुहोस्', ENGLISH: 'Upgrade to Operations' },
+  'payroll.opsRequired': { NEPALI: 'Operations प्लान आवश्यक छ', ENGLISH: 'Requires Operations plan' },
+  'payroll.pdfAvailable': { NEPALI: 'PDF डाउनलोड Operations plan मा उपलब्ध छ', ENGLISH: 'PDF downloads are available on the Operations plan' },
+  'payroll.multiMonth': { NEPALI: 'बहु-महिना तलब दृश्य', ENGLISH: 'Multi-Month Salary View' },
+  'payroll.multiMonthDesc': { NEPALI: 'कर्मचारीहरूको धेरै महिनाको तलब एकै पटक हेर्नुहोस्', ENGLISH: 'View salary across multiple months' },
+  'payroll.multiMonthUpgradeDesc': { NEPALI: 'एकै पटक धेरै महिनाको तलब तुलना गर्नुहोस् र CSV निर्यात गर्नुहोस्।', ENGLISH: 'Compare salaries across months side-by-side and export to CSV for payroll audits.' },
+  'payroll.annualTax': { NEPALI: 'वार्षिक कर विवरण', ENGLISH: 'Annual Tax Details' },
+  'payroll.annualReport': { NEPALI: 'वार्षिक कर रिपोर्ट', ENGLISH: 'Annual Tax Report' },
+  'payroll.annualReportDesc': { NEPALI: 'सबै कर्मचारीको वार्षिक TDS, SSF र खुद तलब एकै ठाउँमा हेर्नुहोस्।', ENGLISH: 'View all employee annual TDS, SSF and net salary in one place.' },
+  'payroll.viewReport': { NEPALI: 'रिपोर्ट हेर्नुहोस्', ENGLISH: 'View Report' },
+  'payroll.csvDownload': { NEPALI: 'CSV डाउनलोड', ENGLISH: 'CSV Download' },
+  'payroll.annualBasic': { NEPALI: 'वार्षिक आधारभूत', ENGLISH: 'Annual Basic' },
+  'payroll.annualGross': { NEPALI: 'वार्षिक कुल', ENGLISH: 'Annual Gross' },
+  'payroll.annualNet': { NEPALI: 'वार्षिक खुद', ENGLISH: 'Annual Net' },
+  'payroll.noYearData': { NEPALI: 'यो वर्षको तलब गणना गरिएको छैन', ENGLISH: 'No salary data for this year' },
+  'payroll.employee': { NEPALI: 'कर्मचारी', ENGLISH: 'Employee' },
+  'payroll.basic': { NEPALI: 'आधारभूत', ENGLISH: 'Basic' },
+  'payroll.gross': { NEPALI: 'कुल', ENGLISH: 'Gross' },
+  'payroll.net': { NEPALI: 'खुद', ENGLISH: 'Net' },
+  'payroll.details': { NEPALI: 'विस्तृत', ENGLISH: 'Details' },
+  'payroll.earnings': { NEPALI: 'आमदानी', ENGLISH: 'Earnings' },
+  'payroll.da': { NEPALI: 'महँगी भत्ता', ENGLISH: 'DA' },
+  'payroll.transport': { NEPALI: 'यातायात भत्ता', ENGLISH: 'Transport' },
+  'payroll.medical': { NEPALI: 'चिकित्सा भत्ता', ENGLISH: 'Medical' },
+  'payroll.other': { NEPALI: 'अन्य भत्ता', ENGLISH: 'Other' },
+  'payroll.overtime': { NEPALI: 'ओभरटाइम', ENGLISH: 'Overtime' },
+  'payroll.dashainBonus': { NEPALI: 'दशैं बोनस', ENGLISH: 'Dashain Bonus' },
+  'payroll.totalEarnings': { NEPALI: 'कुल आमदानी', ENGLISH: 'Gross salary' },
+  'payroll.absenceDeduction': { NEPALI: 'अनुपस्थिति कटौती', ENGLISH: 'Absence deduction' },
+  'payroll.advance': { NEPALI: 'पेशगी कटौती', ENGLISH: 'Advance' },
+  'payroll.totalDeductions': { NEPALI: 'जम्मा कटौती', ENGLISH: 'Total deductions' },
+  'payroll.employer': { NEPALI: 'नियोक्ता', ENGLISH: 'Employer' },
+  'payroll.employerContrib': { NEPALI: 'नियोक्ता योगदान', ENGLISH: 'Employer contribution' },
+  'payroll.marriedSlab': { NEPALI: '* विवाहित कर स्ल्याब लागू', ENGLISH: '* Married tax slab applied' },
+  'payroll.viewOnly': { NEPALI: 'हेर्ने मात्र', ENGLISH: 'View only' },
+
+  // ===== Documents =====
+  'documents.title': { NEPALI: 'कागजातहरू', ENGLISH: 'Documents' },
+  'documents.upload': { NEPALI: 'अपलोड गर्नुहोस्', ENGLISH: 'Upload' },
+  'documents.uploadNew': { NEPALI: 'नयाँ कागजात अपलोड गर्नुहोस्', ENGLISH: 'Upload new document' },
+  'documents.uploading': { NEPALI: 'अपलोड हुँदैछ...', ENGLISH: 'Uploading...' },
+  'documents.uploaded': { NEPALI: 'कागजात सफलतापूर्वक अपलोड भयो', ENGLISH: 'Document uploaded successfully' },
+  'documents.deleted': { NEPALI: 'कागजात मेटाइयो', ENGLISH: 'Document deleted' },
+  'documents.noDocuments': { NEPALI: 'कुनै कागजात छैन', ENGLISH: 'No documents yet' },
+  'documents.uploadHint': { NEPALI: 'कागजात अपलोड गर्न माथिको बटन थिच्नुहोस्', ENGLISH: 'Upload documents using the button above' },
+  'documents.type': { NEPALI: 'कागजात प्रकार', ENGLISH: 'Document Type' },
+  'documents.optional': { NEPALI: 'ऐच्छिक', ENGLISH: 'optional' },
+  'documents.notePlaceholder': { NEPALI: 'नोट थप्नुहोस्...', ENGLISH: 'Add a note...' },
+  'documents.noTypes': { NEPALI: 'अहिलेसम्म कुनै कागजात प्रकार सेट गरिएको छैन। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।', ENGLISH: 'No document types have been configured yet. Please ask your admin to set them up in Settings.' },
+  'documents.viewOnly': { NEPALI: 'हेर्ने मात्र', ENGLISH: 'View only' },
+  'documents.previewUnavailable': { NEPALI: 'पूर्वावलोकन उपलब्ध छैन', ENGLISH: 'Preview not available' },
+  'documents.confirmDelete': { NEPALI: 'पक्का?', ENGLISH: 'Confirm' },
+  'documents.dragOrClick': { NEPALI: 'फाइल छान्नुहोस् वा यहाँ ड्र्याग गर्नुहोस्', ENGLISH: 'Click to select or drag and drop' },
+  'documents.view': { NEPALI: 'हेर्नुहोस्', ENGLISH: 'View' },
+  'documents.delete': { NEPALI: 'मेटाउनुहोस्', ENGLISH: 'Delete' },
+  'documents.description': { NEPALI: 'विवरण', ENGLISH: 'Description' },
 
   // ===== QR Code =====
   'qr.title': { NEPALI: 'QR कोड', ENGLISH: 'QR Code' },
@@ -212,7 +310,12 @@ const translations: Record<string, Record<Language, string>> = {
  */
 export function t(key: string, lang: Language = 'NEPALI'): string {
   const entry = translations[key];
-  if (!entry) return key;
+  if (!entry) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`[i18n] Missing translation key: "${key}"`);
+    }
+    return key;
+  }
   return entry[lang] || entry['ENGLISH'] || key;
 }
 

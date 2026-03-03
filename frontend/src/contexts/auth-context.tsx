@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 interface Organization {
   id: string;
   name: string;
+  slug?:string;
   calendarMode: 'NEPALI' | 'ENGLISH';
   language: 'NEPALI' | 'ENGLISH';
   staticQREnabled: boolean;
@@ -38,7 +39,7 @@ interface User {
   firstName: string;
   lastName: string;
   employeeId: string | null;
-  role: 'SUPER_ADMIN' | 'ORG_ADMIN' | 'EMPLOYEE';
+  role: 'SUPER_ADMIN' | 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE';
   isActive: boolean;
   organizationId: string | null;
   organization?: Organization;
@@ -71,6 +72,7 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  isAccountant:boolean;
   isSuperAdmin: boolean;
   calendarMode: 'NEPALI' | 'ENGLISH';
   language: 'NEPALI' | 'ENGLISH';
@@ -124,6 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.push('/super-admin');
     } else if (data.user.role === 'ORG_ADMIN') {
       router.push('/admin');
+    } else if (data.user.role === 'ORG_ACCOUNTANT') {
+      router.push('/accountant');
     } else {
       router.push('/employee');
     }
@@ -135,7 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
-  const isAdmin = user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN';
+ const isAdmin = user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN';
+  const isAccountant = user?.role === 'ORG_ACCOUNTANT';
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const calendarMode = user?.organization?.calendarMode || 'NEPALI';
   const language = user?.organization?.language || 'NEPALI';
@@ -167,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshUser: checkAuth,
       isAdmin,
+      isAccountant,
       isSuperAdmin,
       calendarMode,
       language,

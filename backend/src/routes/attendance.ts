@@ -10,7 +10,7 @@ import {
   attendanceListQuerySchema,
   myAttendanceQuerySchema,
 } from '../schemas/attendance.schema';
-import { authenticate, requireOrgAdmin, enforceOrgIsolation, AuthRequest } from '../middleware/auth';
+import { authenticate, requireOrgAdmin, requireOrgAdminOrAccountant ,enforceOrgIsolation, AuthRequest } from '../middleware/auth';
 import { scanRateLimiter } from '../middleware/rateLimiter';
 import { notificationService } from '../services/notification.service';
 import prisma from '../lib/prisma';
@@ -127,7 +127,7 @@ router.get(
 router.get(
   '/',
   authenticate,
-  requireOrgAdmin,
+  requireOrgAdminOrAccountant,
   enforceOrgIsolation,
   validate(attendanceListQuerySchema, 'query'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -192,7 +192,7 @@ router.post(
 );
 
 // GET /api/attendance/late-arrivals - Get late arrivals with filters and statistics
-router.get('/late-arrivals', authenticate, requireOrgAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/late-arrivals', authenticate, requireOrgAdminOrAccountant, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.organizationId) {
       return res.status(400).json({ error: { message: 'No organization associated' } });

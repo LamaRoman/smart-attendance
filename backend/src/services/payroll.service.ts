@@ -577,7 +577,7 @@ export class PayrollService {
     const record = await prisma.payrollRecord.findFirst({ where });
     if (!record) throw new NotFoundError('Payroll record not found');
 
-    // Block status changes on NEEDS_RECALCULATION records (must regenerate first)
+// Block status changes on NEEDS_RECALCULATION records (must regenerate first)
     if (record.status === 'NEEDS_RECALCULATION' && status !== 'NEEDS_RECALCULATION') {
       throw new ValidationError(
         'This payslip has attendance corrections and must be regenerated before changing status.',
@@ -585,8 +585,44 @@ export class PayrollService {
       );
     }
 
+    // PAID is permanently locked — corrections go into next payroll period
+    if (record.status === 'PAID') {
+      throw new ValidationError(
+        'Paid payroll records cannot be modified. Corrections must be applied in the next payroll period.'
+      );
+    }
+
+    // Role-based status transition enforcement (separation of duties)
+    const ROLE_TRANSITIONS: Record<string, Record<string, string[]>> = {
+      ORG_ACCOUNTANT: {
+        DRAFT: ['PROCESSED'],
+        APPROVED: ['PAID'],
+      },
+      ORG_ADMIN: {
+        DRAFT: ['PROCESSED'],
+        PROCESSED: ['APPROVED'],
+        APPROVED: ['PROCESSED','PAID'],  // Admin can revert approval before payment
+      },
+      SUPER_ADMIN: {
+        DRAFT: ['PROCESSED'],
+        PROCESSED: ['APPROVED'],
+        APPROVED: ['PROCESSED', 'PAID'],
+      },
+    };
+
+    const transitions = ROLE_TRANSITIONS[currentUser.role];
+    if (!transitions) {
+      throw new ValidationError('Your role does not have permission to change payroll status.');
+    }
+    const allowed = transitions[record.status] || [];
+    if (!allowed.includes(status)) {
+      throw new ValidationError(
+        `${currentUser.role} cannot change status from ${record.status} to ${status}.`
+      );
+    }
+
     const updated = await prisma.payrollRecord.update({
-      where: { id: recordId },
+    where: { id: recordId },
       data: updateData,
       include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
     });
@@ -623,6 +659,19 @@ export class PayrollService {
           'NEEDS_RECALCULATION'
         );
       }
+    }
+
+    // Role-based transition enforcement for bulk updates
+    const BULK_ROLE_TRANSITIONS: Record<string, string[]> = {
+      ORG_ACCOUNTANT: ['PROCESSED', 'PAID'],
+      ORG_ADMIN: ['PROCESSED', 'APPROVED','PAID'],
+      SUPER_ADMIN: ['PROCESSED', 'APPROVED', 'PAID'],
+    };
+    const allowedStatuses = BULK_ROLE_TRANSITIONS[currentUser.role];
+    if (!allowedStatuses || !allowedStatuses.includes(status)) {
+      throw new ValidationError(
+        `${currentUser.role} cannot bulk update payroll to ${status}.`
+      );
     }
 
     // Fetch all records before update for audit trail

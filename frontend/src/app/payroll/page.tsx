@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
+import AccountantLayout from '@/components/AccountantLayout';
 import {
   CreditCard, Users, Clock, CheckCircle, AlertCircle, X,
   Settings, FileText, Play, Download, RefreshCw, AlertTriangle, BarChart3,
@@ -36,7 +37,12 @@ export default function PayrollPage() {
   const [featurePayrollWorkflow, setFeaturePayrollWorkflow] = useState(false);
 
   // ── UI state ──
-  const [tab, setTab]                 = useState<Tab>('settings');
+  const [tab, setTab] = useState<Tab>('settings');
+  // Redirect accountant to records tab on mount
+  useEffect(() => {
+    if (user?.role === 'ORG_ACCOUNTANT') setTab('records');
+  }, [user?.role]);
+
   const [error, setError]             = useState('');
   const [success, setSuccess]         = useState('');
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -81,6 +87,7 @@ export default function PayrollPage() {
 
   // ── Derived ──
   const isStarter = orgTier === 'STARTER';
+  const isAccountant = user?.role === 'ORG_ACCOUNTANT';
 
   const hasUnsavedChanges = useMemo(
     () => JSON.stringify(form) !== JSON.stringify(originalForm),
@@ -117,13 +124,13 @@ export default function PayrollPage() {
   }, [form]);
 
   // ── Auth guard ──
-  useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'ORG_ADMIN')) router.push('/login');
+useEffect(() => {
+    if (!isLoading && (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT'))) router.push('/login');
   }, [user, isLoading, router]);
 
   // ── Fetch subscription & features ──
   useEffect(() => {
-    if (!user || user.role !== 'ORG_ADMIN' || featureChecked) return;
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT') || featureChecked) return;
     (async () => {
       const res = await api.get('/api/org-settings/subscription');
       if (res.data) {
@@ -145,7 +152,7 @@ export default function PayrollPage() {
 
   // ── Load data on tab change ──
   useEffect(() => {
-    if (!user || user.role !== 'ORG_ADMIN' || !featureChecked) return;
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT') || !featureChecked) return;
     if (tab === 'settings') {
       loadSettings();
       if (!tdsSlabs) {
@@ -310,18 +317,20 @@ export default function PayrollPage() {
   }
   if (!user) return null;
 
-  const tabDefs: { key: Tab; label: string; icon: React.ElementType; locked?: boolean }[] = [
-    { key: 'settings',   label: isNp ? 'तलब सेटिङ'      : 'Pay settings',    icon: Settings  },
-    { key: 'generate',   label: isNp ? 'तलब गणना'       : 'Generate payroll', icon: Play      },
-    { key: 'records',    label: isNp ? 'तलब रेकर्ड'     : 'Payroll records',  icon: FileText  },
-    { key: 'annual',     label: isNp ? 'वार्षिक विवरण'  : 'Annual report',    icon: CreditCard, locked: isStarter },
-    { key: 'multimonth', label: isNp ? 'बहु-महिना दृश्य': 'Multi-Month',      icon: BarChart3,  locked: isStarter },
-  ];
-
+const tabDefs: { key: Tab; label: string; icon: React.ElementType; locked?: boolean }[] = isAccountant
+    ? [{ key: 'records', label: isNp ? 'तलब रेकर्ड' : 'Payroll records', icon: FileText }]
+    : [
+        { key: 'settings',   label: isNp ? 'तलब सेटिङ'      : 'Pay settings',    icon: Settings  },
+        { key: 'generate',   label: isNp ? 'तलब गणना'       : 'Generate payroll', icon: Play      },
+        { key: 'records',    label: isNp ? 'तलब रेकर्ड'     : 'Payroll records',  icon: FileText  },
+        { key: 'annual',     label: isNp ? 'वार्षिक विवरण'  : 'Annual report',    icon: CreditCard, locked: isStarter },
+        { key: 'multimonth', label: isNp ? 'बहु-महिना दृश्य': 'Multi-Month',      icon: BarChart3,  locked: isStarter },
+      ];
   const isBusy = saving || generating || loadingRecords;
 
+const Layout = isAccountant ? AccountantLayout : AdminLayout;
   return (
-    <AdminLayout>
+    <Layout>
       <div className="space-y-6">
         {/* ── Header ── */}
         <div className="flex items-center justify-between">
@@ -460,8 +469,9 @@ export default function PayrollPage() {
 
         {tab === 'records' && (
           <RecordsTab
-            isNp={isNp}
+            language={language as any}
             isStarter={isStarter}
+            userRole = {user?.role}
             featurePayrollWorkflow={featurePayrollWorkflow}
             recYear={recYear}
             recMonth={recMonth}
@@ -477,7 +487,7 @@ export default function PayrollPage() {
 
         {tab === 'annual' && (
           <AnnualTab
-            isNp={isNp}
+            language={language as any}
             isStarter={isStarter}
             annualYear={annualYear}
             annualData={annualData}
@@ -490,7 +500,7 @@ export default function PayrollPage() {
 
         {tab === 'multimonth' && (
           <MultiMonthTab
-            isNp={isNp}
+           language={language as any}
             isStarter={isStarter}
             multiFromYear={multiFromYear}
             multiFromMonth={multiFromMonth}
@@ -514,12 +524,12 @@ export default function PayrollPage() {
       {selectedPayslip && (
         <PayslipModal
           record={selectedPayslip}
-          isNp={isNp}
+         language={language as any}
           isStarter={isStarter}
           onClose={() => setSelectedPayslip(null)}
           onError={setError}
         />
       )}
-    </AdminLayout>
+    </Layout>
   );
 }

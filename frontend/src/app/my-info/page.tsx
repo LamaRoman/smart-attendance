@@ -23,9 +23,9 @@ import {
   KeyRound,
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
-
+import { adToBS, toNepaliDigits, BS_MONTHS_NP } from '@/components/BSDatePicker';
 export default function MyInfoPage() {
-  const { user, isLoading, language, refreshUser } = useAuth();
+  const { user, isLoading, language, calendarMode,refreshUser } = useAuth();
   const router = useRouter();
   const isNp = language === 'NEPALI';
 
@@ -147,6 +147,7 @@ export default function MyInfoPage() {
   const initials = ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase();
   const roleLabel: Record<string, string> = {
     EMPLOYEE: isNp ? 'कर्मचारी' : 'Employee',
+    ORG_ACCOUNTANT: isNp ? 'लेखापाल' : 'Accountant',
     ORG_ADMIN: isNp ? 'प्रशासक' : 'Admin',
   };
   const inputClass = 'w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-colors bg-white';
@@ -264,8 +265,9 @@ export default function MyInfoPage() {
                 </td>
                 <td className="py-3 px-5 text-sm font-medium text-slate-900">
                   {(user as any).createdAt
-                    ? new Date((user as any).createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                    : '—'}
+                    ? calendarMode === 'NEPALI'
+                      ? (() => { const bs = adToBS(new Date((user as any).createdAt)); return `${toNepaliDigits(bs.day)} ${BS_MONTHS_NP[bs.month - 1]} ${toNepaliDigits(bs.year)}`; })()
+                      : new Date((user as any).createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }): '—'}
                 </td>
               </tr>
             </tbody>

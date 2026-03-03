@@ -4,7 +4,7 @@ import { Router, Response, NextFunction } from 'express';
 import { leaveService } from '../services/leave.service';
 import { validate } from '../middleware/validate';
 import { createLeaveSchema, approveRejectLeaveSchema, leaveListQuerySchema } from '../schemas/leave.schema';
-import { authenticate, requireOrgAdmin, enforceOrgIsolation, AuthRequest } from '../middleware/auth';
+import { authenticate, requireOrgAdmin, requireOrgAdminOrAccountant,enforceOrgIsolation, AuthRequest } from '../middleware/auth';
 
 import { requireFeature } from '../middleware/feature.guard';
 const router = Router();
@@ -90,7 +90,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 // ===== Admin routes =====
 
 // GET /api/leaves — List all leaves (admin, org-scoped)
-router.get('/', requireOrgAdmin, enforceOrgIsolation, validate(leaveListQuerySchema, 'query'), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', requireOrgAdminOrAccountant, enforceOrgIsolation, validate(leaveListQuerySchema, 'query'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { limit, offset, status, userId } = req.query as any;
     const result = await leaveService.listLeaves(req.user!, limit, offset, { status, userId });

@@ -107,6 +107,7 @@ export class AuthService {
             language: true,
             staticQREnabled: true,
             rotatingQREnabled: true,
+            slug:true,
           },
         },
         createdAt: true,

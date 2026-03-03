@@ -3,11 +3,12 @@
 import { Clock, FileText, Eye, Download } from 'lucide-react';
 import { PayrollRecord, STATUS_COLORS } from '../types';
 import { BS_MONTHS_NP, BS_MONTHS_EN, fmt, API_BASE } from '../utils';
+import { t, Language } from '@/lib/i18n';
 
 interface Props {
-  isNp: boolean;
+  language: Language;
   isStarter: boolean;
-  /** Specific feature flag -- false on STARTER plan */
+  userRole?: string;
   featurePayrollWorkflow: boolean;
   recYear: number;
   recMonth: number;
@@ -23,10 +24,12 @@ interface Props {
 const YEARS = [2081, 2082, 2083];
 
 export default function RecordsTab({
-  isNp, isStarter, featurePayrollWorkflow,
+  language, isStarter, userRole, featurePayrollWorkflow,
   recYear, recMonth, records, loadingRecords,
   onSetYear, onSetMonth, onLoad, onBulkStatus, onViewPayslip,
 }: Props) {
+  const lang = language;
+
   const handleBankCsv = async () => {
     const res = await fetch(
       `${API_BASE}/api/payroll/export/bank-sheet?bsYear=${recYear}&bsMonth=${recMonth}`,
@@ -48,7 +51,7 @@ export default function RecordsTab({
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="text-sm font-semibold text-slate-900">
-            {isNp ? 'à¤¤à¤²à¤¬ à¤°à¥‡à¤•à¤°à¥à¤¡' : 'Payroll records'}
+            {t('payroll.records', lang)}
           </h2>
           <div className="flex items-center gap-3 flex-wrap">
             <select
@@ -64,37 +67,37 @@ export default function RecordsTab({
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
               {BS_MONTHS_NP.map((m, i) => (
-                <option key={i} value={i + 1}>{isNp ? m : BS_MONTHS_EN[i]}</option>
+                <option key={i} value={i + 1}>{lang === 'NEPALI' ? m : BS_MONTHS_EN[i]}</option>
               ))}
             </select>
 
             {records.length > 0 && (
               <div className="flex gap-2 flex-wrap">
-                {/* --€--€ FIX (HIGH): Process / Approve / Paid gated by featurePayrollWorkflow --€--€ */}
                 <WorkflowButton
-                  label={isNp ? 'à¤ªà¥à¤°à¤¶à¥‹à¤§à¤¨' : 'Process'}
+                  label={t('payroll.process', lang)}
                   allowed={featurePayrollWorkflow}
                   onClick={() => onBulkStatus('PROCESSED')}
                   className="bg-blue-50 text-blue-700 hover:bg-blue-100"
                 />
+                {userRole !== 'ORG_ACCOUNTANT' && (
+                  <WorkflowButton
+                    label={t('leave.approved', lang)}
+                    allowed={featurePayrollWorkflow}
+                    onClick={() => onBulkStatus('APPROVED')}
+                    className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  />
+                )}
                 <WorkflowButton
-                  label={isNp ? 'à¤¸à¥à¤µà¥€à¤•à¥ƒà¤¤' : 'Approve'}
-                  allowed={featurePayrollWorkflow}
-                  onClick={() => onBulkStatus('APPROVED')}
-                  className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                />
-                <WorkflowButton
-                  label={isNp ? 'à¤­à¥à¤•à¥à¤¤à¤¾à¤¨à¥€' : 'Paid'}
+                  label={t('payroll.paid', lang)}
                   allowed={featurePayrollWorkflow}
                   onClick={() => onBulkStatus('PAID')}
                   className="bg-slate-100 text-slate-900 hover:bg-slate-200"
                 />
 
-                {/* --€--€ FIX (MEDIUM): Bank CSV shows disabled PRO badge rather than vanishing --€--€ */}
                 <button
                   disabled={isStarter}
                   onClick={handleBankCsv}
-                  title={isStarter ? (isNp ? 'Operations à¤ªà¥à¤²à¤¾à¤¨ à¤†à¤µà¤¶à¥à¤¯à¤• à¤›' : 'Requires Operations plan') : undefined}
+                  title={isStarter ? t('common.opsRequired', lang) : undefined}
                   className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-md text-xs font-medium hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-50"
                 >
                   {isStarter && (
@@ -103,7 +106,7 @@ export default function RecordsTab({
                     </span>
                   )}
                   <Download className="w-3 h-3" />
-                  {isNp ? 'à¤¬à¥ˆà¤‚à¤• CSV' : 'Bank CSV'}
+                  {lang === 'NEPALI' ? 'बैंक CSV' : 'Bank CSV'}
                 </button>
               </div>
             )}
@@ -112,7 +115,7 @@ export default function RecordsTab({
       </div>
 
       {loadingRecords ? (
-        <LoadingCard isNp={isNp} />
+        <LoadingCard lang={lang} />
       ) : records.length > 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -120,15 +123,15 @@ export default function RecordsTab({
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
                   {[
-                    { label: isNp ? 'à¤•à¤°à¥à¤®à¤šà¤¾à¤°à¥€' : 'Employee',   align: 'left'   },
-                    { label: isNp ? 'दिन'       : 'Days',       align: 'center' },
-                    { label: isNp ? 'à¤•à¥à¤²'       : 'Gross',      align: 'right'  },
-                    { label: 'SSF',                              align: 'right'  },
-                    { label: 'PF',                               align: 'right'  },
-                    { label: 'TDS',                              align: 'right'  },
-                    { label: isNp ? 'à¤–à¥à¤¦'       : 'Net',        align: 'right'  },
-                    { label: isNp ? 'स्थिति'    : 'Status',     align: 'center' },
-                    { label: '',                                 align: 'center' },
+                    { label: t('payroll.employee', lang), align: 'left'   },
+                    { label: t('common.days', lang),      align: 'center' },
+                    { label: t('payroll.gross', lang),    align: 'right'  },
+                    { label: 'SSF',                       align: 'right'  },
+                    { label: 'PF',                        align: 'right'  },
+                    { label: 'TDS',                       align: 'right'  },
+                    { label: t('payroll.net', lang),      align: 'right'  },
+                    { label: t('common.status', lang),    align: 'center' },
+                    { label: '',                          align: 'center' },
                   ].map((h, i) => (
                     <th
                       key={i}
@@ -182,10 +185,10 @@ export default function RecordsTab({
             <FileText className="w-8 h-8 text-slate-400" />
           </div>
           <h3 className="text-sm font-semibold text-slate-900 mb-1">
-            {isNp ? 'à¤•à¥à¤¨à¥ˆ à¤°à¥‡à¤•à¤°à¥à¤¡ à¤›à¥ˆà¤¨' : 'No records'}
+            {t('common.noRecord', lang)}
           </h3>
           <p className="text-xs text-slate-500">
-            {isNp ? 'à¤ªà¤¹à¤¿à¤²à¥‡ à¤¤à¤²à¤¬ à¤—à¤£à¤¨à¤¾ à¤—à¤°à¥à¤¨à¥à¤¹à¥‹à¤¸à¥' : 'Generate payroll first'}
+            {lang === 'NEPALI' ? 'पहिले तलब गणना गर्नुहोस्' : 'Generate payroll first'}
           </p>
         </div>
       )}
@@ -193,7 +196,7 @@ export default function RecordsTab({
   );
 }
 
-/* --€--€ Workflow button with PRO badge when locked --€--€ */
+/* Workflow button with PRO badge when locked */
 function WorkflowButton({
   label, allowed, onClick, className,
 }: {
@@ -216,13 +219,13 @@ function WorkflowButton({
   );
 }
 
-function LoadingCard({ isNp }: { isNp: boolean }) {
+function LoadingCard({ lang }: { lang: Language }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
       <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
         <Clock className="w-6 h-6 text-slate-400 animate-spin" />
       </div>
-      <p className="text-sm text-slate-500">{isNp ? 'à¤²à¥‹à¤¡ à¤¹à¥à¤à¤¦à¥ˆà¤›...' : 'Loading...'}</p>
+      <p className="text-sm text-slate-500">{t('common.loading', lang)}</p>
     </div>
   );
 }

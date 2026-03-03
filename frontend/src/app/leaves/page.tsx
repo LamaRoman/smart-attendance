@@ -91,7 +91,7 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
 );
 
 export default function LeavePage() {
-  const { user, isLoading, logout, isAdmin, calendarMode, language } = useAuth();
+  const { user, isLoading, logout, isAdmin, isAccountant,calendarMode, language } = useAuth();
   const router = useRouter();
   const isNepali = language === 'NEPALI';
   const isNepaliCalendar = calendarMode === 'NEPALI';
@@ -115,8 +115,8 @@ export default function LeavePage() {
   });
 
 useEffect(() => {
-    if (!isLoading && user && isAdmin) setActiveTab('all');
-  }, [user, isLoading, isAdmin]);
+    if (!isLoading && user && (isAdmin || isAccountant)) setActiveTab('all');
+  }, [user, isLoading, isAdmin, isAccountant]);
   const loadMyLeaves = useCallback(async () => {
     setLoading(true);
     const res = await api.get('/api/leaves/my?limit=50');
@@ -147,7 +147,7 @@ useEffect(() => {
       if (checkRes.error?.code === 'FEATURE_NOT_AVAILABLE' || checkRes.error?.code === 'NO_SUBSCRIPTION' || checkRes.error?.code === 'SUBSCRIPTION_INACTIVE') {
         return;
       }
-      if (isAdmin) { loadAllLeaves(); }
+      if (isAdmin || isAccountant) { loadAllLeaves(); }
       else { loadMyLeaves(); }
     })();
   }, [user, isAdmin, loadAllLeaves, loadMyLeaves]);
@@ -216,9 +216,9 @@ useEffect(() => {
       const end = formatBSDate(leave.bsEndYear, leave.bsEndMonth, leave.bsEndDay);
       return { primary: `${start} → ${end}`, secondary: `${formatADDate(leave.startDate)} → ${formatADDate(leave.endDate)}` };
     }
-    return {
+   return {
       primary: `${formatADDate(leave.startDate)} → ${formatADDate(leave.endDate)}`,
-      secondary: `BS: ${formatBSDate(leave.bsStartYear, leave.bsStartMonth, leave.bsStartDay)}`,
+      secondary: `BS: ${formatBSDate(leave.bsStartYear, leave.bsStartMonth, leave.bsStartDay)} → ${formatBSDate(leave.bsEndYear, leave.bsEndMonth, leave.bsEndDay)}`,
     };
   };
 
@@ -254,7 +254,7 @@ useEffect(() => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => router.push(isAdmin ? '/admin' : '/employee')}
+              onClick={() => router.push(isAdmin ? '/admin' : isAccountant ? '/accountant' : '/employee')}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -268,7 +268,7 @@ useEffect(() => {
                     {isNepali ? 'बिदा व्यवस्थापन' : 'Leave management'}
                   </h1>
                   <p className="text-xs text-slate-500">
-                    {user.firstName} {user.lastName} • {user.role === 'ORG_ADMIN' ? (isNepali ? 'प्रशासक' : 'Admin') : (isNepali ? 'कर्मचारी' : 'Employee')}
+                    {user.firstName} {user.lastName} • {user.role === 'ORG_ADMIN' ? (isNepali ? 'प्रशासक' : 'Admin') : user.role === 'ORG_ACCOUNTANT' ? (isNepali ? 'लेखापाल' : 'Accountant') : (isNepali ? 'कर्मचारी' : 'Employee')}
                   </p>
                 </div>
               </div>
@@ -485,7 +485,7 @@ useEffect(() => {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {activeTab === 'all' && leave.status === 'PENDING' && (
+                        {activeTab === 'all' && leave.status === 'PENDING' && isAdmin && (
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleStatusUpdate(leave.id, 'APPROVED')}

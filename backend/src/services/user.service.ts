@@ -24,6 +24,7 @@ const USER_SELECT = {
   isActive: true,
   organizationId: true,
   createdAt: true,
+  panNumber:true,
   updatedAt: true,
 } as const;
 
@@ -101,6 +102,7 @@ export class UserService {
         role: input.role,
         shiftStartTime: input.shiftStartTime || null,
         shiftEndTime: input.shiftEndTime || null,
+         panNumber: input.panNumber || null,
         isActive: true,
         attendancePinHash,
         organizationId,
@@ -197,6 +199,7 @@ export class UserService {
     if (input.isActive !== undefined) updateData.isActive = input.isActive;
     if (input.shiftStartTime !== undefined) updateData.shiftStartTime = input.shiftStartTime || null;
     if (input.shiftEndTime !== undefined) updateData.shiftEndTime = input.shiftEndTime || null;
+    if (input.panNumber !== undefined) updateData.panNumber = input.panNumber || null;
     if (input.password) {
       updateData.password = await hashPassword(input.password);
     }
@@ -309,7 +312,7 @@ export class UserService {
         where: {
           organizationId,
           isActive: true,
-          role: 'EMPLOYEE',
+          role: { in: ['EMPLOYEE', 'ORG_ACCOUNTANT'] },
         },
       });
 

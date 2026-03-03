@@ -6,11 +6,10 @@ import { authenticate, requireOrgAdmin, enforceOrgIsolation, AuthRequest } from 
 
 const router = Router();
 
-// All user routes require auth + org admin
-router.use(authenticate, requireOrgAdmin, enforceOrgIsolation);
+router.use(authenticate);
 
 // GET /api/users
-router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', requireOrgAdmin, enforceOrgIsolation, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const users = await userService.listUsers(req.user!);
     res.json({ data: users });
@@ -20,7 +19,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 });
 
 // POST /api/users
-router.post('/', validate(createUserSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/', requireOrgAdmin, enforceOrgIsolation, validate(createUserSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = await userService.createUser(req.body, req.user!);
     res.status(201).json({ data: user });
@@ -32,6 +31,20 @@ router.post('/', validate(createUserSchema), async (req: AuthRequest, res: Respo
 // PUT /api/users/:id
 router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const isSelf = req.params.id === req.user!.userId;
+    const isAdmin = req.user!.role === 'ORG_ADMIN' || req.user!.role === 'SUPER_ADMIN';
+
+    if (!isSelf && !isAdmin) {
+      return res.status(403).json({ error: { message: 'You can only update your own profile' } });
+    }
+
+    if (!isAdmin) {
+      delete req.body.role;
+      delete req.body.isActive;
+      delete req.body.shiftStartTime;
+      delete req.body.shiftEndTime;
+    }
+
     const user = await userService.updateUser(req.params.id, req.body, req.user!);
     res.json({ data: user });
   } catch (error) {
@@ -40,7 +53,7 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
 });
 
 // DELETE /api/users/:id
-router.delete('/:id', validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.delete('/:id', requireOrgAdmin, enforceOrgIsolation, validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await userService.deleteUser(req.params.id, req.user!);
     res.json({ data: result });
@@ -50,7 +63,7 @@ router.delete('/:id', validate(userIdParamSchema, 'params'), async (req: AuthReq
 });
 
 // PATCH /api/users/:id/attendance-pin
-router.patch('/:id/attendance-pin', validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.patch('/:id/attendance-pin', requireOrgAdmin, enforceOrgIsolation, validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await userService.resetAttendancePin(req.params.id, req.user!);
     res.json({ data: result });

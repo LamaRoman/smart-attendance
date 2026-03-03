@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 
-type Role = 'SUPER_ADMIN' | 'ORG_ADMIN' | 'EMPLOYEE';
+type Role = 'SUPER_ADMIN' | 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE';
 
 interface RoleGuardProps {
   allowedRoles: Role[];
@@ -21,12 +21,14 @@ interface RoleGuardProps {
  * Role home mapping:
  *   SUPER_ADMIN → /super-admin
  *   ORG_ADMIN   → /admin
- *   EMPLOYEE    → /employee
+ *   ORG_ACCOUNTANT → /accountant
+ *   EMPLOYEE       → /employee
  */
 
 const ROLE_HOME: Record<Role, string> = {
   SUPER_ADMIN: '/super-admin',
   ORG_ADMIN: '/admin',
+  ORG_ACCOUNTANT: '/accountant',
   EMPLOYEE: '/employee',
 };
 

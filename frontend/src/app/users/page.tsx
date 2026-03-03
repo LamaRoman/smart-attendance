@@ -162,7 +162,8 @@ export default function UsersPage() {
 
   const [formData, setFormData] = useState({
     email: '', password: '', firstName: '', lastName: '',
-    role: 'EMPLOYEE' as 'ORG_ADMIN' | 'EMPLOYEE',
+    panNumber:'',
+    role: 'EMPLOYEE' as 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE',
     shiftStartTime: '',
     shiftEndTime: '',
   });
@@ -203,14 +204,14 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setEditingUser(null);
-    setFormData({ email: '', password: '', firstName: '', lastName: '', role: 'EMPLOYEE', shiftStartTime: '', shiftEndTime: '' });
+    setFormData({ email: '', password: '', firstName: '', lastName: '', role: 'EMPLOYEE', panNumber: '', shiftStartTime: '', shiftEndTime: '' });
     setShowModal(true);
     setError('');
   };
 
   const openEdit = (u: UserData) => {
     setEditingUser(u);
-    setFormData({ email: u.email, password: '', firstName: u.firstName, lastName: u.lastName, role: u.role as any, shiftStartTime: u.shiftStartTime || '', shiftEndTime: u.shiftEndTime || '' });
+    setFormData({ email: u.email, password: '', firstName: u.firstName, lastName: u.lastName, role: u.role as any, panNumber: (u as any).panNumber || '', shiftStartTime: u.shiftStartTime || '', shiftEndTime: u.shiftEndTime || '' });
     setShowModal(true);
     setError('');
   };
@@ -218,7 +219,7 @@ export default function UsersPage() {
   const handleSubmit = async () => {
     setSaving(true); setError('');
     if (editingUser) {
-      const updateData: any = { firstName: formData.firstName, lastName: formData.lastName, role: formData.role, shiftStartTime: formData.shiftStartTime || null, shiftEndTime: formData.shiftEndTime || null };
+      const updateData: any = { firstName: formData.firstName, lastName: formData.lastName, role: formData.role, panNumber: formData.panNumber || null, shiftStartTime: formData.shiftStartTime || null, shiftEndTime: formData.shiftEndTime || null };
       if (formData.password) updateData.password = formData.password;
       const res = await api.put('/api/users/' + editingUser.id, updateData);
       if (res.error) { setError(res.error.message); }
@@ -422,7 +423,8 @@ export default function UsersPage() {
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
               <option value="ALL">{isNp ? 'सबै भूमिका' : 'All roles'}</option>
-              <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
+             <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
+              <option value="ORG_ACCOUNTANT">{isNp ? 'लेखापाल' : 'Accountant'}</option>
               <option value="EMPLOYEE">{isNp ? 'कर्मचारी' : 'Employee'}</option>
             </select>
             <select
@@ -471,11 +473,14 @@ export default function UsersPage() {
                       </td>
                       <td className="py-3 px-5 text-sm text-slate-600">{u.email}</td>
                       <td className="py-3 px-5">
-                        <span className={u.role === 'ORG_ADMIN'
-                          ? 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-900'
-                          : 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700'
+                       <span className={
+                          u.role === 'ORG_ADMIN'
+                            ? 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-900'
+                            : u.role === 'ORG_ACCOUNTANT'
+                            ? 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700'
+                            : 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700'
                         }>
-                          {u.role === 'ORG_ADMIN' ? (isNp ? 'प्रशासक' : 'Admin') : (isNp ? 'कर्मचारी' : 'Employee')}
+                          {u.role === 'ORG_ADMIN' ? (isNp ? 'प्रशासक' : 'Admin') : u.role === 'ORG_ACCOUNTANT' ? (isNp ? 'लेखापाल' : 'Accountant') : (isNp ? 'कर्मचारी' : 'Employee')}
                         </span>
                       </td>
                       <td className="py-3 px-5">
@@ -635,11 +640,18 @@ export default function UsersPage() {
                   <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={editingUser ? (isNp ? 'खाली छोड्नुहोस्' : 'Leave blank to keep') : ''} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                 </div>
               </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  {isNp ? 'PAN नम्बर (ऐच्छिक)' : 'PAN number (optional)'}
+                </label>
+                <input type="text" value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} placeholder={isNp ? 'PAN नम्बर...' : 'PAN number...'} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+              </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">{isNp ? 'भूमिका' : 'Role'}</label>
                 <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as any })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white">
                   <option value="EMPLOYEE">{isNp ? 'कर्मचारी' : 'Employee'}</option>
+                  <option value="ORG_ACCOUNTANT">{isNp ? 'लेखापाल' : 'Accountant'}</option>
                   <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
                 </select>
               </div>

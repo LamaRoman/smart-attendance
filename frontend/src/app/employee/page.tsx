@@ -9,13 +9,10 @@ import {
   Shield,
   Clock,
   CheckCircle,
-  ChevronDown,
   CalendarDays,
   Timer,
   AlertCircle,
   X,
-  Keyboard,
-  Send,
   CreditCard,
   DollarSign,
 } from 'lucide-react';
@@ -51,9 +48,7 @@ export default function EmployeeDashboard() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualPayload, setManualPayload] = useState('');
-
+ 
   useEffect(() => {
     if (user) {
       loadStatus();
@@ -92,16 +87,6 @@ export default function EmployeeDashboard() {
       loadRecords();
     }
     setProcessing(false);
-  };
-
-  const handleManualSubmit = async () => {
-    if (!manualPayload.trim()) {
-      setError(isNp ? 'कृपया QR कोड पेस्ट गर्नुहोस्' : 'Please paste the QR payload');
-      return;
-    }
-    await handleScan(manualPayload.trim());
-    setManualPayload('');
-    setShowManualEntry(false);
   };
 
   const formatTime = (dateStr: string) =>
@@ -269,43 +254,6 @@ export default function EmployeeDashboard() {
               </div>
             )}
 
-            {/* Manual Entry Toggle */}
-            <button
-              onClick={() => setShowManualEntry(!showManualEntry)}
-              className="w-full mt-4 flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <Keyboard className="w-4 h-4" />
-              {showManualEntry
-                ? isNp ? 'म्यानुअल प्रविष्टि लुकाउनुहोस्' : 'Hide manual entry'
-                : isNp ? 'कोड म्यानुअल रूपमा हाल्नुहोस्' : 'Enter code manually'}
-              <ChevronDown className={`w-4 h-4 transition-transform ${showManualEntry ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showManualEntry && (
-              <div className="mt-4 space-y-3">
-                <textarea
-                  value={manualPayload}
-                  onChange={(e) => setManualPayload(e.target.value)}
-                  placeholder={isNp ? 'QR कोड यहाँ पेस्ट गर्नुहोस्...' : 'Paste QR payload here...'}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-transparent resize-none"
-                  rows={3}
-                />
-                <button
-                  onClick={handleManualSubmit}
-                  disabled={processing}
-                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold transition-all shadow-md hover:shadow-lg disabled:opacity-50 ${
-                    status?.isClockedIn
-                      ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
-                      : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
-                  }`}
-                >
-                  <Send className="w-4 h-4" />
-                  {status?.isClockedIn
-                    ? isNp ? 'चेक आउट' : 'Clock Out'
-                    : isNp ? 'चेक इन' : 'Clock In'}
-                </button>
-              </div>
-            )}
           </div>
         </div>
 

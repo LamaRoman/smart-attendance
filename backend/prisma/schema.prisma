@@ -19,6 +19,7 @@ datasource db {
 enum Role {
   SUPER_ADMIN // Platform-level admin  manages all orgs
   ORG_ADMIN // Organization admin  manages their org
+  ORG_ACCOUNTANT
   EMPLOYEE // Regular employee
 }
 
@@ -154,6 +155,7 @@ model User {
   lastName   String
   employeeId String? @unique
   phone      String?
+  panNumber  String?
   role       Role    @default(EMPLOYEE)
   isActive   Boolean @default(true)
 
