@@ -7,7 +7,7 @@ async function main() {
   console.log('🌱 Seeding database...\n');
 
   // ============================================================
-  // 1. Super Admin
+  // 1. Super Admin (platform-level — no org membership)
   // ============================================================
   const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || 'admin@smartattendance.com';
   const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@123';
@@ -16,7 +16,7 @@ async function main() {
 
   let superAdmin;
   if (existingSuperAdmin) {
-    console.log(`âœ“ Super admin already exists: ${superAdminEmail}`);
+    console.log(`✔ Super admin already exists: ${superAdminEmail}`);
     superAdmin = existingSuperAdmin;
   } else {
     superAdmin = await prisma.user.create({
@@ -27,10 +27,9 @@ async function main() {
         lastName: 'Admin',
         role: Role.SUPER_ADMIN,
         isActive: true,
-        // No organizationId for super admin
       },
     });
-    console.log(`âœ“ Super admin created: ${superAdminEmail} / ${superAdminPassword}`);
+    console.log(`✔ Super admin created: ${superAdminEmail} / ${superAdminPassword}`);
   }
 
   // ============================================================
@@ -49,13 +48,13 @@ async function main() {
         calendarMode: 'NEPALI',
       },
     });
-    console.log(`âœ“ Organization created: ${org.name}`);
+    console.log(`✔ Organization created: ${org.name}`);
   } else {
-    console.log(`âœ“ Organization already exists: ${org.name}`);
+    console.log(`✔ Organization already exists: ${org.name}`);
   }
 
   // ============================================================
-  // 3. Org Admin
+  // 3. Org Admin (User + OrgMembership)
   // ============================================================
   const orgAdminEmail = 'orgadmin@democompany.com';
   let orgAdmin = await prisma.user.findUnique({ where: { email: orgAdminEmail } });
@@ -67,18 +66,26 @@ async function main() {
         password: await bcrypt.hash('OrgAdmin@123', 12),
         firstName: 'Ram',
         lastName: 'Sharma',
-        role: Role.ORG_ADMIN,
-        organizationId: org.id,
+        role: Role.ORG_ADMIN, // Platform-level hint
         isActive: true,
       },
     });
-    console.log(`âœ“ Org admin created: ${orgAdminEmail} / OrgAdmin@123`);
+
+    await prisma.orgMembership.create({
+      data: {
+        userId: orgAdmin.id,
+        organizationId: org.id,
+        role: Role.ORG_ADMIN,
+        isActive: true,
+      },
+    });
+    console.log(`✔ Org admin created: ${orgAdminEmail} / OrgAdmin@123`);
   } else {
-    console.log(`âœ“ Org admin already exists: ${orgAdminEmail}`);
+    console.log(`✔ Org admin already exists: ${orgAdminEmail}`);
   }
 
   // ============================================================
-  // 4. Test Employees
+  // 4. Test Employees (User + OrgMembership with employeeId)
   // ============================================================
   const employees = [
     { email: 'sita@democompany.com', firstName: 'Sita', lastName: 'Thapa', employeeId: 'EMP-10001' },
@@ -91,38 +98,56 @@ async function main() {
   for (const emp of employees) {
     const existing = await prisma.user.findUnique({ where: { email: emp.email } });
     if (!existing) {
-      await prisma.user.create({
+      const user = await prisma.user.create({
         data: {
-          ...emp,
+          email: emp.email,
+          firstName: emp.firstName,
+          lastName: emp.lastName,
           password: await bcrypt.hash('Employee@123', 12),
-          role: Role.EMPLOYEE,
-          organizationId: org.id,
+          role: Role.EMPLOYEE, // Platform-level hint
           isActive: true,
         },
       });
-      console.log(`âœ“ Employee created: ${emp.firstName} ${emp.lastName} (${emp.employeeId}) / Employee@123`);
+
+      // Create OrgMembership with employeeId and attendance PIN
+      const pinHash = await bcrypt.hash('1234', 12);
+      await prisma.orgMembership.create({
+        data: {
+          userId: user.id,
+          organizationId: org.id,
+          role: Role.EMPLOYEE,
+          employeeId: emp.employeeId,
+          attendancePinHash: pinHash,
+          isActive: true,
+        },
+      });
+
+      console.log(`✔ Employee created: ${emp.firstName} ${emp.lastName} (${emp.employeeId}) / Employee@123 / PIN: 1234`);
     } else {
-      console.log(`âœ“ Employee already exists: ${emp.email}`);
+      console.log(`✔ Employee already exists: ${emp.email}`);
     }
   }
 
   // ============================================================
-  // 5. Pay Settings for employees
+  // 5. Pay Settings for employees (keyed by membershipId)
   // ============================================================
-  const allEmployees = await prisma.user.findMany({
-    where: { organizationId: org.id, role: Role.EMPLOYEE },
+  const allMemberships = await prisma.orgMembership.findMany({
+    where: { organizationId: org.id, role: Role.EMPLOYEE, isActive: true },
+    include: { user: { select: { firstName: true, lastName: true } } },
   });
 
   const salaries = [35000, 40000, 30000, 45000, 38000];
 
-  for (let i = 0; i < allEmployees.length; i++) {
-    const emp = allEmployees[i];
-    const existing = await prisma.employeePaySettings.findUnique({ where: { userId: emp.id } });
+  for (let i = 0; i < allMemberships.length; i++) {
+    const membership = allMemberships[i];
+    const existing = await prisma.employeePaySettings.findUnique({
+      where: { membershipId: membership.id },
+    });
 
     if (!existing) {
       await prisma.employeePaySettings.create({
         data: {
-          userId: emp.id,
+          membershipId: membership.id,
           organizationId: org.id,
           basicSalary: salaries[i] || 35000,
           dearnessAllowance: 2000,
@@ -136,7 +161,7 @@ async function main() {
           tdsEnabled: true,
         },
       });
-      console.log(`âœ“ Pay settings created for: ${emp.firstName} ${emp.lastName} -- NPR ${salaries[i]}`);
+      console.log(`✔ Pay settings created for: ${membership.user.firstName} ${membership.user.lastName} -- NPR ${salaries[i]}`);
     }
   }
 
@@ -159,7 +184,7 @@ async function main() {
       await prisma.systemConfig.create({
         data: { organizationId: org.id, ...cfg },
       });
-      console.log(`âœ“ Config set: ${cfg.key} = ${cfg.value}`);
+      console.log(`✔ Config set: ${cfg.key} = ${cfg.value}`);
     }
   }
 
@@ -194,7 +219,7 @@ async function main() {
       sortOrder: 1,
     },
   });
-  console.log(`âœ“ Pricing plan seeded: ${starterPlan.displayName}`);
+  console.log(`✔ Pricing plan seeded: ${starterPlan.displayName}`);
 
   const operationsPlan = await prisma.pricingPlan.upsert({
     where: { tier: 'OPERATIONS' },
@@ -224,10 +249,10 @@ async function main() {
       sortOrder: 2,
     },
   });
-  console.log(`âœ“ Pricing plan seeded: ${operationsPlan.displayName}`);
+  console.log(`✔ Pricing plan seeded: ${operationsPlan.displayName}`);
 
   // ============================================================
-  // 8. OrgSubscription for Demo Company (Operations -- Founding)
+  // 8. OrgSubscription for Demo Company (Operations)
   // ============================================================
   const existingSubscription = await prisma.orgSubscription.findUnique({
     where: { organizationId: org.id },
@@ -248,25 +273,24 @@ async function main() {
         assignedAt: new Date(),
       },
     });
-    console.log(`âœ“ Subscription created for: ${org.name} (Operations -- Founding Member)`);
+    console.log(`✔ Subscription created for: ${org.name} (Operations -- Founding Member)`);
   } else {
-    console.log(`âœ“ Subscription already exists for: ${org.name}`);
+    console.log(`✔ Subscription already exists for: ${org.name}`);
   }
 
   console.log('\n✅ Seeding complete!\n');
   console.log('=== Login Credentials ===');
   console.log(`Super Admin:  ${superAdminEmail} / ${superAdminPassword}`);
   console.log(`Org Admin:    ${orgAdminEmail} / OrgAdmin@123`);
-  console.log(`Employees:    [any]@democompany.com / Employee@123`);
+  console.log(`Employees:    [any]@democompany.com / Employee@123 / PIN: 1234`);
   console.log('');
 }
 
 main()
   .catch((e) => {
-    console.error('âŒ Seed failed:', e);
+    console.error('❌ Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
   });
-
