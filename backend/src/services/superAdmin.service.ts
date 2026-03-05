@@ -16,29 +16,30 @@ export class SuperAdminService {
     const organizations = await prisma.organization.findMany({
       include: {
         _count: {
-          select: { users: true, attendanceRecords: true, paySettings: true },
+          select: { memberships: true, attendanceRecords: true, paySettings: true },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Efficient single grouped query for employee/admin counts across all orgs
+    // Efficient single grouped query for employee/admin counts via OrgMembership
     const orgIds = organizations.map(o => o.id);
-    const roleCounts = await prisma.user.groupBy({
+    const roleCounts = await prisma.orgMembership.groupBy({
       by: ['organizationId', 'role'],
       where: {
         organizationId: { in: orgIds },
         isActive: true,
+        leftAt: null,
         role: { in: ['EMPLOYEE', 'ORG_ADMIN'] },
       },
-      _count: { _all: true },
+      _count: { id: true },
     });
 
     const roleMap: Record<string, { employees: number; admins: number }> = {};
     for (const row of roleCounts) {
-      if (!roleMap[row.organizationId!]) roleMap[row.organizationId!] = { employees: 0, admins: 0 };
-      if (row.role === 'EMPLOYEE') roleMap[row.organizationId!].employees = row._count._all;
-      if (row.role === 'ORG_ADMIN') roleMap[row.organizationId!].admins = row._count._all;
+      if (!roleMap[row.organizationId]) roleMap[row.organizationId] = { employees: 0, admins: 0 };
+      if (row.role === 'EMPLOYEE') roleMap[row.organizationId].employees = row._count.id;
+      if (row.role === 'ORG_ADMIN') roleMap[row.organizationId].admins = row._count.id;
     }
 
     return organizations.map((org) => ({
@@ -55,11 +56,11 @@ export class SuperAdminService {
       createdAt: org.createdAt,
       updatedAt: org.updatedAt,
       stats: {
-        totalUsers: org._count.users,
+        totalUsers: org._count.memberships,
         totalAttendanceRecords: org._count.attendanceRecords,
         employeesWithPayroll: org._count.paySettings,
-        totalEmployees: roleMap[org.id]?.employees ?? 0, // FIX: was "employees"
-        totalAdmins: roleMap[org.id]?.admins ?? 0,       // FIX: was "admins"
+        totalEmployees: roleMap[org.id]?.employees ?? 0,
+        totalAdmins: roleMap[org.id]?.admins ?? 0,
       },
     }));
   }
@@ -71,10 +72,18 @@ export class SuperAdminService {
     const organization = await prisma.organization.findUnique({
       where: { id: orgId },
       include: {
-        users: {
+        memberships: {
+          where: { leftAt: null },
           select: {
-            id: true, email: true, firstName: true, lastName: true,
-            employeeId: true, role: true, isActive: true, createdAt: true,
+            id: true,
+            employeeId: true,
+            role: true,
+            isActive: true,
+            user: {
+              select: {
+                id: true, email: true, firstName: true, lastName: true, createdAt: true,
+              },
+            },
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -86,8 +95,22 @@ export class SuperAdminService {
 
     if (!organization) throw new NotFoundError('Organization not found');
 
+    // Flatten memberships → users array for frontend compatibility
+    const users = organization.memberships.map((m) => ({
+      id: m.user.id,
+      email: m.user.email,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      employeeId: m.employeeId,
+      role: m.role,
+      isActive: m.isActive,
+      createdAt: m.user.createdAt,
+    }));
+
     return {
       ...organization,
+      memberships: undefined, // Remove raw memberships from response
+      users,
       stats: {
         totalAttendanceRecords: organization._count.attendanceRecords,
         employeesWithPayroll: organization._count.paySettings,
@@ -97,7 +120,8 @@ export class SuperAdminService {
   }
 
   /**
-   * Create organization with org admin
+   * Create organization with org admin.
+   * Creates User + OrgMembership in a transaction.
    */
   async createOrganization(input: CreateOrganizationInput) {
     const existing = await prisma.user.findUnique({ where: { email: input.adminEmail } });
@@ -116,6 +140,7 @@ export class SuperAdminService {
         },
       });
 
+      // Create User (platform-level — no org-specific fields)
       const orgAdmin = await tx.user.create({
         data: {
           email: input.adminEmail,
@@ -123,13 +148,22 @@ export class SuperAdminService {
           firstName: input.adminFirstName,
           lastName: input.adminLastName,
           phone: input.adminPhone,
-          role: Role.ORG_ADMIN,
-          organizationId: organization.id,
+          role: Role.ORG_ADMIN, // Platform-level role hint
           isActive: true,
         },
       });
 
-      return { organization, orgAdmin };
+      // Create OrgMembership (org-scoped role + employeeId)
+      const membership = await tx.orgMembership.create({
+        data: {
+          userId: orgAdmin.id,
+          organizationId: organization.id,
+          role: Role.ORG_ADMIN,
+          isActive: true,
+        },
+      });
+
+      return { organization, orgAdmin, membership };
     });
 
     log.info({ orgId: result.organization.id, orgName: input.name }, 'Organization created');
@@ -141,7 +175,7 @@ export class SuperAdminService {
         email: result.orgAdmin.email,
         firstName: result.orgAdmin.firstName,
         lastName: result.orgAdmin.lastName,
-        role: result.orgAdmin.role,
+        role: result.membership.role,
       },
     };
   }
@@ -184,18 +218,21 @@ export class SuperAdminService {
   }
 
   /**
-   * Platform-wide statistics
+   * Platform-wide statistics.
+   * User counts now come from OrgMembership for org-scoped roles.
+   * Total users = all memberships (not SUPER_ADMIN).
    */
   async getPlatformStats() {
     const [
-      totalOrganizations, activeOrganizations, totalUsers,
-      totalEmployees, totalOrgAdmins, totalAttendanceRecords,
+      totalOrganizations, activeOrganizations,
+      totalMemberships, totalEmployees, totalOrgAdmins,
+      totalAttendanceRecords,
     ] = await Promise.all([
       prisma.organization.count(),
       prisma.organization.count({ where: { isActive: true } }),
-      prisma.user.count({ where: { role: { not: Role.SUPER_ADMIN } } }),
-      prisma.user.count({ where: { role: Role.EMPLOYEE } }),
-      prisma.user.count({ where: { role: Role.ORG_ADMIN } }),
+      prisma.orgMembership.count({ where: { isActive: true, leftAt: null } }),
+      prisma.orgMembership.count({ where: { role: Role.EMPLOYEE, isActive: true, leftAt: null } }),
+      prisma.orgMembership.count({ where: { role: Role.ORG_ADMIN, isActive: true, leftAt: null } }),
       prisma.attendanceRecord.count(),
     ]);
 
@@ -204,7 +241,7 @@ export class SuperAdminService {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, name: true, createdAt: true, isActive: true,
-        _count: { select: { users: true } },
+        _count: { select: { memberships: true } },
       },
     });
 
@@ -215,12 +252,12 @@ export class SuperAdminService {
           active: activeOrganizations,
           inactive: totalOrganizations - activeOrganizations,
         },
-        users: { total: totalUsers, employees: totalEmployees, orgAdmins: totalOrgAdmins },
+        users: { total: totalMemberships, employees: totalEmployees, orgAdmins: totalOrgAdmins },
         attendance: { totalRecords: totalAttendanceRecords },
       },
       recentOrganizations: recentOrganizations.map((org) => ({
         ...org,
-        userCount: org._count.users,
+        userCount: org._count.memberships,
       })),
     };
   }

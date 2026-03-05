@@ -32,8 +32,6 @@ export async function runGracePeriodJob(): Promise<void> {
     return;
   }
 
-  // Free employee threshold — orgs at or below this get downgraded to Starter
-  // rather than suspended. Defaults to 5 if maxEmployees not set.
   const freeThreshold = starterPlan.maxEmployees ?? 5;
 
   // ── Find all GRACE_PERIOD subscriptions ────────────────────
@@ -48,9 +46,12 @@ export async function runGracePeriodJob(): Promise<void> {
           id: true,
           name: true,
           email: true,
-          users: {
-            where: { role: 'ORG_ADMIN', isActive: true },
-            select: { email: true, firstName: true },
+          // Admin lookup via OrgMembership (not User.users)
+          memberships: {
+            where: { role: 'ORG_ADMIN', isActive: true, leftAt: null },
+            select: {
+              user: { select: { email: true, firstName: true } },
+            },
             take: 1,
           },
         },
@@ -63,9 +64,9 @@ export async function runGracePeriodJob(): Promise<void> {
   for (const sub of graceSubs) {
     try {
       const org        = sub.organization;
-      const admin      = org.users[0];
-      const adminEmail = admin?.email ?? org.email;
-      const adminName  = admin?.firstName ?? 'there';
+      const adminMembership = org.memberships[0];
+      const adminEmail = adminMembership?.user.email ?? org.email;
+      const adminName  = adminMembership?.user.firstName ?? 'there';
 
       // ── Send mid-grace reminder (once, when halfway through) ─
       if (!sub.gracePeriodReminderSentAt && sub.graceEndsAt) {
@@ -171,8 +172,6 @@ export async function runGracePeriodJob(): Promise<void> {
 // ── Schedule ─────────────────────────────────────────────────
 
 export function startGracePeriodJob(): void {
-  // Runs daily at 02:45 UTC = 08:30 Nepal time (UTC+5:45)
-  // Runs 30 minutes after trial-expiry.job so grace periods are set before processing
   cron.schedule('45 2 * * *', async () => {
     try {
       await runGracePeriodJob();

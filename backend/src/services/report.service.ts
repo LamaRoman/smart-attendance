@@ -14,35 +14,51 @@ export class ReportService {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const employeeWhere: Record<string, unknown> = { isActive: true, role: 'EMPLOYEE' };
+    const membershipWhere: Record<string, unknown> = { isActive: true, leftAt: null, role: 'EMPLOYEE' };
     const attendanceWhere: Record<string, unknown> = {
       checkInTime: { gte: startOfDay, lte: endOfDay },
     };
 
     if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
-      employeeWhere.organizationId = currentUser.organizationId;
+      membershipWhere.organizationId = currentUser.organizationId;
       attendanceWhere.organizationId = currentUser.organizationId;
     }
 
-    const [allEmployees, attendanceRecords] = await Promise.all([
-      prisma.user.findMany({
-        where: employeeWhere,
-        select: { id: true, firstName: true, lastName: true, employeeId: true, email: true },
+    const [allMemberships, attendanceRecords] = await Promise.all([
+      prisma.orgMembership.findMany({
+        where: membershipWhere,
+        select: {
+          id: true,
+          employeeId: true,
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
         orderBy: { employeeId: 'asc' },
       }),
       prisma.attendanceRecord.findMany({
         where: attendanceWhere,
         include: {
-          user: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+          membership: {
+            select: {
+              id: true,
+              employeeId: true,
+              user: { select: { id: true, firstName: true, lastName: true } },
+            },
+          },
         },
         orderBy: { checkInTime: 'asc' },
       }),
     ]);
 
-    const presentEmployees = new Set(attendanceRecords.map((r) => r.userId));
+    // Track present memberships
+    const presentMembershipIds = new Set(attendanceRecords.map((r) => r.membershipId));
 
     const present = attendanceRecords.map((record) => ({
-      employee: record.user,
+      employee: {
+        id: record.membership.user.id,
+        firstName: record.membership.user.firstName,
+        lastName: record.membership.user.lastName,
+        employeeId: record.membership.employeeId,
+      },
       checkInTime: record.checkInTime,
       checkOutTime: record.checkOutTime,
       duration: record.duration,
@@ -52,10 +68,20 @@ export class ReportService {
       isActive: record.isActive,
     }));
 
-    const absent = allEmployees.filter((emp) => !presentEmployees.has(emp.id));
+    // Flatten allMemberships to match old response shape
+    const allEmployees = allMemberships.map((m) => ({
+      id: m.user.id,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      employeeId: m.employeeId,
+      email: m.user.email,
+      membershipId: m.id,
+    }));
+
+    const absent = allEmployees.filter((emp) => !presentMembershipIds.has(emp.membershipId));
 
     const totalEmployees = allEmployees.length;
-    const totalPresent = presentEmployees.size;
+    const totalPresent = presentMembershipIds.size;
     const currentlyClockedIn = attendanceRecords.filter((r) => r.status === 'CHECKED_IN').length;
     const completedShifts = attendanceRecords.filter((r) => r.status === 'CHECKED_OUT').length;
 
@@ -91,39 +117,57 @@ export class ReportService {
     endDate.setDate(endDate.getDate() + 6);
     endDate.setHours(23, 59, 59, 999);
 
-    const employeeWhere: Record<string, unknown> = { isActive: true, role: 'EMPLOYEE' };
+    const membershipWhere: Record<string, unknown> = { isActive: true, leftAt: null, role: 'EMPLOYEE' };
     const attendanceWhere: Record<string, unknown> = {
       checkInTime: { gte: startDate, lte: endDate },
     };
 
     if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
-      employeeWhere.organizationId = currentUser.organizationId;
+      membershipWhere.organizationId = currentUser.organizationId;
       attendanceWhere.organizationId = currentUser.organizationId;
     }
 
-    const [allEmployees, attendanceRecords] = await Promise.all([
-      prisma.user.findMany({
-        where: employeeWhere,
-        select: { id: true, firstName: true, lastName: true, employeeId: true },
+    const [allMemberships, attendanceRecords] = await Promise.all([
+      prisma.orgMembership.findMany({
+        where: membershipWhere,
+        select: {
+          id: true,
+          employeeId: true,
+          user: { select: { id: true, firstName: true, lastName: true } },
+        },
         orderBy: { employeeId: 'asc' },
       }),
       prisma.attendanceRecord.findMany({
         where: attendanceWhere,
         include: {
-          user: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+          membership: {
+            select: {
+              id: true,
+              employeeId: true,
+              user: { select: { id: true, firstName: true, lastName: true } },
+            },
+          },
         },
         orderBy: { checkInTime: 'asc' },
       }),
     ]);
 
+    const allEmployees = allMemberships.map((m) => ({
+      id: m.user.id,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      employeeId: m.employeeId,
+      membershipId: m.id,
+    }));
+
     const employeeStats = allEmployees.map((emp) => {
-      const empRecords = attendanceRecords.filter((r) => r.userId === emp.id);
+      const empRecords = attendanceRecords.filter((r) => r.membershipId === emp.membershipId);
       const completedRecords = empRecords.filter((r) => r.duration !== null);
       const totalMinutes = completedRecords.reduce((sum, r) => sum + (r.duration || 0), 0);
       const daysPresent = new Set(empRecords.map((r) => r.checkInTime.toISOString().split('T')[0])).size;
 
       return {
-        employee: emp,
+        employee: { id: emp.id, firstName: emp.firstName, lastName: emp.lastName, employeeId: emp.employeeId },
         daysPresent,
         totalShifts: empRecords.length,
         completedShifts: completedRecords.length,
@@ -142,7 +186,7 @@ export class ReportService {
       const dayStr = day.toISOString().split('T')[0];
 
       const dayRecords = attendanceRecords.filter((r) => r.checkInTime.toISOString().split('T')[0] === dayStr);
-      const presentCount = new Set(dayRecords.map((r) => r.userId)).size;
+      const presentCount = new Set(dayRecords.map((r) => r.membershipId)).size;
       const totalMinutes = dayRecords.filter((r) => r.duration !== null).reduce((sum, r) => sum + (r.duration || 0), 0);
 
       dailyBreakdown.push({
@@ -183,40 +227,58 @@ export class ReportService {
     endDate.setHours(23, 59, 59, 999);
     const daysInMonth = endDate.getDate();
 
-    const employeeWhere: Record<string, unknown> = { isActive: true, role: 'EMPLOYEE' };
+    const membershipWhere: Record<string, unknown> = { isActive: true, leftAt: null, role: 'EMPLOYEE' };
     const attendanceWhere: Record<string, unknown> = {
       checkInTime: { gte: startDate, lte: endDate },
     };
 
     if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
-      employeeWhere.organizationId = currentUser.organizationId;
+      membershipWhere.organizationId = currentUser.organizationId;
       attendanceWhere.organizationId = currentUser.organizationId;
     }
 
-    const [allEmployees, attendanceRecords] = await Promise.all([
-      prisma.user.findMany({
-        where: employeeWhere,
-        select: { id: true, firstName: true, lastName: true, employeeId: true },
+    const [allMemberships, attendanceRecords] = await Promise.all([
+      prisma.orgMembership.findMany({
+        where: membershipWhere,
+        select: {
+          id: true,
+          employeeId: true,
+          user: { select: { id: true, firstName: true, lastName: true } },
+        },
         orderBy: { employeeId: 'asc' },
       }),
       prisma.attendanceRecord.findMany({
         where: attendanceWhere,
         include: {
-          user: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+          membership: {
+            select: {
+              id: true,
+              employeeId: true,
+              user: { select: { id: true, firstName: true, lastName: true } },
+            },
+          },
         },
         orderBy: { checkInTime: 'asc' },
       }),
     ]);
 
+    const allEmployees = allMemberships.map((m) => ({
+      id: m.user.id,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      employeeId: m.employeeId,
+      membershipId: m.id,
+    }));
+
     // Employee stats
     const employeeStats = allEmployees.map((emp) => {
-      const empRecords = attendanceRecords.filter((r) => r.userId === emp.id);
+      const empRecords = attendanceRecords.filter((r) => r.membershipId === emp.membershipId);
       const completedRecords = empRecords.filter((r) => r.duration !== null);
       const totalMinutes = completedRecords.reduce((sum, r) => sum + (r.duration || 0), 0);
       const daysPresent = new Set(empRecords.map((r) => r.checkInTime.toISOString().split('T')[0])).size;
 
       return {
-        employee: emp,
+        employee: { id: emp.id, firstName: emp.firstName, lastName: emp.lastName, employeeId: emp.employeeId },
         daysPresent,
         daysAbsent: daysInMonth - daysPresent,
         attendanceRate: Math.round((daysPresent / daysInMonth) * 100),
@@ -263,8 +325,8 @@ export class ReportService {
   private computeWeeklyBreakdown(
     monthStart: Date,
     monthEnd: Date,
-    allEmployees: Array<{ id: string }>,
-    attendanceRecords: Array<{ userId: string; checkInTime: Date; duration: number | null }>
+    allEmployees: Array<{ membershipId: string }>,
+    attendanceRecords: Array<{ membershipId: string; checkInTime: Date; duration: number | null }>
   ) {
     const weeks: Array<{
       week: number;
@@ -296,7 +358,7 @@ export class ReportService {
         return recordDate >= weekStartStr && recordDate <= weekEndStr;
       });
 
-      const employeesPresent = new Set(weekRecords.map((r) => r.userId)).size;
+      const employeesPresent = new Set(weekRecords.map((r) => r.membershipId)).size;
       const totalMinutes = weekRecords
         .filter((r) => r.duration !== null)
         .reduce((sum, r) => sum + (r.duration || 0), 0);

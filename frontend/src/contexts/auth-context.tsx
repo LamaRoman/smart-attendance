@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 interface Organization {
   id: string;
   name: string;
-  slug?:string;
+  slug?: string;
   calendarMode: 'NEPALI' | 'ENGLISH';
   language: 'NEPALI' | 'ENGLISH';
   staticQREnabled: boolean;
@@ -42,6 +42,8 @@ interface User {
   role: 'SUPER_ADMIN' | 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE';
   isActive: boolean;
   organizationId: string | null;
+  /** OrgMembership ID — null for SUPER_ADMIN */
+  membershipId: string | null;
   organization?: Organization;
   planFeatures?: PlanFeatures | null;
 }
@@ -72,7 +74,7 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
-  isAccountant:boolean;
+  isAccountant: boolean;
   isSuperAdmin: boolean;
   calendarMode: 'NEPALI' | 'ENGLISH';
   language: 'NEPALI' | 'ENGLISH';
@@ -139,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
- const isAdmin = user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN';
+  const isAdmin = user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN';
   const isAccountant = user?.role === 'ORG_ACCOUNTANT';
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const calendarMode = user?.organization?.calendarMode || 'NEPALI';

@@ -40,9 +40,12 @@ export async function runTrialExpiryJob(): Promise<void> {
           id: true,
           name: true,
           email: true,
-          users: {
-            where: { role: 'ORG_ADMIN', isActive: true },
-            select: { email: true, firstName: true },
+          // Admin lookup via OrgMembership (not User.users)
+          memberships: {
+            where: { role: 'ORG_ADMIN', isActive: true, leftAt: null },
+            select: {
+              user: { select: { email: true, firstName: true } },
+            },
             take: 1,
           },
         },
@@ -54,11 +57,11 @@ export async function runTrialExpiryJob(): Promise<void> {
     try {
       if (!sub.trialEndsAt) continue;
 
-      const org        = sub.organization;
-      const admin      = org.users[0];
-      const adminEmail = admin?.email ?? org.email;
-      const adminName  = admin?.firstName ?? 'there';
-      const daysLeft   = daysFromNow(sub.trialEndsAt);
+      const org              = sub.organization;
+      const adminMembership  = org.memberships[0];
+      const adminEmail       = adminMembership?.user.email ?? org.email;
+      const adminName        = adminMembership?.user.firstName ?? 'there';
+      const daysLeft         = daysFromNow(sub.trialEndsAt);
 
       // ── Trial ended — enter grace period ─────────────────
       if (daysLeft <= 0) {
@@ -148,7 +151,6 @@ export async function runTrialExpiryJob(): Promise<void> {
 // ── Schedule ─────────────────────────────────────────────────
 
 export function startTrialExpiryJob(): void {
-  // Runs daily at 02:15 UTC = 08:00 Nepal time (UTC+5:45)
   cron.schedule('15 2 * * *', async () => {
     try {
       await runTrialExpiryJob();

@@ -132,13 +132,13 @@ export async function getComplianceSummary(organizationId: string) {
     return { requiredTypes: [], employees: [] };
   }
 
-  const employees = await prisma.user.findMany({
-    where: { organizationId, isActive: true, role: 'EMPLOYEE' },
+  // Query active employee memberships with their documents
+  const memberships = await prisma.orgMembership.findMany({
+    where: { organizationId, isActive: true, leftAt: null, role: 'EMPLOYEE' },
     select: {
       id: true,
-      firstName: true,
-      lastName: true,
       employeeId: true,
+      user: { select: { id: true, firstName: true, lastName: true } },
       documents: {
         where: { documentTypeId: { in: requiredTypes.map((t) => t.id) } },
         select: { documentTypeId: true },
@@ -146,14 +146,14 @@ export async function getComplianceSummary(organizationId: string) {
     },
   });
 
-  const summary = employees.map((emp) => {
-    const uploadedTypeIds = new Set(emp.documents.map((d) => d.documentTypeId));
+  const summary = memberships.map((m) => {
+    const uploadedTypeIds = new Set(m.documents.map((d: { documentTypeId: string }) => d.documentTypeId));
     const missing = requiredTypes.filter((t) => !uploadedTypeIds.has(t.id));
     return {
-      id: emp.id,
-      firstName: emp.firstName,
-      lastName: emp.lastName,
-      employeeId: emp.employeeId,
+      id: m.user.id,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      employeeId: m.employeeId,
       totalRequired: requiredTypes.length,
       uploaded: requiredTypes.length - missing.length,
       missing: missing.map((t) => ({ id: t.id, name: t.name, nameNp: t.nameNp })),

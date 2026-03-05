@@ -4,34 +4,40 @@ import { Router, Response, NextFunction } from 'express';
 import { leaveService } from '../services/leave.service';
 import { validate } from '../middleware/validate';
 import { createLeaveSchema, approveRejectLeaveSchema, leaveListQuerySchema } from '../schemas/leave.schema';
-import { authenticate, requireOrgAdmin, requireOrgAdminOrAccountant,enforceOrgIsolation, AuthRequest } from '../middleware/auth';
-
+import { authenticate, requireOrgAdmin, requireOrgAdminOrAccountant, enforceOrgIsolation, AuthRequest } from '../middleware/auth';
 import { requireFeature } from '../middleware/feature.guard';
+
 const router = Router();
 
-// All leave routes require authentication
 router.use(authenticate);
+router.use(requireFeature('featureLeave'));
 
-router.use(requireFeature('featureLeave')); 
 // ===== Employee routes =====
-
 
 // GET /api/leaves/balance — My leave balance for current BS year
 router.get('/balance', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user!.userId;
-    const bsYear = 2082; // Current BS year
-    const startOfYear = new Date('2025-04-14'); // BS 2082 start
-    const endOfYear = new Date('2026-04-13');
+    const membershipId = req.user!.membershipId;
+    if (!membershipId) {
+      return res.status(400).json({ error: { message: 'No active membership' } });
+    }
 
-    // Default entitlements (Nepal standard)
+    const bsYear = 2082;
+    const startOfYear = new Date('2025-04-14'); // BS 2082 Baisakh 1
+    const endOfYear = new Date('2026-04-13');   // BS 2082 Chaitra end
+
     const entitlements: Record<string, number> = {
       SICK: 12, CASUAL: 6, ANNUAL: 18, MATERNITY: 98, PATERNITY: 15, UNPAID: 365,
     };
 
-    // Count approved leaves by type
+    // All leave queries scoped to membershipId — confirmed field on Leave in schema
     const leaves = await prisma.leave.findMany({
-      where: { userId, status: 'APPROVED', startDate: { gte: startOfYear }, endDate: { lte: endOfYear } },
+      where: {
+        membershipId,
+        status: 'APPROVED',
+        startDate: { gte: startOfYear },
+        endDate: { lte: endOfYear },
+      },
     });
 
     const used: Record<string, number> = { SICK: 0, CASUAL: 0, ANNUAL: 0, MATERNITY: 0, PATERNITY: 0, UNPAID: 0 };
@@ -40,15 +46,14 @@ router.get('/balance', async (req: AuthRequest, res: Response, next: NextFunctio
       if (used[l.type] !== undefined) used[l.type] += days;
     }
 
-    const balance = Object.keys(entitlements).map(type => ({
+    const balance = Object.keys(entitlements).map((type) => ({
       type,
       entitled: entitlements[type],
       used: used[type] || 0,
       remaining: entitlements[type] - (used[type] || 0),
     }));
 
-    // Pending requests
-    const pending = await prisma.leave.count({ where: { userId, status: 'PENDING' } });
+    const pending = await prisma.leave.count({ where: { membershipId, status: 'PENDING' } });
 
     res.json({ data: { bsYear, balance, pendingRequests: pending } });
   } catch (error) {
@@ -90,24 +95,36 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 // ===== Admin routes =====
 
 // GET /api/leaves — List all leaves (admin, org-scoped)
-router.get('/', requireOrgAdminOrAccountant, enforceOrgIsolation, validate(leaveListQuerySchema, 'query'), async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const { limit, offset, status, userId } = req.query as any;
-    const result = await leaveService.listLeaves(req.user!, limit, offset, { status, userId });
-    res.json({ data: result });
-  } catch (error) {
-    next(error);
+router.get(
+  '/',
+  requireOrgAdminOrAccountant,
+  enforceOrgIsolation,
+  validate(leaveListQuerySchema, 'query'),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { limit, offset, status, userId } = req.query as any;
+      const result = await leaveService.listLeaves(req.user!, limit, offset, { status, userId });
+      res.json({ data: result });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 // PUT /api/leaves/:id/status — Approve or reject leave (admin)
-router.put('/:id/status', requireOrgAdmin, enforceOrgIsolation, validate(approveRejectLeaveSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const result = await leaveService.updateLeaveStatus(req.params.id, req.body.status, req.user!, req.body.rejectionMessage);
-    res.json({ data: result });
-  } catch (error) {
-    next(error);
+router.put(
+  '/:id/status',
+  requireOrgAdmin,
+  enforceOrgIsolation,
+  validate(approveRejectLeaveSchema),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await leaveService.updateLeaveStatus(req.params.id, req.body.status, req.user!, req.body.rejectionMessage);
+      res.json({ data: result });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 export default router;

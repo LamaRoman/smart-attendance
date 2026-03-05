@@ -15,8 +15,8 @@ import {
 import { userIdParamSchema } from '../schemas/user.schema';
 import { authenticate, requireOrgAdmin, requireOrgAdminOrAccountant, enforceOrgIsolation, AuthRequest } from '../middleware/auth';
 import { requireFeature } from '../middleware/feature.guard';
-const router = Router();
 
+const router = Router();
 
 // ===== EMPLOYEE SELF-SERVICE (before orgAdmin middleware) =====
 const empRouter = Router();
@@ -25,8 +25,11 @@ empRouter.use(authenticate);
 // GET /api/payroll/my-payslips — Employee's own payslips
 empRouter.get('/my-payslips', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (!req.user!.membershipId) {
+      return res.status(400).json({ error: { message: 'No active membership' } });
+    }
     const records = await pdfPrisma.payrollRecord.findMany({
-      where: { userId: req.user!.userId },
+      where: { membershipId: req.user!.membershipId },
       orderBy: [{ bsYear: 'desc' }, { bsMonth: 'desc' }],
       include: { organization: { select: { name: true } } },
     });
@@ -49,21 +52,37 @@ empRouter.get('/my-payslips', async (req: AuthRequest, res: Response, next: Next
 // GET /api/payroll/my-payslip/:recordId/pdf — Download own payslip PDF
 empRouter.get('/my-payslip/:recordId/pdf', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (!req.user!.membershipId) {
+      return res.status(400).json({ error: { message: 'No active membership' } });
+    }
     const record = await pdfPrisma.payrollRecord.findUnique({
       where: { id: req.params.recordId },
       include: {
-        user: { select: { firstName: true, lastName: true, employeeId: true, email: true, paySettings: true } },
+        membership: {
+          select: {
+            id: true,
+            employeeId: true,
+            paySettings: true,
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
         organization: { select: { name: true, address: true } },
       },
     });
     if (!record) return res.status(404).json({ error: { message: 'Record not found' } });
-    if (record.userId !== req.user!.userId) return res.status(403).json({ error: { message: 'Access denied' } });
+    if (record.membershipId !== req.user!.membershipId) return res.status(403).json({ error: { message: 'Access denied' } });
+
     const toNum = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
-    const ps = record.user.paySettings;
+    const ps = record.membership.paySettings;
     const pdfStream = generatePayslipPDF({
       orgName: record.organization.name,
       orgAddress: record.organization.address || undefined,
-      employee: { firstName: record.user.firstName, lastName: record.user.lastName, employeeId: record.user.employeeId || '', email: record.user.email || '' },
+      employee: {
+        firstName: record.membership.user.firstName,
+        lastName: record.membership.user.lastName,
+        employeeId: record.membership.employeeId || '',
+        email: record.membership.user.email || '',
+      },
       bsYear: record.bsYear, bsMonth: record.bsMonth,
       workingDaysInMonth: record.workingDaysInMonth, holidaysInMonth: record.holidaysInMonth,
       daysPresent: record.daysPresent, daysAbsent: record.daysAbsent,
@@ -80,7 +99,7 @@ empRouter.get('/my-payslip/:recordId/pdf', async (req: AuthRequest, res: Respons
       isMarried: record.isMarried, status: record.status,
       bankName: ps?.bankName || undefined, bankAccountNumber: ps?.bankAccountNumber || undefined,
     });
-    const filename = 'payslip-' + record.user.employeeId + '-' + record.bsYear + '-' + record.bsMonth + '.pdf';
+    const filename = 'payslip-' + record.membership.employeeId + '-' + record.bsYear + '-' + record.bsMonth + '.pdf';
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="' + filename + '"');
     pdfStream.pipe(res);
@@ -88,6 +107,7 @@ empRouter.get('/my-payslip/:recordId/pdf', async (req: AuthRequest, res: Respons
     next(error);
   }
 });
+
 empRouter.get('/my-earliest-year', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const earliestBsYear = await payrollService.getEarliestBsYear(req.user!);
@@ -111,6 +131,7 @@ empRouter.get('/my-multi-month', async (req: AuthRequest, res: Response, next: N
 });
 
 router.use(authenticate, requireOrgAdminOrAccountant, enforceOrgIsolation);
+
 // GET /api/payroll/settings
 router.get('/settings', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -159,6 +180,7 @@ router.post('/regenerate/:userId', requireOrgAdmin, async (req: AuthRequest, res
     next(error);
   }
 });
+
 // GET /api/payroll/records
 router.get('/records', validate(payrollRecordsQuerySchema, 'query'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -181,7 +203,6 @@ router.put('/records/:id/status', requireFeature('featurePayrollWorkflow'), vali
 });
 
 // GET /api/payroll/records/:id/audit
-// Get full audit trail for a single payroll record
 router.get('/records/:id/audit', requireOrgAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = await payrollService.getAuditLog(req.params.id, req.user!);
@@ -190,6 +211,7 @@ router.get('/records/:id/audit', requireOrgAdmin, async (req: AuthRequest, res: 
     next(error);
   }
 });
+
 // PUT /api/payroll/records/bulk-status
 router.put('/records/bulk-status', requireFeature('featurePayrollWorkflow'), validate(bulkPayrollStatusSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -199,7 +221,6 @@ router.put('/records/bulk-status', requireFeature('featurePayrollWorkflow'), val
     next(error);
   }
 });
-
 
 router.get('/multi-month', requireFeature('featurePayrollWorkflow'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -259,18 +280,31 @@ router.get('/payslip/:recordId/pdf', requireFeature('featureFileDownload'), asyn
     const record = await pdfPrisma.payrollRecord.findUnique({
       where: { id: req.params.recordId },
       include: {
-        user: { select: { firstName: true, lastName: true, employeeId: true, email: true, paySettings: true } },
+        membership: {
+          select: {
+            id: true,
+            employeeId: true,
+            paySettings: true,
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
         organization: { select: { name: true, address: true } },
       },
     });
     if (!record) return res.status(404).json({ error: { message: 'Record not found' } });
     if (record.organizationId !== req.user!.organizationId) return res.status(403).json({ error: { message: 'Access denied' } });
+
     const toNum = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
-    const ps = record.user.paySettings;
+    const ps = record.membership.paySettings;
     const pdfStream = generatePayslipPDF({
       orgName: record.organization.name,
       orgAddress: record.organization.address || undefined,
-      employee: { firstName: record.user.firstName, lastName: record.user.lastName, employeeId: record.user.employeeId || '', email: record.user.email || '' },
+      employee: {
+        firstName: record.membership.user.firstName,
+        lastName: record.membership.user.lastName,
+        employeeId: record.membership.employeeId || '',
+        email: record.membership.user.email || '',
+      },
       bsYear: record.bsYear, bsMonth: record.bsMonth,
       workingDaysInMonth: record.workingDaysInMonth, holidaysInMonth: record.holidaysInMonth,
       daysPresent: record.daysPresent, daysAbsent: record.daysAbsent,
@@ -287,7 +321,7 @@ router.get('/payslip/:recordId/pdf', requireFeature('featureFileDownload'), asyn
       isMarried: record.isMarried, status: record.status,
       bankName: ps?.bankName || undefined, bankAccountNumber: ps?.bankAccountNumber || undefined,
     });
-    const filename = 'payslip-' + record.user.employeeId + '-' + record.bsYear + '-' + record.bsMonth + '.pdf';
+    const filename = 'payslip-' + record.membership.employeeId + '-' + record.bsYear + '-' + record.bsMonth + '.pdf';
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="' + filename + '"');
     pdfStream.pipe(res);
@@ -296,7 +330,6 @@ router.get('/payslip/:recordId/pdf', requireFeature('featureFileDownload'), asyn
   }
 });
 
-
 // GET /api/payroll/export/bank-sheet?bsYear=X&bsMonth=Y
 router.get('/export/bank-sheet', requireFeature('featureFileDownload'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -304,17 +337,25 @@ router.get('/export/bank-sheet', requireFeature('featureFileDownload'), async (r
     if (!bsYear || !bsMonth) return res.status(400).json({ error: { message: 'bsYear and bsMonth required' } });
     const records = await pdfPrisma.payrollRecord.findMany({
       where: { organizationId: req.user!.organizationId!, bsYear: Number(bsYear), bsMonth: Number(bsMonth) },
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true, email: true, paySettings: true } } },
+      include: {
+        membership: {
+          select: {
+            employeeId: true,
+            paySettings: true,
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
+      },
     });
     if (records.length === 0) return res.status(404).json({ error: { message: 'No payroll records found' } });
     const toNum = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
     const header = 'SN,Employee ID,Employee Name,Bank Name,Account Name,Account Number,Net Salary,Remarks';
     const rows = records.map((r, i) => {
-      const ps = r.user.paySettings;
+      const ps = r.membership.paySettings;
       return [
         i + 1,
-        r.user.employeeId,
-        '"' + r.user.firstName + ' ' + r.user.lastName + '"',
+        r.membership.employeeId,
+        '"' + r.membership.user.firstName + ' ' + r.membership.user.lastName + '"',
         '"' + (ps?.bankName || '') + '"',
         '"' + (ps?.bankAccountName || '') + '"',
         '"' + (ps?.bankAccountNumber || '') + '"',
@@ -335,7 +376,6 @@ router.get('/export/bank-sheet', requireFeature('featureFileDownload'), async (r
   }
 });
 
-
 // GET /api/payroll/annual-report?bsYear=X
 router.get('/annual-report', requireFeature('featurePayrollWorkflow'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -343,19 +383,32 @@ router.get('/annual-report', requireFeature('featurePayrollWorkflow'), async (re
     if (!bsYear) return res.status(400).json({ error: { message: 'bsYear required' } });
     const records = await pdfPrisma.payrollRecord.findMany({
       where: { organizationId: req.user!.organizationId!, bsYear },
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true, email: true, paySettings: true } } },
-      orderBy: [{ userId: 'asc' }, { bsMonth: 'asc' }],
+      include: {
+        membership: {
+          select: {
+            id: true,
+            employeeId: true,
+            paySettings: true,
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
+      },
+      orderBy: [{ membershipId: 'asc' }, { bsMonth: 'asc' }],
     });
     const toNum = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
 
-    // Group by employee
+    // Group by membership
     const employeeMap: Record<string, any> = {};
     for (const r of records) {
-      if (!employeeMap[r.userId]) {
-        const ps = r.user.paySettings;
-        employeeMap[r.userId] = {
-          userId: r.userId,
-          employee: { firstName: r.user.firstName, lastName: r.user.lastName, employeeId: r.user.employeeId },
+      if (!employeeMap[r.membershipId]) {
+        const ps = r.membership.paySettings;
+        employeeMap[r.membershipId] = {
+          membershipId: r.membershipId,
+          employee: {
+            firstName: r.membership.user.firstName,
+            lastName: r.membership.user.lastName,
+            employeeId: r.membership.employeeId,
+          },
           isMarried: (r as any).isMarried || false,
           months: [],
           totalBasic: 0, totalGross: 0, totalNet: 0,
@@ -366,7 +419,7 @@ router.get('/annual-report', requireFeature('featurePayrollWorkflow'), async (re
           bankName: ps?.bankName || null, bankAccountNumber: ps?.bankAccountNumber || null,
         };
       }
-      const emp = employeeMap[r.userId];
+      const emp = employeeMap[r.membershipId];
       emp.months.push({ bsMonth: r.bsMonth, status: r.status });
       emp.totalBasic += toNum(r.basicSalary);
       emp.totalGross += toNum(r.grossSalary);
@@ -410,16 +463,31 @@ router.get('/annual-report/csv', requireFeature('featureFileDownload'), async (r
     if (!bsYear) return res.status(400).json({ error: { message: 'bsYear required' } });
     const records = await pdfPrisma.payrollRecord.findMany({
       where: { organizationId: req.user!.organizationId!, bsYear },
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true, paySettings: true } } },
-      orderBy: [{ userId: 'asc' }, { bsMonth: 'asc' }],
+      include: {
+        membership: {
+          select: {
+            employeeId: true,
+            paySettings: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: [{ membershipId: 'asc' }, { bsMonth: 'asc' }],
     });
     const toNum = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
     const empMap: Record<string, any> = {};
     for (const r of records) {
-      if (!empMap[r.userId]) {
-        empMap[r.userId] = { emp: r.user, sums: { basic: 0, gross: 0, eSsf: 0, rSsf: 0, ePf: 0, rPf: 0, cit: 0, tds: 0, bonus: 0, deductions: 0, net: 0 } };
+      if (!empMap[r.membershipId]) {
+        empMap[r.membershipId] = {
+          emp: {
+            employeeId: r.membership.employeeId,
+            firstName: r.membership.user.firstName,
+            lastName: r.membership.user.lastName,
+          },
+          sums: { basic: 0, gross: 0, eSsf: 0, rSsf: 0, ePf: 0, rPf: 0, cit: 0, tds: 0, bonus: 0, deductions: 0, net: 0 },
+        };
       }
-      const s = empMap[r.userId].sums;
+      const s = empMap[r.membershipId].sums;
       s.basic += toNum(r.basicSalary); s.gross += toNum(r.grossSalary);
       s.eSsf += toNum(r.employeeSsf); s.rSsf += toNum(r.employerSsf);
       s.ePf += toNum(r.employeePf); s.rPf += toNum(r.employerPf);
@@ -447,6 +515,7 @@ router.get('/annual-report/csv', requireFeature('featureFileDownload'), async (r
 });
 
 export { empRouter as employeePayrollRouter };
+
 // GET /api/payroll/tds-slabs — Read-only TDS slabs for org admin
 router.get('/tds-slabs', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

@@ -22,7 +22,6 @@ function toNum(val: Decimal | number | null | undefined): number {
   return parseFloat(val.toString());
 }
 
-// FIX C-09: Validate TDS slab config before using
 function validateTDSConfig(config: any): boolean {
   if (!config) return false;
   if (typeof config.firstSlabRate !== 'number' || config.firstSlabRate < 0 || config.firstSlabRate > 50) return false;
@@ -34,7 +33,6 @@ function validateTDSConfig(config: any): boolean {
   return true;
 }
 
-// FIX H-04: Accept pre-fetched tdsConfig as a parameter
 function calculateNepalTDS(annualIncome: number, isMarried: boolean = false, tdsConfig: any): number {
   const config = validateTDSConfig(tdsConfig) ? tdsConfig : null;
   const firstSlabRate = (config?.firstSlabRate ?? 1) / 100;
@@ -66,14 +64,47 @@ function calculateNepalTDS(annualIncome: number, isMarried: boolean = false, tds
   return Math.round(tax / 12);
 }
 
+/**
+ * Helper: flatten membership.user into a flat user-like object for response compatibility.
+ * PayrollRecord includes { membership: { employeeId, user: { firstName, lastName, email } } }
+ * We flatten to { user: { firstName, lastName, employeeId, email } } for backward compat.
+ */
+function flattenRecordUser(record: any) {
+  if (!record.membership) return record;
+  const { membership, ...rest } = record;
+  return {
+    ...rest,
+    membershipId: membership.id ?? record.membershipId,
+    user: {
+      firstName: membership.user?.firstName,
+      lastName: membership.user?.lastName,
+      email: membership.user?.email,
+      employeeId: membership.employeeId,
+    },
+  };
+}
+
+// Standard include for payroll record queries
+const PAYROLL_RECORD_INCLUDE = {
+  membership: {
+    select: {
+      id: true,
+      employeeId: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  },
+} as const;
+
 export class PayrollService {
 
   // ======== Audit logging ========
 
-  /**
-   * Write a payroll audit log entry.
-   * Non-throwing — log errors only, never break the main flow.
-   */
   async logPayrollAudit(data: {
     organizationId: string;
     payrollRecordId?: string;
@@ -81,10 +112,10 @@ export class PayrollService {
     action: 'GENERATED' | 'REGENERATED' | 'STATUS_CHANGED' | 'FLAGGED_NEEDS_RECALCULATION' | 'VOIDED';
     fromStatus?: string;
     toStatus?: string;
-    triggeredBy: string;        // userId of the admin who triggered this
+    triggeredBy: string;
     triggeredByName?: string;
     reason?: string;
-    attendanceRecordId?: string; // populated when triggered by an attendance correction
+    attendanceRecordId?: string;
     bsYear?: number;
     bsMonth?: number;
   }) {
@@ -98,43 +129,84 @@ export class PayrollService {
   // ======== Pay settings ========
 
   async getPaySettings(currentUser: JWTPayload) {
-    const where: Record<string, unknown> = { isActive: true, role: 'EMPLOYEE' };
+    const where: Record<string, unknown> = {
+      isActive: true,
+      leftAt: null,
+      role: 'EMPLOYEE',
+    };
     if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
       where.organizationId = currentUser.organizationId;
     }
-    const users = await prisma.user.findMany({
+
+    const memberships = await prisma.orgMembership.findMany({
       where,
-      include: { paySettings: true },
-      orderBy: { firstName: 'asc' },
+      include: {
+        paySettings: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            platformId: true,
+          },
+        },
+      },
+      orderBy: { user: { firstName: 'asc' } },
     });
-    return users.map((u) => ({
-      ...u,
+
+    return memberships.map((m) => ({
+      // Flatten to match old response shape
+      id: m.user.id,
+      email: m.user.email,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      phone: m.user.phone,
+      platformId: m.user.platformId,
+      membershipId: m.id,
+      role: m.role,
+      employeeId: m.employeeId,
+      isActive: m.isActive,
+      organizationId: m.organizationId,
       password: undefined,
-      paySettings: u.paySettings
+      paySettings: m.paySettings
         ? {
-            ...u.paySettings,
-            basicSalary: toNum(u.paySettings.basicSalary),
-            dearnessAllowance: toNum(u.paySettings.dearnessAllowance),
-            transportAllowance: toNum(u.paySettings.transportAllowance),
-            medicalAllowance: toNum(u.paySettings.medicalAllowance),
-            otherAllowances: toNum(u.paySettings.otherAllowances),
-            overtimeRatePerHour: toNum(u.paySettings.overtimeRatePerHour),
-            employeeSsfRate: toNum(u.paySettings.employeeSsfRate),
-            employerSsfRate: toNum(u.paySettings.employerSsfRate),
+            ...m.paySettings,
+            basicSalary: toNum(m.paySettings.basicSalary),
+            dearnessAllowance: toNum(m.paySettings.dearnessAllowance),
+            transportAllowance: toNum(m.paySettings.transportAllowance),
+            medicalAllowance: toNum(m.paySettings.medicalAllowance),
+            otherAllowances: toNum(m.paySettings.otherAllowances),
+            overtimeRatePerHour: toNum(m.paySettings.overtimeRatePerHour),
+            employeeSsfRate: toNum(m.paySettings.employeeSsfRate),
+            employerSsfRate: toNum(m.paySettings.employerSsfRate),
           }
         : null,
     }));
   }
 
   async upsertPaySettings(userId: string, input: PaySettingsInput, currentUser: JWTPayload) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    // Find membership by userId + org
+    const organizationId = currentUser.organizationId;
+    if (!organizationId && currentUser.role !== 'SUPER_ADMIN') {
+      throw new ValidationError('No organization context');
+    }
+
+    const membership = await prisma.orgMembership.findFirst({
+      where: {
+        userId,
+        ...(organizationId ? { organizationId } : {}),
+      },
       select: { id: true, organizationId: true },
     });
-    if (!user) throw new NotFoundError('User not found');
-    if (currentUser.role !== 'SUPER_ADMIN' && user.organizationId !== currentUser.organizationId) {
+
+    if (!membership) throw new NotFoundError('User not found in your organization');
+
+    if (currentUser.role !== 'SUPER_ADMIN' && membership.organizationId !== currentUser.organizationId) {
       throw new NotFoundError('User not found');
     }
+
     const data = {
       basicSalary: input.basicSalary,
       dearnessAllowance: input.dearnessAllowance,
@@ -150,11 +222,13 @@ export class PayrollService {
       bankAccountName: input.bankAccountName,
       bankAccountNumber: input.bankAccountNumber,
     };
+
     const paySettings = await prisma.employeePaySettings.upsert({
-      where: { userId },
+      where: { membershipId: membership.id },
       update: data,
-      create: { userId, organizationId: user.organizationId!, ...data },
+      create: { membershipId: membership.id, organizationId: membership.organizationId, ...data },
     });
+
     return {
       ...paySettings,
       basicSalary: toNum(paySettings.basicSalary),
@@ -168,14 +242,10 @@ export class PayrollService {
     };
   }
 
-  // ======== Core payroll calculation (shared by generate + regenerate) ========
+  // ======== Core payroll calculation ========
 
-  /**
-   * Calculate payroll data for a single employee for a given BS month.
-   * Extracted so both generatePayroll and regenerateForEmployee use identical logic.
-   */
   private async calculateEmployeePayroll(
-    emp: any,
+    membership: any,
     organizationId: string,
     bsYear: number,
     bsMonth: number,
@@ -187,7 +257,7 @@ export class PayrollService {
   ) {
     const adYear = adStart.getFullYear();
     const adMonth = adStart.getMonth() + 1;
-    const s = emp.paySettings!;
+    const s = membership.paySettings!;
     const basicSalary = toNum(s.basicSalary);
     const dearnessAllowance = toNum(s.dearnessAllowance);
     const transportAllowance = toNum(s.transportAllowance);
@@ -197,13 +267,14 @@ export class PayrollService {
     const employeeSsfRate = toNum(s.employeeSsfRate);
     const employerSsfRate = toNum(s.employerSsfRate);
 
-    const { daysPresent, overtimeHours } = await this.getDaysPresent(emp.id, adStart, adEnd);
-    const { paidDays: paidLeaveDays, unpaidDays: unpaidLeaveDays } = await this.getApprovedLeaves(emp.id, adStart, adEnd);
+    const { daysPresent, overtimeHours } = await this.getDaysPresent(membership.id, adStart, adEnd);
+    const { paidDays: paidLeaveDays, unpaidDays: unpaidLeaveDays } = await this.getApprovedLeaves(membership.id, adStart, adEnd);
     const effectivePresent = Math.min(workingDaysInMonth, daysPresent + paidLeaveDays);
-    // Zero attendance = no salary, no deductions, nothing
+
+    // Zero attendance = no salary
     if (effectivePresent === 0) {
       return {
-        userId: emp.id,
+        membershipId: membership.id,
         organizationId,
         year: adYear,
         month: adMonth,
@@ -238,6 +309,7 @@ export class PayrollService {
         netSalary: 0,
       };
     }
+
     const daysAbsent = Math.max(0, workingDaysInMonth - effectivePresent);
     const totalAllowances = dearnessAllowance + transportAllowance + medicalAllowance + otherAllowances;
     const absenceDeduction = workingDaysInMonth > 0
@@ -276,7 +348,7 @@ export class PayrollService {
     const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDeductions) * 100) / 100);
 
     return {
-      userId: emp.id,
+      membershipId: membership.id,
       organizationId,
       year: adYear,
       month: adMonth,
@@ -312,12 +384,11 @@ export class PayrollService {
     };
   }
 
-  // ======== Generate payroll (all employees) ========
+  // ======== Generate payroll ========
 
   async generatePayroll(input: GeneratePayrollInput, currentUser: JWTPayload) {
     const { bsYear, bsMonth } = input;
 
-    // FIX H-05: Always require a valid organizationId
     const organizationId = input.organizationId || currentUser.organizationId;
     if (!organizationId) {
       throw new ValidationError('organizationId is required for payroll generation');
@@ -336,7 +407,6 @@ export class PayrollService {
     const daysInMonth = getDaysInBSMonth(bsYear, bsMonth);
     const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates);
 
-    // FIX H-04: Fetch TDS config once before the loop
     let tdsConfig: any = null;
     try {
       const dbConfig = await prisma.systemConfig.findFirst({
@@ -344,57 +414,62 @@ export class PayrollService {
         orderBy: { updatedAt: 'desc' },
       });
       if (dbConfig) tdsConfig = JSON.parse(dbConfig.value);
-    } catch (e) { /* fall back to hardcoded defaults */ }
+    } catch (e) { /* fall back to defaults */ }
 
-    const employees = await prisma.user.findMany({
+    // Query active memberships with pay settings
+    const memberships = await prisma.orgMembership.findMany({
       where: {
         isActive: true,
+        leftAt: null,
         role: 'EMPLOYEE',
         organizationId,
         paySettings: { isNot: null },
       },
-      include: { paySettings: true },
+      include: {
+        paySettings: true,
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
     });
 
-    if (employees.length === 0) {
+    if (memberships.length === 0) {
       throw new ValidationError('No employees with pay settings configured');
     }
 
     const payrollRecords = [];
 
-    for (const emp of employees) {
+    for (const membership of memberships) {
       const payrollData = await this.calculateEmployeePayroll(
-        emp, organizationId, bsYear, bsMonth,
+        membership, organizationId, bsYear, bsMonth,
         adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig
       );
- // Skip employees with zero attendance — no payslip generated
+
+      // Skip zero attendance
       if (payrollData.daysPresent === 0 && payrollData.overtimeHours === 0) {
-        log.info({ userId: emp.id, bsYear, bsMonth }, 'Skipping payroll — zero attendance');
+        log.info({ membershipId: membership.id, bsYear, bsMonth }, 'Skipping payroll — zero attendance');
         continue;
       }
-      // FIX C-10: Atomic upsert in transaction
+
       const record = await prisma.$transaction(async (tx) => {
-        // Check if a previous record existed (for audit log fromStatus)
         const existing = await tx.payrollRecord.findUnique({
-          where: { userId_bsYear_bsMonth: { userId: emp.id, bsYear, bsMonth } },
+          where: { membershipId_bsYear_bsMonth: { membershipId: membership.id, bsYear, bsMonth } },
           select: { status: true },
         });
 
         const result = await tx.payrollRecord.upsert({
-          where: { userId_bsYear_bsMonth: { userId: emp.id, bsYear, bsMonth } },
+          where: { membershipId_bsYear_bsMonth: { membershipId: membership.id, bsYear, bsMonth } },
           update: { ...payrollData, status: 'DRAFT' },
           create: { ...payrollData, status: 'DRAFT' },
-          include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+          include: PAYROLL_RECORD_INCLUDE,
         });
 
         return { result, previousStatus: existing?.status };
       });
 
-      // Audit log
+      // Audit log (employeeUserId stays as userId for auditability)
       this.logPayrollAudit({
         organizationId,
         payrollRecordId: record.result.id,
-        employeeUserId: emp.id,
+        employeeUserId: membership.user.id,
         action: 'GENERATED',
         fromStatus: record.previousStatus,
         toStatus: 'DRAFT',
@@ -403,7 +478,7 @@ export class PayrollService {
         bsMonth,
       });
 
-      payrollRecords.push(this.mapPayrollRecord(record.result));
+      payrollRecords.push(this.mapPayrollRecord(flattenRecordUser(record.result)));
     }
 
     log.info({ bsYear, bsMonth, orgId: organizationId, count: payrollRecords.length }, 'Payroll generated');
@@ -420,14 +495,8 @@ export class PayrollService {
     };
   }
 
-  // ======== Regenerate payroll for a single employee ========
+  // ======== Regenerate for single employee ========
 
-  /**
-   * Recalculate and replace payslip for one employee for a given BS month.
-   * Called after an attendance correction flags a payslip NEEDS_RECALCULATION.
-   * Only allowed if the current status is DRAFT, NEEDS_RECALCULATION, or PROCESSED.
-   * APPROVED and PAID records are locked — must be voided first.
-   */
   async regenerateForEmployee(
     userId: string,
     bsYear: number,
@@ -440,18 +509,17 @@ export class PayrollService {
       throw new ValidationError('Organization context required');
     }
 
-    // Verify the employee belongs to the admin's org
-    const emp = await prisma.user.findFirst({
-      where: { id: userId, organizationId, isActive: true, role: 'EMPLOYEE' },
-      include: { paySettings: true },
+    // Resolve userId to membership
+    const membership = await prisma.orgMembership.findFirst({
+      where: { userId, organizationId, isActive: true, role: 'EMPLOYEE' },
+      include: { paySettings: true, user: { select: { id: true } } },
     });
 
-    if (!emp) throw new NotFoundError('Employee not found');
-    if (!emp.paySettings) throw new ValidationError('Employee has no pay settings configured');
+    if (!membership) throw new NotFoundError('Employee not found');
+    if (!membership.paySettings) throw new ValidationError('Employee has no pay settings configured');
 
-    // Find existing payslip
     const existing = await prisma.payrollRecord.findUnique({
-      where: { userId_bsYear_bsMonth: { userId, bsYear, bsMonth } },
+      where: { membershipId_bsYear_bsMonth: { membershipId: membership.id, bsYear, bsMonth } },
       select: { id: true, status: true },
     });
 
@@ -480,16 +548,16 @@ export class PayrollService {
     } catch (e) { /* fall back to defaults */ }
 
     const payrollData = await this.calculateEmployeePayroll(
-      emp, organizationId, bsYear, bsMonth,
+      membership, organizationId, bsYear, bsMonth,
       adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig
     );
 
     const record = await prisma.$transaction(async (tx) => {
       return tx.payrollRecord.upsert({
-        where: { userId_bsYear_bsMonth: { userId, bsYear, bsMonth } },
+        where: { membershipId_bsYear_bsMonth: { membershipId: membership.id, bsYear, bsMonth } },
         update: { ...payrollData, status: 'DRAFT' },
         create: { ...payrollData, status: 'DRAFT' },
-        include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+        include: PAYROLL_RECORD_INCLUDE,
       });
     });
 
@@ -507,10 +575,10 @@ export class PayrollService {
     });
 
     log.info({
-      userId, bsYear, bsMonth, orgId: organizationId, adminId: currentUser.userId, reason
+      membershipId: membership.id, bsYear, bsMonth, orgId: organizationId, reason
     }, 'Payroll regenerated for single employee');
 
-    return this.mapPayrollRecord(record);
+    return this.mapPayrollRecord(flattenRecordUser(record));
   }
 
   // ======== Get records ========
@@ -522,10 +590,10 @@ export class PayrollService {
     }
     const records = await prisma.payrollRecord.findMany({
       where,
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true, email: true } } },
-      orderBy: { user: { firstName: 'asc' } },
+      include: PAYROLL_RECORD_INCLUDE,
+      orderBy: { membership: { user: { firstName: 'asc' } } },
     });
-    const mapped = records.map(this.mapPayrollRecord);
+    const mapped = records.map(r => this.mapPayrollRecord(flattenRecordUser(r)));
     const summary = {
       totalEmployees: mapped.length,
       totalGross: mapped.reduce((sum, r) => sum + r.grossSalary, 0),
@@ -539,9 +607,6 @@ export class PayrollService {
     return { records: mapped, summary };
   }
 
-  /**
-   * Get audit trail for a specific payroll record
-   */
   async getAuditLog(payrollRecordId: string, currentUser: JWTPayload) {
     const record = await prisma.payrollRecord.findFirst({
       where: {
@@ -559,9 +624,6 @@ export class PayrollService {
 
   // ======== Status updates ========
 
-  /**
-   * FIX C-08: org-scoped status update with audit logging
-   */
   async updateStatus(recordId: string, status: string, currentUser: JWTPayload) {
     const updateData: Record<string, unknown> = { status };
     if (status === 'PROCESSED') updateData.processedAt = new Date();
@@ -574,10 +636,12 @@ export class PayrollService {
       where.organizationId = currentUser.organizationId;
     }
 
-    const record = await prisma.payrollRecord.findFirst({ where });
+    const record = await prisma.payrollRecord.findFirst({
+      where,
+      include: { membership: { select: { userId: true } } },
+    });
     if (!record) throw new NotFoundError('Payroll record not found');
 
-// Block status changes on NEEDS_RECALCULATION records (must regenerate first)
     if (record.status === 'NEEDS_RECALCULATION' && status !== 'NEEDS_RECALCULATION') {
       throw new ValidationError(
         'This payslip has attendance corrections and must be regenerated before changing status.',
@@ -585,14 +649,12 @@ export class PayrollService {
       );
     }
 
-    // PAID is permanently locked — corrections go into next payroll period
     if (record.status === 'PAID') {
       throw new ValidationError(
         'Paid payroll records cannot be modified. Corrections must be applied in the next payroll period.'
       );
     }
 
-    // Role-based status transition enforcement (separation of duties)
     const ROLE_TRANSITIONS: Record<string, Record<string, string[]>> = {
       ORG_ACCOUNTANT: {
         DRAFT: ['PROCESSED'],
@@ -601,7 +663,7 @@ export class PayrollService {
       ORG_ADMIN: {
         DRAFT: ['PROCESSED'],
         PROCESSED: ['APPROVED'],
-        APPROVED: ['PROCESSED','PAID'],  // Admin can revert approval before payment
+        APPROVED: ['PROCESSED', 'PAID'],
       },
       SUPER_ADMIN: {
         DRAFT: ['PROCESSED'],
@@ -622,15 +684,15 @@ export class PayrollService {
     }
 
     const updated = await prisma.payrollRecord.update({
-    where: { id: recordId },
+      where: { id: recordId },
       data: updateData,
-      include: { user: { select: { firstName: true, lastName: true, employeeId: true } } },
+      include: PAYROLL_RECORD_INCLUDE,
     });
 
     await this.logPayrollAudit({
       organizationId: record.organizationId,
       payrollRecordId: recordId,
-      employeeUserId: record.userId,
+      employeeUserId: (record as any).membership?.userId,
       action: 'STATUS_CHANGED',
       fromStatus: record.status,
       toStatus: status,
@@ -639,7 +701,7 @@ export class PayrollService {
       bsMonth: record.bsMonth,
     });
 
-    return updated;
+    return flattenRecordUser(updated);
   }
 
   async bulkUpdateStatus(bsYear: number, bsMonth: number, status: string, currentUser: JWTPayload) {
@@ -648,7 +710,6 @@ export class PayrollService {
       where.organizationId = currentUser.organizationId;
     }
 
-    // Block bulk approval/payment if any record needs recalculation
     if (status === 'APPROVED' || status === 'PAID') {
       const blockedCount = await prisma.payrollRecord.count({
         where: { ...where, status: 'NEEDS_RECALCULATION' },
@@ -661,10 +722,9 @@ export class PayrollService {
       }
     }
 
-    // Role-based transition enforcement for bulk updates
     const BULK_ROLE_TRANSITIONS: Record<string, string[]> = {
       ORG_ACCOUNTANT: ['PROCESSED', 'PAID'],
-      ORG_ADMIN: ['PROCESSED', 'APPROVED','PAID'],
+      ORG_ADMIN: ['PROCESSED', 'APPROVED', 'PAID'],
       SUPER_ADMIN: ['PROCESSED', 'APPROVED', 'PAID'],
     };
     const allowedStatuses = BULK_ROLE_TRANSITIONS[currentUser.role];
@@ -674,8 +734,17 @@ export class PayrollService {
       );
     }
 
-    // Fetch all records before update for audit trail
-    const records = await prisma.payrollRecord.findMany({ where, select: { id: true, status: true, userId: true, organizationId: true } });
+    // Fetch records with membership for audit + email
+    const records = await prisma.payrollRecord.findMany({
+      where,
+      select: {
+        id: true,
+        status: true,
+        membershipId: true,
+        organizationId: true,
+        membership: { select: { userId: true } },
+      },
+    });
 
     const updateData: Record<string, unknown> = { status };
     if (status === 'PROCESSED') updateData.processedAt = new Date();
@@ -684,12 +753,12 @@ export class PayrollService {
 
     await prisma.payrollRecord.updateMany({ where, data: updateData });
 
-    // Audit log each record (non-blocking)
+    // Audit log (non-blocking)
     Promise.all(records.map(r =>
       this.logPayrollAudit({
         organizationId: r.organizationId,
         payrollRecordId: r.id,
-        employeeUserId: r.userId,
+        employeeUserId: r.membership?.userId,
         action: 'STATUS_CHANGED',
         fromStatus: r.status,
         toStatus: status,
@@ -704,15 +773,19 @@ export class PayrollService {
         const fullRecords = await prisma.payrollRecord.findMany({
           where,
           include: {
-            user: { select: { email: true, firstName: true } },
+            membership: {
+              select: {
+                user: { select: { email: true, firstName: true } },
+              },
+            },
             organization: { select: { name: true } },
           },
         });
         const toNumLocal = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
         emailService.sendPayrollBulkNotification(
           fullRecords.map(r => ({
-            email: r.user.email,
-            firstName: r.user.firstName,
+            email: r.membership.user.email,
+            firstName: r.membership.user.firstName,
             netSalary: toNumLocal(r.netSalary),
             bsMonth: BS_MONTHS_EN[(r.bsMonth || 1) - 1],
             bsYear: r.bsYear,
@@ -725,14 +798,10 @@ export class PayrollService {
     return { message: `All records updated to ${status}` };
   }
 
-  // ======== Flag a payslip as needing recalculation ========
-  //
-  // Called by attendance.service when markPresent / editAttendance touches a
-  // month that already has a generated payslip. Returns true if a payslip was
-  // found and flagged, false if no payslip existed yet (nothing to do).
+  // ======== Flag payroll needs recalculation ========
 
   async flagPayrollNeedsRecalculation(
-    userId: string,
+    membershipId: string,
     organizationId: string,
     bsYear: number,
     bsMonth: number,
@@ -741,16 +810,12 @@ export class PayrollService {
     reason?: string
   ): Promise<{ flagged: boolean; previousStatus?: string }> {
     const existing = await prisma.payrollRecord.findUnique({
-      where: { userId_bsYear_bsMonth: { userId, bsYear, bsMonth } },
-      select: { id: true, status: true },
+      where: { membershipId_bsYear_bsMonth: { membershipId, bsYear, bsMonth } },
+      select: { id: true, status: true, membership: { select: { userId: true } } },
     });
 
     if (!existing) return { flagged: false };
-
-    // DRAFT payrolls are fine — they'll be recalculated on next generate anyway
     if (existing.status === 'DRAFT') return { flagged: false };
-
-    // Already flagged — no need to update or double-log
     if (existing.status === 'NEEDS_RECALCULATION') return { flagged: true, previousStatus: existing.status };
 
     await prisma.payrollRecord.update({
@@ -761,7 +826,7 @@ export class PayrollService {
     await this.logPayrollAudit({
       organizationId,
       payrollRecordId: existing.id,
-      employeeUserId: userId,
+      employeeUserId: (existing as any).membership?.userId,
       action: 'FLAGGED_NEEDS_RECALCULATION',
       fromStatus: existing.status,
       toStatus: 'NEEDS_RECALCULATION',
@@ -772,12 +837,12 @@ export class PayrollService {
       bsMonth,
     });
 
-    log.warn({ userId, bsYear, bsMonth, previousStatus: existing.status }, 'Payroll flagged NEEDS_RECALCULATION due to attendance correction');
+    log.warn({ membershipId, bsYear, bsMonth, previousStatus: existing.status }, 'Payroll flagged NEEDS_RECALCULATION');
 
     return { flagged: true, previousStatus: existing.status };
   }
 
-  // ======== Multi-month + helpers ========
+  // ======== Multi-month ========
 
   async getMultiMonthData(fromBsYear: number, fromBsMonth: number, toBsYear: number, toBsMonth: number, currentUser: JWTPayload) {
     const months: Array<{ bsYear: number; bsMonth: number }> = [];
@@ -794,28 +859,37 @@ export class PayrollService {
       OR: months.map((m) => ({ bsYear: m.bsYear, bsMonth: m.bsMonth })),
     };
     if (currentUser.role === 'EMPLOYEE') {
-      where.userId = currentUser.userId;
+      where.membershipId = currentUser.membershipId;
     } else if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
       where.organizationId = currentUser.organizationId;
     }
 
     const records = await prisma.payrollRecord.findMany({
       where,
-      include: { user: { select: { id: true, firstName: true, lastName: true, employeeId: true, email: true } } },
-      orderBy: [{ user: { firstName: 'asc' } }, { bsYear: 'asc' }, { bsMonth: 'asc' }],
+      include: {
+        membership: {
+          select: {
+            id: true,
+            employeeId: true,
+            user: { select: { id: true, firstName: true, lastName: true, email: true } },
+          },
+        },
+      },
+      orderBy: [{ membership: { user: { firstName: 'asc' } } }, { bsYear: 'asc' }, { bsMonth: 'asc' }],
     });
 
     const employeeMap: Record<string, any> = {};
     for (const record of records) {
-      const userId = record.userId;
-      if (!employeeMap[userId]) {
-        employeeMap[userId] = {
-          userId,
+      const membershipId = record.membershipId;
+      if (!employeeMap[membershipId]) {
+        employeeMap[membershipId] = {
+          userId: record.membership.user.id,
+          membershipId,
           employee: {
-            firstName: record.user.firstName,
-            lastName: record.user.lastName,
-            employeeId: record.user.employeeId,
-            email: record.user.email,
+            firstName: record.membership.user.firstName,
+            lastName: record.membership.user.lastName,
+            employeeId: record.membership.employeeId,
+            email: record.membership.user.email,
           },
           months: {},
           totals: {
@@ -824,7 +898,7 @@ export class PayrollService {
           },
         };
       }
-      const emp = employeeMap[userId];
+      const emp = employeeMap[membershipId];
       const monthKey = `${record.bsYear}-${record.bsMonth}`;
       emp.months[monthKey] = {
         id: record.id,
@@ -904,7 +978,7 @@ export class PayrollService {
   async getEarliestBsYear(currentUser: JWTPayload): Promise<number | null> {
     const where: Record<string, unknown> = {};
     if (currentUser.role === 'EMPLOYEE') {
-      where.userId = currentUser.userId;
+      where.membershipId = currentUser.membershipId;
     } else if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
       where.organizationId = currentUser.organizationId;
     }
@@ -918,10 +992,10 @@ export class PayrollService {
 
   // ======== Private helpers ========
 
-  private async getApprovedLeaves(userId: string, adStart: Date, adEnd: Date) {
+  private async getApprovedLeaves(membershipId: string, adStart: Date, adEnd: Date) {
     const leaves = await prisma.leave.findMany({
       where: {
-        userId,
+        membershipId,
         status: 'APPROVED',
         startDate: { lte: adEnd },
         endDate: { gte: adStart },
@@ -938,10 +1012,10 @@ export class PayrollService {
     return { paidDays, unpaidDays };
   }
 
-  private async getDaysPresent(userId: string, adStart: Date, adEnd: Date) {
+  private async getDaysPresent(membershipId: string, adStart: Date, adEnd: Date) {
     const records = await prisma.attendanceRecord.findMany({
       where: {
-        userId,
+        membershipId,
         checkInTime: { gte: adStart, lte: adEnd },
         status: { in: ['CHECKED_OUT', 'AUTO_CLOSED'] },
       },
@@ -953,7 +1027,7 @@ export class PayrollService {
       if (r.duration) totalMinutes += r.duration;
     }
     const openRecords = await prisma.attendanceRecord.findMany({
-      where: { userId, checkInTime: { gte: adStart, lte: adEnd }, status: 'CHECKED_IN' },
+      where: { membershipId, checkInTime: { gte: adStart, lte: adEnd }, status: 'CHECKED_IN' },
     });
     for (const r of openRecords) {
       uniqueDays.add(r.checkInTime.toISOString().split('T')[0]);

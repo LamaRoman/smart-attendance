@@ -79,7 +79,8 @@ export const requireSuperAdmin = (
 };
 
 /**
- * Middleware to require ORG_ADMIN or SUPER_ADMIN role
+ * Middleware to require ORG_ADMIN or SUPER_ADMIN role.
+ * Role comes from JWT which is sourced from OrgMembership.role for non-SUPER_ADMIN.
  */
 export const requireOrgAdmin = (
   req: AuthRequest,
@@ -120,12 +121,11 @@ export const requireOrgAdminOrAccountant = (
 
   next();
 };
+
 /**
- * Middleware to enforce organization data isolation
- * Ensures non-super-admin users can only access their own org's data
- *
- * FIX C-03: Capture the requested org ID BEFORE overwriting req.body.organizationId.
- * Previously, the check compared req.body.organizationId against itself (always passed).
+ * Middleware to enforce organization data isolation.
+ * Ensures non-super-admin users can only access their own org's data.
+ * organizationId in JWT comes from OrgMembership.organizationId.
  */
 export const enforceOrgIsolation = (
   req: AuthRequest,
@@ -141,14 +141,12 @@ export const enforceOrgIsolation = (
     return next();
   }
 
-  // Everyone else must have an organizationId
+  // Everyone else must have an organizationId (from their membership)
   if (!req.user.organizationId) {
     return res.status(403).json({ error: { message: 'No organization assigned' } });
   }
 
-  // FIX C-03: Capture the ORIGINAL requested org ID BEFORE we overwrite anything.
-  // Previously this was done after overwriting req.body.organizationId, meaning
-  // the cross-org check always compared the user's own org against itself and always passed.
+  // Capture the ORIGINAL requested org ID BEFORE we overwrite anything
   const requestedOrgId =
     req.params.organizationId ||
     req.body?.organizationId ||
@@ -175,7 +173,10 @@ export const enforceOrgIsolation = (
 };
 
 /**
- * Helper: check if current user can access a specific user's data
+ * Helper: check if current user can access a specific user's data.
+ *
+ * For org admins/accountants: checks if the target user has an active
+ * membership in the same organization via OrgMembership.
  */
 export const canAccessUser = async (
   currentUser: JWTPayload | undefined,
@@ -189,13 +190,18 @@ export const canAccessUser = async (
   // Users can access their own data
   if (currentUser.userId === targetUserId) return true;
 
-// Org admins and accountants can access users in their organization
-  if ((currentUser.role === Role.ORG_ADMIN || currentUser.role === Role.ORG_ACCOUNTANT) && currentUser.organizationId) {
-    const targetUser = await prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: { organizationId: true },
+  // Org admins and accountants can access users in their organization (via membership)
+  if (
+    (currentUser.role === Role.ORG_ADMIN || currentUser.role === Role.ORG_ACCOUNTANT) &&
+    currentUser.organizationId
+  ) {
+    const targetMembership = await prisma.orgMembership.findFirst({
+      where: {
+        userId: targetUserId,
+        organizationId: currentUser.organizationId,
+      },
     });
-    return targetUser?.organizationId === currentUser.organizationId;
+    return !!targetMembership;
   }
 
   return false;

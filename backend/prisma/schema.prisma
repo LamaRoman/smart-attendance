@@ -1,6 +1,7 @@
 // ============================================================
 // SMART ATTENDANCE SYSTEM - Prisma Schema
 // Multi-tenant, Nepal-specific, QR attendance ready
+// With OrgMembership model for multi-org support
 // ============================================================
 
 generator client {
@@ -17,10 +18,10 @@ datasource db {
 // ============================================================
 
 enum Role {
-  SUPER_ADMIN // Platform-level admin  manages all orgs
-  ORG_ADMIN // Organization admin  manages their org
-  ORG_ACCOUNTANT
-  EMPLOYEE // Regular employee
+  SUPER_ADMIN    // Platform-level admin — manages all orgs
+  ORG_ADMIN      // Organization admin — manages their org
+  ORG_ACCOUNTANT // Organization accountant — payroll/reports access
+  EMPLOYEE       // Regular employee
 }
 
 enum AttendanceAction {
@@ -29,9 +30,9 @@ enum AttendanceAction {
 }
 
 enum AttendanceRecordStatus {
-  CHECKED_IN // Employee has clocked in, not yet clocked out
-  CHECKED_OUT // Normal completed shift
-  AUTO_CLOSED // System auto-closed (e.g., forgot to clock out)
+  CHECKED_IN   // Employee has clocked in, not yet clocked out
+  CHECKED_OUT  // Normal completed shift
+  AUTO_CLOSED  // System auto-closed (e.g., forgot to clock out)
 }
 
 enum AttendanceMode {
@@ -39,6 +40,7 @@ enum AttendanceMode {
   MOBILE_ONLY
   BOTH
 }
+
 enum CheckInMethod {
   QR_SCAN
   MOBILE_CHECKIN
@@ -86,17 +88,17 @@ enum Language {
 }
 
 enum CalendarMode {
-  NEPALI // BS dates, Nepali month names, Nepali digits
+  NEPALI  // BS dates, Nepali month names, Nepali digits
   ENGLISH // AD dates, English month names
 }
 
 // ============================================================
-// ORGANIZATION  Multi-tenant root
+// ORGANIZATION — Multi-tenant root
 // ============================================================
 model Organization {
   id                 String  @id @default(uuid())
   name               String
-  slug               String?  @unique
+  slug               String? @unique
   email              String?
   phone              String?
   address            String?
@@ -105,14 +107,15 @@ model Organization {
   rotatingQREnabled  Boolean @default(true)
 
   // Calendar/locale preference (toggleable by org)
-  calendarMode    CalendarMode @default(NEPALI)
-  language        Language     @default(NEPALI)
+  calendarMode   CalendarMode @default(NEPALI)
+  language       Language     @default(NEPALI)
+
   // Geofencing
-  geofenceEnabled Boolean      @default(false)
+  geofenceEnabled Boolean @default(false)
   officeLat       Float?
   officeLng       Float?
-  geofenceRadius  Int          @default(100) // meters
-  attendanceMode   AttendanceMode @default(QR_ONLY)
+  geofenceRadius  Int     @default(100) // meters
+  attendanceMode  AttendanceMode @default(QR_ONLY)
 
   // Work schedule
   workStartTime        String @default("10:00") // HH:mm format
@@ -120,12 +123,12 @@ model Organization {
   lateThresholdMinutes Int    @default(10)
   workingDays          String @default("0,1,2,3,4,5") // 0=Sun,1=Mon,...6=Sat
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete timestamp
 
   // Relations
-  users             User[]
+  memberships       OrgMembership[]
   attendanceRecords AttendanceRecord[]
   qrCodes           QRCode[]
   holidays          Holiday[]
@@ -134,64 +137,109 @@ model Organization {
   payrollRecords    PayrollRecord[]
   payrollAuditLogs  PayrollAuditLog[]
   systemConfigs     SystemConfig[]
+  notifications     Notification[]
+  documents         EmployeeDocument[]
+  documentTypes     DocumentType[]
+  subscription      OrgSubscription?
 
-  notifications Notification[]
-  documents     EmployeeDocument[]
-
-  documentTypes DocumentType[]
-  subscription   OrgSubscription?
   @@map("organizations")
 }
 
 // ============================================================
-// USER
+// USER — Platform-level identity
+// Never deleted. Can always log in.
+// Org-specific data lives on OrgMembership.
 // ============================================================
 model User {
   id         String  @id @default(uuid())
   email      String  @unique
   password   String
-  attendancePinHash  String?
   firstName  String
   lastName   String
-  employeeId String? @unique
   phone      String?
-  panNumber  String?
+  platformId String? @unique
+
+  // Role on User is only meaningful for SUPER_ADMIN.
+  // For all other users, the effective role comes from OrgMembership.
+  // Defaults to EMPLOYEE for non-super-admin users.
   role       Role    @default(EMPLOYEE)
+
+  // Platform-level active flag.
+  // If false, user cannot log in at all (banned/suspended from platform).
+  // This is separate from OrgMembership.isActive (org-level).
   isActive   Boolean @default(true)
 
-  platformId String? @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Platform-level soft delete (rarely used)
+
+  // Platform-level relations (not org-scoped)
+  sessions            UserSession[]
+  passwordResetTokens PasswordResetToken[]
+  memberships         OrgMembership[]
+
+  // Leave approver relation stays on User (approvedBy is userId)
+  approvedLeaves Leave[] @relation("ApprovedLeaves")
+
+  @@map("users")
+}
+
+// ============================================================
+// ORG MEMBERSHIP — Links a User to an Organization
+// Holds all org-specific data: role, employeeId, shift, PIN, etc.
+// One membership per user per org. Reactivated on rejoin.
+// ============================================================
+model OrgMembership {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Org-scoped role (EMPLOYEE, ORG_ADMIN, ORG_ACCOUNTANT — never SUPER_ADMIN)
+  role Role @default(EMPLOYEE)
+
+  // Org-scoped employee identity
+  employeeId        String?
+  attendancePinHash String?
+  panNumber         String?
 
   // Individual shift override (null = follow org default)
   shiftStartTime String? // HH:mm format, e.g. "14:00"
   shiftEndTime   String? // HH:mm format, e.g. "18:00"
 
-  // Multi-tenant  NULL only for SUPER_ADMIN
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Membership lifecycle
+  isActive Boolean   @default(true) // false = departed from org
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime? // When the employee left the org (null = still active)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete timestamp for org-level removal
 
-  // Relations
-  sessions          UserSession[]
+  // Org-scoped relations — all org data links here, not to User
   attendanceRecords AttendanceRecord[]
   paySettings       EmployeePaySettings?
   payrollRecords    PayrollRecord[]
   requestedLeaves   Leave[]              @relation("RequestedLeaves")
-  approvedLeaves    Leave[]              @relation("ApprovedLeaves")
   createdQRCodes    QRCode[]             @relation("QRCodeCreator")
+  notifications     Notification[]
+  documents         EmployeeDocument[]
 
-  notifications Notification[]
-  documents     EmployeeDocument[]
-
+  // One membership per user per org (reactivate on rejoin, don't create duplicate)
+  @@unique([userId, organizationId])
+  // Employee ID unique within an org
+  @@unique([organizationId, employeeId])
+  @@index([userId])
   @@index([organizationId])
-  passwordResetTokens PasswordResetToken[]
-  @@map("users")
+  @@index([organizationId, isActive])
+  @@index([organizationId, role])
+  @@map("org_memberships")
 }
 
 // ============================================================
-// USER SESSION  JWT token tracking for secure logout
+// USER SESSION — JWT token tracking for secure logout
+// Platform-level: tied to User, not membership
 // ============================================================
 model UserSession {
   id     String @id @default(uuid())
@@ -199,12 +247,12 @@ model UserSession {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   tokenHash String   @unique // SHA-256 hash of the JWT
-  isValid   Boolean  @default(true) // Allows invalidation without deletion
+  isValid   Boolean  @default(true)
   expiresAt DateTime
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([userId])
   @@index([tokenHash])
@@ -214,8 +262,8 @@ model UserSession {
 }
 
 // ============================================================
-// ============================================================
-// QR CODE  Generated for attendance scanning
+// QR CODE — Generated for attendance scanning
+// Org-scoped: created by a membership
 // ============================================================
 model QRCode {
   id        String @id @default(uuid())
@@ -224,20 +272,19 @@ model QRCode {
 
   status    QRCodeStatus @default(ACTIVE)
   scanCount Int          @default(0)
-  expiresAt DateTime? // Optional auto-expiry
+  expiresAt DateTime?
 
-  // Who/what generated it
-  createdById String
-  createdBy   User   @relation("QRCodeCreator", fields: [createdById], references: [id])
-
+  // Who created it (org-scoped — admin/accountant membership)
+  createdByMembershipId String
+  createdByMembership   OrgMembership @relation("QRCodeCreator", fields: [createdByMembershipId], references: [id])
 
   revokedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  // Multi-tenant
+  // Multi-tenant (denormalized for fast queries)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -250,21 +297,21 @@ model QRCode {
 }
 
 // ============================================================
-// ATTENDANCE RECORD  Clock-in / Clock-out tracking
-// One record per shift (not per day  supports multiple shifts)
+// ATTENDANCE RECORD — Clock-in / Clock-out tracking
+// Org-scoped: tied to membership
 // ============================================================
 model AttendanceRecord {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String        @id @default(uuid())
+  membershipId String
+  membership   OrgMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
-  // Multi-tenant
+  // Multi-tenant (denormalized — matches membership.organizationId)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  checkInTime    DateTime       @default(now())
+  checkInTime    DateTime               @default(now())
   checkOutTime   DateTime?
-  checkInMethod  CheckInMethod  @default(QR_SCAN)
+  checkInMethod  CheckInMethod          @default(QR_SCAN)
   checkOutMethod CheckInMethod?
 
   duration Int? // Duration in minutes
@@ -275,14 +322,14 @@ model AttendanceRecord {
   qrCode   QRCode? @relation(fields: [qrCodeId], references: [id])
 
   notes    String?
-  isActive Boolean @default(true) // Soft delete
+  isActive Boolean @default(true)
 
   // Manual correction tracking
   isManualEntry    Boolean   @default(false)
-  modifiedBy       String? // Admin userId who made the change
+  modifiedBy       String?   // userId of admin who made the change
   modifiedAt       DateTime?
-  modificationNote String? // Mandatory reason for manual changes
-  originalCheckIn  DateTime? // Preserved original time before edit
+  modificationNote String?
+  originalCheckIn  DateTime?
   originalCheckOut DateTime?
 
   // Nepali date fields (denormalized for fast queries/reports)
@@ -294,18 +341,19 @@ model AttendanceRecord {
   updatedAt     DateTime       @updatedAt
   notifications Notification[]
 
-  @@index([userId])
+  @@index([membershipId])
   @@index([organizationId])
   @@index([checkInTime])
-  @@index([userId, checkInTime])
+  @@index([membershipId, checkInTime])
   @@index([bsYear, bsMonth])
   @@index([organizationId, bsYear, bsMonth])
-  @@index([userId, bsYear, bsMonth])
+  @@index([membershipId, bsYear, bsMonth])
   @@map("attendance_records")
 }
 
 // ============================================================
-// ATTENDANCE AUDIT LOG  Every scan attempt (success + failure)
+// ATTENDANCE AUDIT LOG — Every scan attempt (success + failure)
+// Plain strings, no FK — permanent audit trail
 // ============================================================
 model AttendanceAuditLog {
   id             String  @id @default(uuid())
@@ -319,9 +367,9 @@ model AttendanceAuditLog {
   userAgent String?
 
   success       Boolean
-  failureReason String? // e.g., "COOLDOWN_ACTIVE", "INVALID_QR", "EMPLOYEE_NOT_FOUND"
+  failureReason String?
 
-  qrToken      String? // The token that was scanned (for debugging)
+  qrToken String?
 
   createdAt DateTime @default(now())
 
@@ -333,14 +381,15 @@ model AttendanceAuditLog {
 }
 
 // ============================================================
-// EMPLOYEE PAY SETTINGS  Per-employee salary configuration
+// EMPLOYEE PAY SETTINGS — Per-membership salary configuration
+// Org-scoped: tied to membership
 // ============================================================
 model EmployeePaySettings {
-  id     String @id @default(uuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String        @id @default(uuid())
+  membershipId String        @unique
+  membership   OrgMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
-  // Multi-tenant
+  // Multi-tenant (denormalized)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -351,19 +400,23 @@ model EmployeePaySettings {
   otherAllowances     Decimal @default(0) @db.Decimal(12, 2)
   overtimeRatePerHour Decimal @default(0) @db.Decimal(10, 2)
 
-  // SSF (Social Security Fund)  Nepal specific
-  ssfEnabled       Boolean @default(true)
-  employeeSsfRate  Decimal @default(11) @db.Decimal(5, 2) // 11
-  employerSsfRate  Decimal @default(20) @db.Decimal(5, 2) // 20
-  // PF (Provident Fund)  10 each
-  pfEnabled        Boolean @default(false)
-  employeePfRate   Decimal @default(10) @db.Decimal(5, 2)
-  employerPfRate   Decimal @default(10) @db.Decimal(5, 2)
-  // CIT (Citizen Investment Trust)  optional, tax-deductible
-  citEnabled       Boolean @default(false)
-  citAmount        Decimal @default(0) @db.Decimal(12, 2)
-  // Marital status  affects TDS first slab
-  isMarried        Boolean @default(false)
+  // SSF (Social Security Fund) — Nepal specific
+  ssfEnabled      Boolean @default(true)
+  employeeSsfRate Decimal @default(11) @db.Decimal(5, 2)
+  employerSsfRate Decimal @default(20) @db.Decimal(5, 2)
+
+  // PF (Provident Fund)
+  pfEnabled      Boolean @default(false)
+  employeePfRate Decimal @default(10) @db.Decimal(5, 2)
+  employerPfRate Decimal @default(10) @db.Decimal(5, 2)
+
+  // CIT (Citizen Investment Trust)
+  citEnabled Boolean @default(false)
+  citAmount  Decimal @default(0) @db.Decimal(12, 2)
+
+  // Marital status — affects TDS first slab
+  isMarried Boolean @default(false)
+
   // Advance/Loan deductions
   advanceDeduction Decimal @default(0) @db.Decimal(12, 2)
 
@@ -375,28 +428,29 @@ model EmployeePaySettings {
   bankAccountName   String?
   bankAccountNumber String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([organizationId])
-  @@index([userId])
+  @@index([membershipId])
   @@map("employee_pay_settings")
 }
 
 // ============================================================
-// PAYROLL RECORD  Monthly payroll calculation results
+// PAYROLL RECORD — Monthly payroll calculation results
+// Org-scoped: tied to membership
 // ============================================================
 model PayrollRecord {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String        @id @default(uuid())
+  membershipId String
+  membership   OrgMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
-  // Multi-tenant
+  // Multi-tenant (denormalized)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  // Period  both AD and BS
+  // Period — both AD and BS
   year    Int // AD year
   month   Int // AD month
   bsYear  Int // BS year
@@ -443,33 +497,32 @@ model PayrollRecord {
   approvedAt  DateTime?
   paidAt      DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  // One payroll record per employee per BS month
-  @@unique([userId, bsYear, bsMonth])
+  // One payroll record per membership per BS month
+  @@unique([membershipId, bsYear, bsMonth])
   @@index([organizationId])
   @@index([bsYear, bsMonth])
-  @@index([userId, bsYear, bsMonth])
+  @@index([membershipId, bsYear, bsMonth])
   @@index([organizationId, bsYear, bsMonth])
   @@index([status])
   @@map("payroll_records")
 }
 
 // ============================================================
-// HOLIDAY  Supports both national and org-specific holidays
-// With full BS date support
+// HOLIDAY — Supports both national and org-specific holidays
 // ============================================================
 model Holiday {
   id String @id @default(uuid())
 
-  // Multi-tenant  NULL = national holiday for all orgs
+  // Multi-tenant — NULL = national holiday for all orgs
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   name       String
-  nameNepali String? //  
+  nameNepali String?
 
   // AD date
   date DateTime @db.Date
@@ -484,11 +537,10 @@ model Holiday {
   isActive    Boolean     @default(true)
   description String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  // Unique per BS date (per org or national)
   @@unique([bsYear, bsMonth, bsDay, organizationId])
   @@index([organizationId])
   @@index([date])
@@ -498,14 +550,15 @@ model Holiday {
 }
 
 // ============================================================
-// LEAVE  Employee leave requests
+// LEAVE — Employee leave requests
+// Org-scoped: requestor tied to membership, approver tied to User
 // ============================================================
 model Leave {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation("RequestedLeaves", fields: [userId], references: [id], onDelete: Cascade)
+  id           String        @id @default(uuid())
+  membershipId String
+  membership   OrgMembership @relation("RequestedLeaves", fields: [membershipId], references: [id], onDelete: Cascade)
 
-  // Multi-tenant
+  // Multi-tenant (denormalized)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -520,34 +573,34 @@ model Leave {
   bsEndMonth   Int?
   bsEndDay     Int?
 
-  reason String
+  reason           String
   rejectionMessage String?
-  type   LeaveType
-  status LeaveStatus @default(PENDING)
+  type             LeaveType
+  status           LeaveStatus @default(PENDING)
 
+  // Approver stays as userId (not membershipId) — see design decisions
   approvedBy String?
   approver   User?     @relation("ApprovedLeaves", fields: [approvedBy], references: [id])
   approvedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  @@index([userId])
+  @@index([membershipId])
   @@index([organizationId])
-  @@index([userId, status])
+  @@index([membershipId, status])
   @@index([organizationId, status])
   @@index([startDate, endDate])
   @@map("leaves")
 }
 
 // ============================================================
-// SYSTEM CONFIG  Key-value settings per organization
+// SYSTEM CONFIG — Key-value settings per organization
 // ============================================================
 model SystemConfig {
   id String @id @default(uuid())
 
-  // Multi-tenant
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -555,16 +608,19 @@ model SystemConfig {
   value       String
   description String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  // One key per organization
   @@unique([organizationId, key])
   @@index([organizationId])
   @@map("system_configs")
 }
 
+// ============================================================
+// NOTIFICATION
+// Org-scoped: tied to membership (nullable for org-wide notifications)
+// ============================================================
 model Notification {
   id             String       @id @default(uuid())
   organizationId String
@@ -574,20 +630,22 @@ model Notification {
   title   String
   message String
 
-  userId       String?
-  user         User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Nullable — org-wide notifications have no specific membership
+  membershipId String?
+  membership   OrgMembership? @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
   attendanceId String?
   attendance   AttendanceRecord? @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
 
   isRead Boolean   @default(false)
   readAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([organizationId, isRead, createdAt])
-  @@index([userId])
+  @@index([membershipId])
 }
 
 enum NotificationType {
@@ -596,28 +654,29 @@ enum NotificationType {
   LEAVE_REQUEST
   PAYROLL_APPROVED
   SYSTEM_ALERT
-
   ORG_STATUS_CHANGED
   PAYROLL_TOGGLED
   LEAVE_TOGGLED
   MASTER_HOLIDAYS_UPDATED
 }
 
-// 1. Add the DocumentType model (org-admin defined categories)
+// ============================================================
+// DOCUMENT TYPE — Org-admin defined categories
+// ============================================================
 model DocumentType {
   id             String       @id @default(uuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  name        String // e.g. "Citizenship", "Police Clearance", "Medical Report"
-  nameNp      String? // Nepali name (optional)
-  description String? // What the employer expects
-  isRequired  Boolean @default(false) // Mark as mandatory for employees
-  isActive    Boolean @default(true) // Soft disable
+  name        String
+  nameNp      String?
+  description String?
+  isRequired  Boolean @default(false)
+  isActive    Boolean @default(true)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   documents EmployeeDocument[]
 
@@ -626,54 +685,55 @@ model DocumentType {
   @@map("document_types")
 }
 
-// 2. Add the EmployeeDocument model
+// ============================================================
+// EMPLOYEE DOCUMENT
+// Org-scoped: tied to membership
+// ============================================================
 model EmployeeDocument {
-  id             String       @id @default(uuid())
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String        @id @default(uuid())
+  membershipId   String
+  membership     OrgMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   documentTypeId String
-  documentType   DocumentType @relation(fields: [documentTypeId], references: [id])
+  documentType   DocumentType  @relation(fields: [documentTypeId], references: [id])
 
-  fileName     String // Stored filename (UUID-based)
-  originalName String // Original upload filename
-  mimeType     String // e.g. application/pdf, image/jpeg
-  fileSize     Int // bytes
-  description  String? // Optional note
+  fileName     String
+  originalName String
+  mimeType     String
+  fileSize     Int
+  description  String?
 
-  uploadedBy String // userId of uploader (employee or admin)
+  // Plain string userId — who uploaded (audit trail, not org-scoped)
+  uploadedBy String
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // FIX H-10: soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  @@index([userId])
+  @@index([membershipId])
   @@index([organizationId])
   @@index([documentTypeId])
   @@map("employee_documents")
 }
-// ============================================================
-// PRICING TIER ADDITIONS  Add to your existing schema.prisma
-// ============================================================
 
 // ============================================================
-// NEW ENUMS
+// PRICING & SUBSCRIPTION (unchanged — no user/membership dependency)
 // ============================================================
 
 enum TierName {
-  STARTER      // Free, up to 5 employees
-  OPERATIONS   // Rs. 250/employee/month, 6100 employees
+  STARTER
+  OPERATIONS
 }
 
 enum SubscriptionStatus {
-  TRIALING     // Within trial period
-  GRACE_PERIOD // Trial ended, grace window before downgrade/suspend
-  ACTIVE       // Paid and active
-  PAST_DUE     // Payment overdue
-  SUSPENDED    // Manually suspended by super admin
-  CANCELLED    // Org cancelled
-  EXPIRED      // Trial ended, not converted
+  TRIALING
+  GRACE_PERIOD
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
 }
 
 enum BillingCycle {
@@ -681,170 +741,131 @@ enum BillingCycle {
   ANNUAL
 }
 
-// ============================================================
-// PRICING PLAN  Defines each tier's rules & pricing
-// Super admin configures this. One row per tier.
-//
-// NOTE: Nepal-specific core features (BS calendar, geofencing,
-// holiday sync, SSF, TDS) are intentionally NOT toggleable here.
-// They are hardcoded ON in application logic for all tiers.
-// Keeping them out of the DB prevents accidental deactivation.
-// ============================================================
 model PricingPlan {
   id          String   @id @default(uuid())
   tier        TierName @unique
 
-  displayName String   // e.g. "Starter", "Operations"
+  displayName String
   description String?
 
-  // Pricing
-  pricePerEmployee Decimal @default(0) @db.Decimal(10, 2) // 0 for free tier
-  defaultSetupFee  Decimal? @db.Decimal(10, 2)          // null = no setup fee
-  currency         String  @default("NPR")
+  pricePerEmployee      Decimal @default(0) @db.Decimal(10, 2)
+  defaultSetupFee       Decimal? @db.Decimal(10, 2)
+  currency              String  @default("NPR")
 
-  // Limits  null means unlimited
-  maxEmployees     Int?    // 5 for Starter, null for Operations
-  hardEmployeeCap  Int?    // Hard ceiling  100 for Operations
+  maxEmployees          Int?
+  hardEmployeeCap       Int?
 
-  // Trial config
-  trialDaysMonthly Int  @default(30)  // 30 days for monthly billing
-  annualDiscountPercent Int @default(0)   // e.g. 20 = 20 off when paying annually
-  gracePeriodDays  Int  @default(7)   // Days after trial before downgrade/suspend
+  trialDaysMonthly      Int @default(30)
+  annualDiscountPercent Int @default(0)
+  gracePeriodDays       Int @default(7)
 
-  // Annual billing discount
+  featureLeave            Boolean @default(false)
+  featureManualCorrection Boolean @default(false)
+  featureFullPayroll      Boolean @default(false)
+  featurePayrollWorkflow  Boolean @default(false)
+  featureReports          Boolean @default(false)
+  featureNotifications    Boolean @default(false)
+  featureOnboarding       Boolean @default(false)
+  featureAuditLog         Boolean @default(false)
+  auditLogRetentionDays   Int?
 
-  //  Feature flags  super admin can toggle per plan 
-  featureLeave             Boolean @default(false)
-  featureManualCorrection  Boolean @default(false)
-  featureFullPayroll       Boolean @default(false)  // PF, CIT, allowances, Dashain
-  featurePayrollWorkflow   Boolean @default(false)
-  featureReports           Boolean @default(false)
-  featureNotifications     Boolean @default(false)
-  featureOnboarding        Boolean @default(false)
-  featureAuditLog          Boolean @default(false)
-  auditLogRetentionDays    Int?    // null = unlimited, 30 for Operations
+  featureFileDownload           Boolean @default(false)
+  featureDownloadReports        Boolean @default(false)
+  featureDownloadPayslips       Boolean @default(false)
+  featureDownloadAuditLog       Boolean @default(false)
+  featureDownloadLeaveRecords   Boolean @default(false)
 
-  //  File access control 
-  // Starter: preview only  no downloads
-  // Operations: full download access
-  featureFileDownload      Boolean @default(false)
-  // Granular download control if needed in future
-  featureDownloadReports        Boolean @default(false) // Attendance/payroll reports
-  featureDownloadPayslips       Boolean @default(false) // Individual payslips
-  featureDownloadAuditLog       Boolean @default(false) // Audit log exports
-  featureDownloadLeaveRecords   Boolean @default(false) // Leave history exports
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
 
-  isActive    Boolean @default(true)
-  sortOrder   Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
   subscriptions OrgSubscription[]
-
-  featureTotp  Boolean  @default(false)
+  featureTotp   Boolean @default(false)
 
   @@map("pricing_plans")
 }
 
-// ============================================================
-// ADMIN NOTE  Thread of internal notes per subscription
-// Replaces single adminNote string  preserves full history
-// ============================================================
 model SubscriptionAdminNote {
   id             String          @id @default(uuid())
   subscriptionId String
   subscription   OrgSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
-  note           String
-  createdBy      String          // Super admin userId
-  createdAt      DateTime        @default(now())
+  note      String
+  createdBy String
+  createdAt DateTime @default(now())
 
   @@index([subscriptionId])
   @@map("subscription_admin_notes")
 }
 
-// ============================================================
-// ORG SUBSCRIPTION  One active subscription per organization
-// ============================================================
 model OrgSubscription {
   id             String       @id @default(uuid())
   organizationId String       @unique
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  planId         String
-  plan           PricingPlan  @relation(fields: [planId], references: [id])
+  planId String
+  plan   PricingPlan @relation(fields: [planId], references: [id])
 
-  status         SubscriptionStatus @default(TRIALING)
-  billingCycle   BillingCycle       @default(MONTHLY)
+  status       SubscriptionStatus @default(TRIALING)
+  billingCycle BillingCycle       @default(MONTHLY)
 
-  // Trial tracking
   trialStartedAt DateTime?
   trialEndsAt    DateTime?
-  isTrialUsed    Boolean   @default(false) // Prevents trial abuse on re-signup
+  isTrialUsed    Boolean @default(false)
 
-  // Trial conversion nudge tracking
-  trialReminderSentAt      DateTime? // 7-day reminder sent
-  trialFinalReminderAt     DateTime? // 1-day reminder sent
-  billingReminderSentAt    DateTime? // 7-day billing renewal reminder sent
-  conversionNudgeSentAt    DateTime? // Post-expiry nudge sent
-  graceEndsAt              DateTime? // When grace period expires
-  gracePeriodReminderSentAt DateTime? // Mid-grace reminder sent
+  trialReminderSentAt       DateTime?
+  trialFinalReminderAt      DateTime?
+  billingReminderSentAt     DateTime?
+  conversionNudgeSentAt     DateTime?
+  graceEndsAt               DateTime?
+  gracePeriodReminderSentAt DateTime?
 
-  // Billing dates
-  currentPeriodStart    DateTime?
-  currentPeriodEnd      DateTime?
-  nextBillingDate       DateTime? // Explicit  shown to org admin as "next bill on X"
-  cancelledAt           DateTime?
-  suspendedAt           DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  nextBillingDate    DateTime?
+  cancelledAt        DateTime?
+  suspendedAt        DateTime?
 
-  // Employee count cache  avoids counting User rows on every bill
-  currentEmployeeCount  Int @default(0) // Updated on every add/remove employee event
+  currentEmployeeCount Int @default(0)
 
-  // Custom pricing override  for special deals
-  customPricePerEmployee Decimal? @db.Decimal(10, 2) // null = use plan default
-  customPriceExpiresAt   DateTime?              // null = no expiry, auto-reverts when reached
+  customPricePerEmployee Decimal?  @db.Decimal(10, 2)
+  customPriceExpiresAt   DateTime?
   customMaxEmployees     Int?
 
-  // Per-org feature overrides  null = use plan default, true/false = override
-  overrideFeatureLeave             Boolean?
-  overrideFeatureManualCorrection  Boolean?
-  overrideFeatureFullPayroll       Boolean?
-  overrideFeaturePayrollWorkflow   Boolean?
-  overrideFeatureReports           Boolean?
-  overrideFeatureNotifications     Boolean?
-  overrideFeatureOnboarding        Boolean?
-  overrideFeatureAuditLog          Boolean?
-  overrideFeatureFileDownload      Boolean?
-  overrideFeatureDownloadReports   Boolean?
-  overrideFeatureDownloadPayslips  Boolean?
-  overrideFeatureDownloadAuditLog  Boolean?
+  overrideFeatureLeave                Boolean?
+  overrideFeatureManualCorrection     Boolean?
+  overrideFeatureFullPayroll          Boolean?
+  overrideFeaturePayrollWorkflow      Boolean?
+  overrideFeatureReports              Boolean?
+  overrideFeatureNotifications        Boolean?
+  overrideFeatureOnboarding           Boolean?
+  overrideFeatureAuditLog             Boolean?
+  overrideFeatureFileDownload         Boolean?
+  overrideFeatureDownloadReports      Boolean?
+  overrideFeatureDownloadPayslips     Boolean?
+  overrideFeatureDownloadAuditLog     Boolean?
   overrideFeatureDownloadLeaveRecords Boolean?
-  isPriceLockedForever   Boolean  @default(false)
+  isPriceLockedForever Boolean @default(false)
 
-
-  // Setup fee
   setupFeePaid       Boolean   @default(false)
   setupFeeAmount     Decimal?  @db.Decimal(10, 2)
   setupFeePaidAt     DateTime?
   setupFeeWaived     Boolean   @default(false)
-  setupFeeWaivedBy   String?   // Super admin userId
+  setupFeeWaivedBy   String?
   setupFeeWaivedNote String?
 
-  // Branch tracking
   parentSubscriptionId String?
   parentSubscription   OrgSubscription?  @relation("BranchSubscriptions", fields: [parentSubscriptionId], references: [id])
   branches             OrgSubscription[] @relation("BranchSubscriptions")
 
-  // Super admin control
-  assignedBy   String?   // Super admin userId who last changed the tier
-  assignedAt   DateTime?
+  assignedBy String?
+  assignedAt DateTime?
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relations
   billingHistory SubscriptionBillingLog[]
   adminNotes     SubscriptionAdminNote[]
 
@@ -856,49 +877,39 @@ model OrgSubscription {
   @@map("org_subscriptions")
 }
 
-// ============================================================
-// SUBSCRIPTION BILLING LOG  Full audit trail
-// ============================================================
 model SubscriptionBillingLog {
   id             String          @id @default(uuid())
   subscriptionId String
   subscription   OrgSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   organizationId String
-  performedBy    String?         // Super admin userId (null = system-triggered)
+  performedBy    String?
 
-  event          String          // TRIAL_STARTED, TRIAL_ENDED, PLAN_CHANGED,
-                                 // PAYMENT_RECEIVED, SUSPENDED, REACTIVATED,
-                                 // PRICE_OVERRIDDEN, SETUP_FEE_WAIVED,
-                                 // DOWNLOAD_ATTEMPTED, etc.
+  event      String
+  fromPlan   String?
+  toPlan     String?
+  fromStatus String?
+  toStatus   String?
+  amount     Decimal? @db.Decimal(10, 2)
+  employeeCount Int?
+  note       String?
 
-  fromPlan       String?
-  toPlan         String?
-  fromStatus     String?
-  toStatus       String?
-
-  amount         Decimal? @db.Decimal(10, 2)
-  employeeCount  Int?     // Snapshot at billing time
-  note           String?
-
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([subscriptionId])
   @@index([organizationId])
   @@index([createdAt])
   @@map("subscription_billing_log")
 }
-//Platform-level configuration (super admin only) 
-// Global settings that apply across all orgs.
-// Key-value store with type hints for the UI.
+
 model PlatformConfig {
   id          String   @id @default(uuid())
-  key         String   @unique  // e.g. "billing.grace_period_days"
-  value       String            // stored as string, parsed by consumer
-  valueType   String   @default("number") // "number" | "boolean" | "string"
-  label       String            // Human-readable label for super admin UI
-  description String?           // Explanation shown in UI
-  updatedBy   String?           // userId of last super admin who changed it
+  key         String   @unique
+  value       String
+  valueType   String   @default("number")
+  label       String
+  description String?
+  updatedBy   String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 
@@ -906,17 +917,17 @@ model PlatformConfig {
 }
 
 // ============================================================
-// PASSWORD RESET TOKEN  FIX C-12: secure welcome email flow
+// PASSWORD RESET TOKEN — Platform-level, tied to User
 // ============================================================
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  token     String?  @unique
-  tokenHash String?  @unique
+  token     String?   @unique
+  tokenHash String?   @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([tokenHash])
@@ -925,20 +936,20 @@ model PasswordResetToken {
 }
 
 // ============================================================
-// PAYROLL AUDIT LOG  tracks every generate, regenerate, status change,
-// and payroll flag triggered by attendance corrections
+// PAYROLL AUDIT LOG — Plain string references, no FK
+// Permanent audit trail — survives membership deactivation
 // ============================================================
 model PayrollAuditLog {
   id                 String   @id @default(uuid())
   organizationId     String
   payrollRecordId    String?
-  employeeUserId     String?
-  action             String   // GENERATED | REGENERATED | STATUS_CHANGED | FLAGGED_NEEDS_RECALCULATION | VOIDED
+  employeeUserId     String?  // Plain userId for auditability
+  action             String
   fromStatus         String?
   toStatus           String?
-  triggeredBy        String   // userId of the admin who triggered this
+  triggeredBy        String   // Plain userId of admin who triggered
   reason             String?
-  attendanceRecordId String?  // populated when triggered by an attendance correction
+  attendanceRecordId String?
   bsYear             Int?
   bsMonth            Int?
   createdAt          DateTime @default(now())
@@ -950,4 +961,3 @@ model PayrollAuditLog {
   @@index([employeeUserId])
   @@map("payroll_audit_logs")
 }
-

@@ -38,11 +38,13 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
       return res.status(403).json({ error: { message: 'You can only update your own profile' } });
     }
 
+    // Non-admins cannot change org-scoped fields
     if (!isAdmin) {
       delete req.body.role;
       delete req.body.isActive;
       delete req.body.shiftStartTime;
       delete req.body.shiftEndTime;
+      delete req.body.panNumber;
     }
 
     const user = await userService.updateUser(req.params.id, req.body, req.user!);
@@ -52,17 +54,17 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
   }
 });
 
-// DELETE /api/users/:id
+// DELETE /api/users/:id — removes employee from organization (membership deactivated, user intact)
 router.delete('/:id', requireOrgAdmin, enforceOrgIsolation, validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await userService.deleteUser(req.params.id, req.user!);
+    const result = await userService.removeFromOrganization(req.params.id, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
   }
 });
 
-// PATCH /api/users/:id/attendance-pin
+// PATCH /api/users/:id/attendance-pin — admin resets an employee's PIN
 router.patch('/:id/attendance-pin', requireOrgAdmin, enforceOrgIsolation, validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await userService.resetAttendancePin(req.params.id, req.user!);

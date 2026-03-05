@@ -46,6 +46,7 @@ router.post(
         uploaderId: req.user!.userId,
         uploaderRole: req.user!.role as Role,
         uploaderOrgId: req.user!.organizationId!,
+        uploaderMembershipId: req.user!.membershipId || undefined,
         file: req.file,
         documentTypeId: req.body.documentTypeId,
         description: req.body.description,
@@ -63,7 +64,7 @@ router.get('/documents/user/:id', authenticate, async (req: AuthRequest, res: Re
   try {
     const documents = await listDocuments({
       userId: req.params.id,
-      requesterId: req.user!.userId,
+      requesterMembershipId: req.user!.membershipId || undefined,
       requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
     });
@@ -78,7 +79,7 @@ router.get('/documents/:id/download', authenticate, async (req: AuthRequest, res
   try {
     const { url, originalName, mimeType } = await getDocumentForDownload({
       documentId: req.params.id,
-      requesterId: req.user!.userId,
+      requesterMembershipId: req.user!.membershipId || undefined,
       requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
     });
@@ -95,7 +96,7 @@ router.delete('/documents/:id', authenticate, async (req: AuthRequest, res: Resp
   try {
     const result = await deleteDocument({
       documentId: req.params.id,
-      requesterId: req.user!.userId,
+      requesterMembershipId: req.user!.membershipId || undefined,
       requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
     });

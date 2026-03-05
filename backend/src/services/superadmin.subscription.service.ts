@@ -10,7 +10,7 @@ const log = createLogger('superadmin-subscription-service');
 
 export class SuperAdminSubscriptionService {
 
-  // --€--€ List all org subscriptions --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── List all org subscriptions ──
   async listSubscriptions(query: {
     page?: number;
     limit?: number;
@@ -72,24 +72,26 @@ export class SuperAdminSubscriptionService {
       prisma.orgSubscription.count({ where }),
     ]);
 
+    // Count employees/admins per org via OrgMembership (not User)
     const orgIds = subscriptions.map(s => s.organizationId);
-    const userCounts = await prisma.user.groupBy({
+    const membershipCounts = await prisma.orgMembership.groupBy({
       by: ['organizationId', 'role'],
       where: {
         organizationId: { in: orgIds },
         isActive: true,
+        leftAt: null,
         role: { in: ['EMPLOYEE', 'ORG_ADMIN'] },
       },
-      _count: { _all: true },
+      _count: { id: true },
     });
 
     const countMap: Record<string, { employeeCount: number; adminCount: number }> = {};
-    for (const row of userCounts) {
-      if (!countMap[row.organizationId!]) {
-        countMap[row.organizationId!] = { employeeCount: 0, adminCount: 0 };
+    for (const row of membershipCounts) {
+      if (!countMap[row.organizationId]) {
+        countMap[row.organizationId] = { employeeCount: 0, adminCount: 0 };
       }
-      if (row.role === 'EMPLOYEE') countMap[row.organizationId!].employeeCount = row._count._all;
-      if (row.role === 'ORG_ADMIN')  countMap[row.organizationId!].adminCount   = row._count._all;
+      if (row.role === 'EMPLOYEE') countMap[row.organizationId].employeeCount = row._count.id;
+      if (row.role === 'ORG_ADMIN') countMap[row.organizationId].adminCount = row._count.id;
     }
 
     const enriched = subscriptions.map(sub => ({
@@ -104,7 +106,7 @@ export class SuperAdminSubscriptionService {
     };
   }
 
-  // --€--€ Get single org subscription --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Get single org subscription ──
   async getSubscription(organizationId: string) {
     const subscription = await prisma.orgSubscription.findUnique({
       where: { organizationId },
@@ -119,13 +121,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // --€--€ Assign / change tier --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
-  //
-  // Trial enforcement:
-  //   - Trial is one-time per organization (isTrialUsed flag)
-  //   - If org has already used a trial ←’ straight to ACTIVE
-  //   - If plan has no trial days configured ←’ straight to ACTIVE
-  // --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Assign / change tier ──
   async assignTier(
     organizationId: string,
     input: { tier: TierName; note?: string; forceTrial?: boolean; billingCycle?: string },
@@ -142,7 +138,6 @@ export class SuperAdminSubscriptionService {
     const existing = await prisma.orgSubscription.findUnique({ where: { organizationId } });
     const now = new Date();
 
-    // Trial is one-time per org -- uses trialDaysMonthly only (no annual billing)
     const canUseTrial = (input.forceTrial === true) || (plan.trialDaysMonthly > 0 && !(existing?.isTrialUsed ?? false));
 
     const trialEndsAt = canUseTrial
@@ -217,7 +212,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // --€--€ Override pricing --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Override pricing ──
   async overridePricing(
     organizationId: string,
     input: {
@@ -270,7 +265,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // --€--€ Waive setup fee --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Waive setup fee ──
   async waiveSetupFee(
     organizationId: string,
     input: { reason: string },
@@ -306,7 +301,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // --€--€ Suspend --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Suspend ──
   async suspendSubscription(
     organizationId: string,
     input: { reason: string },
@@ -350,7 +345,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // --€--€ Mark as Expired (manual) --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Mark as Expired (manual) ──
   async markAsExpired(
     organizationId: string,
     input: { reason: string },
@@ -396,12 +391,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // --€--€ Extend Trial --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
-  //
-  // Adds N days to trialEndsAt for TRIALING or GRACE_PERIOD orgs.
-  // If org is in GRACE_PERIOD, clears graceEndsAt and resets to
-  // TRIALING so the full grace period applies after the new trial ends.
-  // --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Extend Trial ──
   async extendTrial(
     organizationId: string,
     input: { days: number; note?: string },
@@ -453,7 +443,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // --€--€ Reactivate --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Reactivate ──
   async reactivateSubscription(
     organizationId: string,
     input: { note?: string },
@@ -493,7 +483,7 @@ export class SuperAdminSubscriptionService {
     return subscription;
   }
 
-  // --€--€ Add admin note --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Add admin note ──
   async addNote(
     organizationId: string,
     input: { note: string },
@@ -511,7 +501,7 @@ export class SuperAdminSubscriptionService {
     });
   }
 
-  // --€--€ Get billing log --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
+  // ── Get billing log ──
   async getBillingLog(organizationId: string) {
     const existing = await prisma.orgSubscription.findUnique({ where: { organizationId } });
     if (!existing) throw new NotFoundError('No subscription found for this organization');
@@ -524,4 +514,3 @@ export class SuperAdminSubscriptionService {
 }
 
 export const superAdminSubscriptionService = new SuperAdminSubscriptionService();
-

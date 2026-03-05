@@ -48,7 +48,7 @@ router.post('/logout', authenticate, async (req: AuthRequest, res: Response, nex
 // GET /api/auth/me
 router.get('/me', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const user = await authService.getMe(req.user!.userId);
+    const user = await authService.getMe(req.user!.userId, req.user!.membershipId);
     res.json({ data: { user } });
   } catch (error) {
     next(error);
@@ -68,7 +68,10 @@ router.patch('/attendance-pin', authenticate, async (req: AuthRequest, res: Resp
     if (currentPin === newPin) {
       res.status(400).json({ error: { message: 'New PIN must be different from current PIN', code: 'VALIDATION_ERROR' } }); return;
     }
-    const result = await authService.changeAttendancePin(req.user!.userId, currentPin, newPin);
+    if (!req.user!.membershipId) {
+      res.status(400).json({ error: { message: 'No active organization membership', code: 'NO_MEMBERSHIP' } }); return;
+    }
+    const result = await authService.changeAttendancePin(req.user!.membershipId, currentPin, newPin);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -108,4 +111,5 @@ router.post('/reset-password', authRateLimiter, async (req: Request, res: Respon
     next(error);
   }
 });
+
 export default router;

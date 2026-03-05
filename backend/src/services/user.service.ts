@@ -1,7 +1,7 @@
 ﻿import prisma from '../lib/prisma';
 import { JWTPayload } from '../lib/jwt';
 import { hashPassword } from '../lib/password';
-import { randomInt } from 'crypto'; // FIX H-11: use crypto.randomInt instead of Math.random()
+import { randomInt } from 'crypto';
 import { NotFoundError, ConflictError } from '../lib/errors';
 import { createLogger } from '../logger';
 import { emailService } from './email.service';
@@ -11,66 +11,131 @@ import { invalidatePlanCache } from './plan.service';
 
 const log = createLogger('user-service');
 
-// Fields to return (never return password)
-const USER_SELECT = {
+/**
+ * Shape the combined user+membership data into a flat response object
+ * that matches the previous API response shape. This minimizes frontend changes.
+ */
+function flattenMembershipResponse(membership: any) {
+  const user = membership.user;
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    phone: user.phone,
+    platformId: user.platformId,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    // Membership fields (appear as if they're on User for backward compat)
+    membershipId: membership.id,
+    role: membership.role,
+    employeeId: membership.employeeId,
+    panNumber: membership.panNumber,
+    isActive: membership.isActive,
+    shiftStartTime: membership.shiftStartTime,
+    shiftEndTime: membership.shiftEndTime,
+    organizationId: membership.organizationId,
+    joinedAt: membership.joinedAt,
+    leftAt: membership.leftAt,
+  };
+}
+
+// Select fields when querying memberships with user data
+const MEMBERSHIP_WITH_USER_SELECT = {
   id: true,
-  email: true,
-  firstName: true,
-  lastName: true,
-  employeeId: true,
-  platformId: true,
-  phone: true,
   role: true,
+  employeeId: true,
+  panNumber: true,
   isActive: true,
+  shiftStartTime: true,
+  shiftEndTime: true,
   organizationId: true,
-  createdAt: true,
-  panNumber:true,
-  updatedAt: true,
+  joinedAt: true,
+  leftAt: true,
+  deletedAt: true,
+  user: {
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      platformId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
 } as const;
 
 export class UserService {
 
   /**
-   * List users -- scoped to organization
+   * List users — scoped to organization via OrgMembership.
+   * Only returns active memberships (not departed employees).
    */
   async listUsers(currentUser: JWTPayload) {
-    const where: Record<string, unknown> = {};
-
-    if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
-      where.organizationId = currentUser.organizationId;
+    // SUPER_ADMIN: list all users across all orgs
+    if (currentUser.role === 'SUPER_ADMIN') {
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          platformId: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          memberships: {
+            select: {
+              id: true,
+              role: true,
+              employeeId: true,
+              organizationId: true,
+              isActive: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      return users;
     }
 
-    return prisma.user.findMany({
-      where,
-      select: USER_SELECT,
-      orderBy: { createdAt: 'desc' },
+    // Org users: list through OrgMembership
+    if (!currentUser.organizationId) {
+      return [];
+    }
+
+    const memberships = await prisma.orgMembership.findMany({
+      where: {
+        organizationId: currentUser.organizationId,
+        deletedAt: null,
+        leftAt: null,
+      },
+      select: MEMBERSHIP_WITH_USER_SELECT,
+      orderBy: { user: { createdAt: 'desc' } },
     });
+
+    return memberships.map(flattenMembershipResponse);
   }
 
   /**
-   * Create user -- assigned to current user's organization
+   * Create user — creates User (if new) + OrgMembership in a transaction.
+   * If user already exists (by email), only creates a new membership.
    */
   async createUser(input: CreateUserInput, currentUser: JWTPayload) {
     if ((input as any).role === 'SUPER_ADMIN') {
       throw new ConflictError('Cannot create super admin accounts');
     }
 
-    const existing = await prisma.user.findUnique({ where: { email: input.email } });
-    if (existing) {
-      throw new ConflictError('User with this email already exists');
-    }
-
-    const hashedPassword = await hashPassword(input.password);
-    const employeeId = await this.generateEmployeeId(currentUser.organizationId);
-    const platformId = await generatePlatformId();
     const organizationId = currentUser.organizationId;
-
     if (!organizationId && currentUser.role !== 'SUPER_ADMIN') {
       throw new Error('No organization assigned to current user');
     }
 
-    // --€--€ Employee cap check --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
-    // Super admin bypasses cap -- they can always create users
+    // Employee cap check — count active memberships, not users
     if (organizationId && currentUser.role !== 'SUPER_ADMIN') {
       const subscription = await prisma.orgSubscription.findUnique({
         where: { organizationId },
@@ -86,232 +151,369 @@ export class UserService {
         }
       }
     }
-    // --€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€--€
 
+    // Check if user with this email already exists
+    const existingUser = await prisma.user.findUnique({ where: { email: input.email } });
+
+    if (existingUser) {
+      // User exists — check if they already have a membership in this org
+      if (organizationId) {
+        const existingMembership = await prisma.orgMembership.findUnique({
+          where: { userId_organizationId: { userId: existingUser.id, organizationId } },
+        });
+
+        if (existingMembership) {
+          if (existingMembership.isActive && !existingMembership.leftAt) {
+            throw new ConflictError('User is already an active member of this organization');
+          }
+          // Reactivate departed membership
+          throw new ConflictError(
+            'User previously belonged to this organization. Use the reactivate flow instead.'
+          );
+        }
+      }
+
+      // User exists in another org — create new membership only
+      // (Future: this is the "onboard by platformId" flow)
+      throw new ConflictError('User with this email already exists on the platform');
+    }
+
+    // New user — create User + OrgMembership in transaction
+    const hashedPassword = await hashPassword(input.password);
+    const employeeId = await this.generateEmployeeId(organizationId);
+    const platformId = await generatePlatformId();
     const plainPin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
     const attendancePinHash = await hashPassword(plainPin);
-    const user = await prisma.user.create({
-      data: {
-        email: input.email,
-        password: hashedPassword,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        phone: input.phone,
-        employeeId,
-        platformId,
-        role: input.role,
-        shiftStartTime: input.shiftStartTime || null,
-        shiftEndTime: input.shiftEndTime || null,
-         panNumber: input.panNumber || null,
-        isActive: true,
-        attendancePinHash,
-        organizationId,
-      },
-      select: USER_SELECT,
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Create platform-level user
+      const user = await tx.user.create({
+        data: {
+          email: input.email,
+          password: hashedPassword,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          phone: input.phone,
+          platformId,
+          role: 'EMPLOYEE', // Platform-level default; effective role is on membership
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          platformId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // Create org membership
+      const membership = await tx.orgMembership.create({
+        data: {
+          userId: user.id,
+          organizationId: organizationId!,
+          role: input.role,
+          employeeId,
+          shiftStartTime: input.shiftStartTime || null,
+          shiftEndTime: input.shiftEndTime || null,
+          panNumber: input.panNumber || null,
+          attendancePinHash,
+          isActive: true,
+        },
+      });
+
+      return { user, membership };
     });
 
-    log.info({ userId: user.id, email: user.email, orgId: organizationId }, 'User created');
+    log.info(
+      { userId: result.user.id, membershipId: result.membership.id, orgId: organizationId },
+      'User and membership created'
+    );
 
     // Sync employee count after creation
     if (organizationId) {
       await this.syncEmployeeCount(organizationId);
     }
 
-    // FIX C-12: Never send the plaintext password in email.
-    // Instead send a password-reset link so the employee sets their own password.
-    // The admin-typed password is already hashed and stored -- it is NOT sent.
+    // Send welcome email with password reset link
     try {
       const org = await prisma.organization.findUnique({
         where: { id: organizationId! },
         select: { name: true },
       });
 
-      // Generate a secure password-reset token valid for 24 hours
-      const resetToken = await this.generatePasswordResetToken(user.id);
+      const resetToken = await this.generatePasswordResetToken(result.user.id);
 
       emailService.sendWelcomeEmail({
         to: input.email,
         firstName: input.firstName,
         lastName: input.lastName,
         employeeId,
-        // Pass a reset link instead of the plaintext password
         resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
         orgName: org?.name || '',
       }).catch(err => log.error({ err }, 'Failed to send welcome email'));
     } catch (err) {
       log.error({ err }, 'Failed to send welcome email');
     }
-    return { ...user, pin: plainPin };
+
+    return {
+      id: result.user.id,
+      email: result.user.email,
+      firstName: result.user.firstName,
+      lastName: result.user.lastName,
+      phone: result.user.phone,
+      platformId: result.user.platformId,
+      membershipId: result.membership.id,
+      role: result.membership.role,
+      employeeId: result.membership.employeeId,
+      organizationId: result.membership.organizationId,
+      isActive: result.membership.isActive,
+      createdAt: result.user.createdAt,
+      pin: plainPin,
+    };
   }
 
   /**
-   * Update user -- with org isolation check and last-admin guard
+   * Update user — splits updates between User (platform fields) and OrgMembership (org fields).
+   * Includes last-admin guard on role changes.
    */
   async updateUser(userId: string, input: UpdateUserInput, currentUser: JWTPayload) {
+    // Find the user
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, organizationId: true, isActive: true, role: true },
+      select: { id: true },
     });
-
     if (!existingUser) {
       throw new NotFoundError('User not found');
     }
 
-    if (
-      currentUser.role !== 'SUPER_ADMIN' &&
-      existingUser.organizationId !== currentUser.organizationId
-    ) {
-      throw new NotFoundError('User not found');
+    // For non-SUPER_ADMIN: verify the target user has a membership in the same org
+    let existingMembership: any = null;
+    if (currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId) {
+      existingMembership = await prisma.orgMembership.findFirst({
+        where: {
+          userId,
+          organizationId: currentUser.organizationId,
+        },
+        select: { id: true, role: true, isActive: true, organizationId: true },
+      });
+
+      if (!existingMembership) {
+        throw new NotFoundError('User not found in your organization');
+      }
     }
 
-    // FIX C-13: Before downgrading an ORG_ADMIN to EMPLOYEE, ensure at least
-    // one other ORG_ADMIN remains in the org. Without this check, an org can
-    // end up with zero admins -- making payroll, leave approval, and user
-    // management permanently inaccessible.
+    // Last-admin guard: before demoting an ORG_ADMIN, ensure another admin remains
     if (
       input.role &&
       input.role !== 'ORG_ADMIN' &&
-      existingUser.role === 'ORG_ADMIN' &&
-      existingUser.organizationId
+      existingMembership?.role === 'ORG_ADMIN' &&
+      existingMembership?.organizationId
     ) {
-      const adminCount = await prisma.user.count({
+      const adminCount = await prisma.orgMembership.count({
         where: {
-          organizationId: existingUser.organizationId,
+          organizationId: existingMembership.organizationId,
           role: 'ORG_ADMIN',
           isActive: true,
-          id: { not: userId }, // exclude the user being demoted
+          leftAt: null,
+          id: { not: existingMembership.id },
         },
       });
 
       if (adminCount < 1) {
         throw new ConflictError(
-          'Cannot demote this admin -- they are the last admin in the organization. Assign another admin first.'
+          'Cannot demote this admin — they are the last admin in the organization. Assign another admin first.'
         );
       }
     }
 
-    const updateData: Record<string, unknown> = {};
-    if (input.email) updateData.email = input.email;
-    if (input.firstName) updateData.firstName = input.firstName;
-    if (input.lastName) updateData.lastName = input.lastName;
-    if (input.phone !== undefined) updateData.phone = input.phone;
-    if (input.role) updateData.role = input.role;
-    if (input.isActive !== undefined) updateData.isActive = input.isActive;
-    if (input.shiftStartTime !== undefined) updateData.shiftStartTime = input.shiftStartTime || null;
-    if (input.shiftEndTime !== undefined) updateData.shiftEndTime = input.shiftEndTime || null;
-    if (input.panNumber !== undefined) updateData.panNumber = input.panNumber || null;
+    // Split fields: User (platform) vs OrgMembership (org-scoped)
+    const userUpdateData: Record<string, unknown> = {};
+    const membershipUpdateData: Record<string, unknown> = {};
+
+    // Platform-level fields → User table
+    if (input.email) userUpdateData.email = input.email;
+    if (input.firstName) userUpdateData.firstName = input.firstName;
+    if (input.lastName) userUpdateData.lastName = input.lastName;
+    if (input.phone !== undefined) userUpdateData.phone = input.phone;
     if (input.password) {
-      updateData.password = await hashPassword(input.password);
+      userUpdateData.password = await hashPassword(input.password);
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-      select: USER_SELECT,
+    // Org-scoped fields → OrgMembership table
+    if (input.role) membershipUpdateData.role = input.role;
+    if (input.isActive !== undefined) membershipUpdateData.isActive = input.isActive;
+    if (input.shiftStartTime !== undefined) membershipUpdateData.shiftStartTime = input.shiftStartTime || null;
+    if (input.shiftEndTime !== undefined) membershipUpdateData.shiftEndTime = input.shiftEndTime || null;
+    if (input.panNumber !== undefined) membershipUpdateData.panNumber = input.panNumber || null;
+
+    // Execute updates in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      if (Object.keys(userUpdateData).length > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: userUpdateData,
+        });
+      }
+
+      if (Object.keys(membershipUpdateData).length > 0 && existingMembership) {
+        await tx.orgMembership.update({
+          where: { id: existingMembership.id },
+          data: membershipUpdateData,
+        });
+      }
+
+      // Re-fetch combined data for response
+      if (existingMembership) {
+        return tx.orgMembership.findUnique({
+          where: { id: existingMembership.id },
+          select: MEMBERSHIP_WITH_USER_SELECT,
+        });
+      } else {
+        // SUPER_ADMIN updating user without org context
+        return tx.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            platformId: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+      }
     });
 
-    log.info({ userId, updatedFields: Object.keys(updateData) }, 'User updated');
+    log.info(
+      { userId, updatedUserFields: Object.keys(userUpdateData), updatedMembershipFields: Object.keys(membershipUpdateData) },
+      'User updated'
+    );
 
-    // Sync employee count if active status changed -- affects billing
-    const activeStatusChanged = input.isActive !== undefined && input.isActive !== existingUser.isActive;
-    if (activeStatusChanged && existingUser.organizationId) {
-      await this.syncEmployeeCount(existingUser.organizationId);
+    // Sync employee count if active status changed
+    if (input.isActive !== undefined && existingMembership?.isActive !== input.isActive && existingMembership?.organizationId) {
+      await this.syncEmployeeCount(existingMembership.organizationId);
     }
 
-    return user;
+    // Return flattened response if membership exists
+    if (existingMembership && result && 'user' in result) {
+      return flattenMembershipResponse(result);
+    }
+    return result;
   }
 
+  /**
+   * Reset attendance PIN — admin action.
+   * PIN now lives on OrgMembership.
+   */
   async resetAttendancePin(userId: string, currentUser: JWTPayload) {
-    const user = await prisma.user.findFirst({
-      where: { id: userId, organizationId: currentUser.organizationId!, deletedAt: null },
+    if (!currentUser.organizationId) {
+      throw new NotFoundError('No organization context');
+    }
+
+    // Find the target user's membership in this org
+    const membership = await prisma.orgMembership.findFirst({
+      where: {
+        userId,
+        organizationId: currentUser.organizationId,
+        deletedAt: null,
+      },
     });
-    if (!user) throw new NotFoundError('User not found');
+    if (!membership) throw new NotFoundError('User not found in your organization');
+
     const pin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
     const attendancePinHash = await hashPassword(pin);
-    await prisma.user.update({
-      where: { id: userId },
+
+    await prisma.orgMembership.update({
+      where: { id: membership.id },
       data: { attendancePinHash },
     });
-    log.info({ userId, resetBy: currentUser.userId }, 'Attendance PIN reset');
+
+    log.info({ membershipId: membership.id, resetBy: currentUser.userId }, 'Attendance PIN reset');
     return { pin, message: 'Attendance PIN reset successfully' };
   }
-  async deleteUser(userId: string, currentUser: JWTPayload) {
+
+  /**
+   * Remove employee from organization.
+   * Deactivates membership — user account remains intact.
+   * Replaces the old deleteUser which soft-deleted the user row.
+   */
+  async removeFromOrganization(userId: string, currentUser: JWTPayload) {
     if (userId === currentUser.userId) {
-      throw new ConflictError('Cannot delete your own account');
+      throw new ConflictError('Cannot remove yourself from the organization');
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, organizationId: true, role: true, isActive: true },
+    if (!currentUser.organizationId) {
+      throw new NotFoundError('No organization context');
+    }
+
+    // Find the membership
+    const membership = await prisma.orgMembership.findFirst({
+      where: {
+        userId,
+        organizationId: currentUser.organizationId,
+      },
+      select: { id: true, role: true, isActive: true, organizationId: true },
     });
 
-    if (!user) {
-      throw new NotFoundError('User not found');
+    if (!membership) {
+      throw new NotFoundError('User not found in your organization');
     }
 
-    if (
-      currentUser.role !== 'SUPER_ADMIN' &&
-      user.organizationId !== currentUser.organizationId
-    ) {
-      throw new NotFoundError('User not found');
-    }
-
-    // FIX H-12: Last-admin guard on deletion -- same logic as updateUser demotion.
-    // Without this, deleting the last admin locks the org out of all admin functions.
-    if (user.role === 'ORG_ADMIN' && user.organizationId) {
-      const adminCount = await prisma.user.count({
+    // Last-admin guard
+    if (membership.role === 'ORG_ADMIN') {
+      const adminCount = await prisma.orgMembership.count({
         where: {
-          organizationId: user.organizationId,
+          organizationId: membership.organizationId,
           role: 'ORG_ADMIN',
           isActive: true,
-          id: { not: userId },
+          leftAt: null,
+          id: { not: membership.id },
         },
       });
 
       if (adminCount < 1) {
         throw new ConflictError(
-          'Cannot delete this admin -- they are the last admin in the organization. Assign another admin first.'
+          'Cannot remove this admin — they are the last admin in the organization. Assign another admin first.'
         );
       }
     }
 
-    // FIX H-10: Soft delete instead of hard delete.
-    // Hard deleting a user cascades and permanently removes payroll records,
-    // attendance history, leave records, and audit logs -- violating legal
-    // data retention requirements for financial records.
-    // Instead: deactivate the account and record the deletion timestamp.
-    await prisma.user.update({
-      where: { id: userId },
+    // Deactivate membership (user row untouched)
+    await prisma.orgMembership.update({
+      where: { id: membership.id },
       data: {
         isActive: false,
+        leftAt: new Date(),
         deletedAt: new Date(),
-        // Anonymize PII while preserving financial/attendance record integrity
-        email: `deleted_${userId}@deleted.invalid`,
       },
     });
 
-    log.info({ userId, deletedBy: currentUser.userId }, 'User soft-deleted');
+    log.info({ userId, membershipId: membership.id, removedBy: currentUser.userId }, 'Employee removed from organization');
 
-    // Sync employee count after soft-deletion
-    if (user.organizationId) {
-      await this.syncEmployeeCount(user.organizationId);
-    }
+    // Sync employee count
+    await this.syncEmployeeCount(membership.organizationId);
 
-    return { message: 'User deleted successfully' };
+    return { message: 'Employee removed from organization successfully' };
   }
 
   /**
    * Sync employee count on OrgSubscription.
-   * Counts only active, non-super-admin users in the org.
-   * Called after create, delete, and isActive changes.
-   * Also invalidates plan cache so billing reflects the new count immediately.
+   * Counts only active, non-departed memberships with EMPLOYEE or ORG_ACCOUNTANT role.
    */
   private async syncEmployeeCount(organizationId: string): Promise<void> {
     try {
-      const count = await prisma.user.count({
+      const count = await prisma.orgMembership.count({
         where: {
           organizationId,
           isActive: true,
+          leftAt: null,
           role: { in: ['EMPLOYEE', 'ORG_ACCOUNTANT'] },
         },
       });
@@ -325,28 +527,23 @@ export class UserService {
 
       log.info({ organizationId, count }, 'Employee count synced');
     } catch (err) {
-      // Non-fatal -- log and continue. Never block user operations for a count sync failure.
       log.error({ err, organizationId }, 'Failed to sync employee count');
     }
   }
 
   /**
-   * Generate unique employee ID scoped to the organization.
-   * FIX H-11: Use crypto.randomInt() instead of Math.random() for
-   * cryptographically secure IDs. Also scope uniqueness check to org,
-   * not platform-wide, to allow the same number across different orgs.
+   * Generate unique employee ID scoped to the organization via OrgMembership.
    */
   private async generateEmployeeId(organizationId?: string | null): Promise<string> {
     const maxAttempts = 10;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const randomNum = randomInt(10000, 99999); // cryptographically secure
+      const randomNum = randomInt(10000, 99999);
       const employeeId = `EMP-${randomNum}`;
 
-      const existing = await prisma.user.findFirst({
+      const existing = await prisma.orgMembership.findFirst({
         where: {
           employeeId,
-          // Scope to org if available -- different orgs can share the same number
           ...(organizationId ? { organizationId } : {}),
         },
       });
@@ -361,8 +558,6 @@ export class UserService {
 
   /**
    * Generate a secure password reset token for new user welcome emails.
-   * FIX C-12: Used instead of sending plaintext passwords.
-   * Token expires in 24 hours.
    */
   private async generatePasswordResetToken(userId: string): Promise<string> {
     const { randomBytes } = await import('crypto');
@@ -378,4 +573,3 @@ export class UserService {
 }
 
 export const userService = new UserService();
-

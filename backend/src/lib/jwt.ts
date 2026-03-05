@@ -5,10 +5,11 @@ import { AuthenticationError } from './errors';
 
 export interface JWTPayload {
   userId: string;
-  id:string;
+  id: string;
   email: string;
   role: string;
   organizationId: string | null;
+  membershipId: string | null; // null for SUPER_ADMIN (no org membership)
 }
 
 export function generateToken(payload: JWTPayload): string {

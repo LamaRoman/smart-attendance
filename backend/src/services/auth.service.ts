@@ -10,11 +10,18 @@ const log = createLogger('auth-service');
 
 export class AuthService {
   /**
-   * Authenticate user and create session
+   * Authenticate user and create session.
+   *
+   * Flow:
+   * 1. Find user by email (platform-level)
+   * 2. Verify password
+   * 3. For non-SUPER_ADMIN: find active OrgMembership
+   * 4. Generate JWT with membership context
    */
   async login(input: LoginInput) {
     await checkLockout(input.email);
 
+    // Step 1: Find user (platform-level fields only)
     const user = await prisma.user.findUnique({
       where: { email: input.email },
       select: {
@@ -23,11 +30,10 @@ export class AuthService {
         password: true,
         firstName: true,
         lastName: true,
-        employeeId: true,
+        phone: true,
+        platformId: true,
         role: true,
         isActive: true,
-        organizationId: true,
-        platformId: true,
       },
     });
 
@@ -47,13 +53,49 @@ export class AuthService {
     }
     await clearFailedAttempts(input.email);
 
-    // Generate JWT with organizationId included
+    // Step 2: Resolve membership context
+    let membershipId: string | null = null;
+    let organizationId: string | null = null;
+    let effectiveRole: string = user.role;
+    let employeeId: string | null = null;
+    let organizationName: string | null = null;
+
+    if (user.role !== 'SUPER_ADMIN') {
+      // Non-SUPER_ADMIN must have an active membership to log in
+      const membership = await prisma.orgMembership.findFirst({
+        where: {
+          userId: user.id,
+          isActive: true,
+          leftAt: null,
+          deletedAt: null,
+          organization: { isActive: true },
+        },
+        include: {
+          organization: {
+            select: { id: true, name: true },
+          },
+        },
+      });
+
+      if (!membership) {
+        throw new AuthenticationError('No active organization membership found');
+      }
+
+      membershipId = membership.id;
+      organizationId = membership.organizationId;
+      effectiveRole = membership.role;
+      employeeId = membership.employeeId;
+      organizationName = membership.organization.name;
+    }
+
+    // Step 3: Generate JWT with membership context
     const token = generateToken({
       userId: user.id,
       id: user.id,
       email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
+      role: effectiveRole,
+      organizationId,
+      membershipId,
     });
 
     // Store session in DB
@@ -65,10 +107,20 @@ export class AuthService {
       },
     });
 
-    log.info({ userId: user.id, role: user.role }, 'User logged in');
+    log.info({ userId: user.id, role: effectiveRole, membershipId, organizationId }, 'User logged in');
 
     const { password: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, token };
+    return {
+      user: {
+        ...userWithoutPassword,
+        role: effectiveRole,
+        organizationId,
+        membershipId,
+        employeeId,
+        organizationName,
+      },
+      token,
+    };
   }
 
   /**
@@ -84,9 +136,13 @@ export class AuthService {
   }
 
   /**
-   * Get current user profile
+   * Get current user profile.
+   *
+   * Returns platform-level user data + active membership details.
+   * SUPER_ADMIN gets user data only (no membership).
    */
-  async getMe(userId: string) {
+  async getMe(userId: string, membershipId: string | null) {
+    // Platform-level user data
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -94,35 +150,65 @@ export class AuthService {
         email: true,
         firstName: true,
         lastName: true,
-        employeeId: true,
+        phone: true,
         platformId: true,
         role: true,
         isActive: true,
-        organizationId: true,
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            calendarMode: true,
-            language: true,
-            staticQREnabled: true,
-            rotatingQREnabled: true,
-            slug:true,
-          },
-        },
         createdAt: true,
       },
     });
 
     if (!user) throw new AuthenticationError('User not found');
 
-    // For org users, attach effective plan features
-    if (user.organizationId) {
-      const { getOrgPlan } = await import('./plan.service');
-      const plan = await getOrgPlan(user.organizationId);
+    // SUPER_ADMIN: no membership, return user only
+    if (user.role === 'SUPER_ADMIN' || !membershipId) {
       return {
         ...user,
-        planFeatures: plan ? {
+        membershipId: null,
+        organizationId: null,
+        organization: null,
+        employeeId: null,
+        planFeatures: null,
+      };
+    }
+
+    // Non-SUPER_ADMIN: fetch membership with org details
+    const membership = await prisma.orgMembership.findUnique({
+      where: { id: membershipId },
+      select: {
+        id: true,
+        role: true,
+        employeeId: true,
+        organizationId: true,
+        shiftStartTime: true,
+        shiftEndTime: true,
+        panNumber: true,
+        isActive: true,
+        joinedAt: true,
+        leftAt: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            calendarMode: true,
+            language: true,
+            staticQREnabled: true,
+            rotatingQREnabled: true,
+          },
+        },
+      },
+    });
+
+    if (!membership) throw new AuthenticationError('Membership not found');
+
+    // Attach effective plan features
+    let planFeatures = null;
+    if (membership.organizationId) {
+      const { getOrgPlan } = await import('./plan.service');
+      const plan = await getOrgPlan(membership.organizationId);
+      if (plan) {
+        planFeatures = {
           isActive: plan.isActive,
           tier: plan.tier,
           featureLeave: plan.featureLeave,
@@ -138,11 +224,23 @@ export class AuthService {
           featureDownloadPayslips: plan.featureDownloadPayslips,
           featureDownloadAuditLog: plan.featureDownloadAuditLog,
           featureDownloadLeaveRecords: plan.featureDownloadLeaveRecords,
-        } : null,
-      };
+        };
+      }
     }
 
-    return user;
+    return {
+      ...user,
+      // Override role with membership role (not the platform-level one)
+      role: membership.role,
+      membershipId: membership.id,
+      employeeId: membership.employeeId,
+      organizationId: membership.organizationId,
+      organization: membership.organization,
+      shiftStartTime: membership.shiftStartTime,
+      shiftEndTime: membership.shiftEndTime,
+      panNumber: membership.panNumber,
+      planFeatures,
+    };
   }
 
   /**
@@ -162,21 +260,29 @@ export class AuthService {
   }
 
   /**
-   * Change attendance PIN (self-service -- requires current PIN)
+   * Change attendance PIN (self-service — requires current PIN).
+   *
+   * attendancePinHash now lives on OrgMembership, not User.
    */
-  async changeAttendancePin(userId: string, currentPin: string, newPin: string) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, attendancePinHash: true },
+  async changeAttendancePin(membershipId: string, currentPin: string, newPin: string) {
+    const membership = await prisma.orgMembership.findUnique({
+      where: { id: membershipId },
+      select: { id: true, attendancePinHash: true, userId: true },
     });
-    if (!user) throw new AuthenticationError('User not found');
-    if (!user.attendancePinHash) throw new AuthenticationError('No attendance PIN set. Contact your administrator.');
-    const isValid = await verifyPassword(currentPin, user.attendancePinHash);
+    if (!membership) throw new AuthenticationError('Membership not found');
+    if (!membership.attendancePinHash) throw new AuthenticationError('No attendance PIN set. Contact your administrator.');
+
+    const isValid = await verifyPassword(currentPin, membership.attendancePinHash);
     if (!isValid) throw new AuthenticationError('Current PIN is incorrect');
+
     const { hashPassword } = await import('../lib/password');
     const newHash = await hashPassword(newPin);
-    await prisma.user.update({ where: { id: userId }, data: { attendancePinHash: newHash } });
-    log.info({ userId }, 'Attendance PIN changed by employee');
+    await prisma.orgMembership.update({
+      where: { id: membershipId },
+      data: { attendancePinHash: newHash },
+    });
+
+    log.info({ membershipId, userId: membership.userId }, 'Attendance PIN changed by employee');
     return { message: 'Attendance PIN changed successfully' };
   }
 
@@ -264,4 +370,3 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
-

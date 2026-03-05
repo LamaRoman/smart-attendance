@@ -38,38 +38,46 @@ function sanitizeFileName(name: string): string {
 
 /**
  * Build the S3 key for a document.
- * Structure: {orgId}/documents/{userId}/{storedFileName}
+ * Structure: {orgId}/documents/{membershipId}/{storedFileName}
+ * NOTE: New uploads use membershipId in the path.
+ * Existing files with userId in path continue to work via their stored fileName (S3 key).
  */
-function buildS3Key(orgId: string, userId: string, fileName: string): string {
-  return `${orgId}/documents/${userId}/${fileName}`;
+function buildS3Key(orgId: string, membershipId: string, fileName: string): string {
+  return `${orgId}/documents/${membershipId}/${fileName}`;
 }
 
 // ── Upload ──
 
 interface UploadDocumentParams {
+  /** Target user's userId — we resolve to membership internally */
   userId: string;
+  /** Uploader's userId — for audit trail (uploadedBy stays as plain string) */
   uploaderId: string;
+  /** Uploader's role (from JWT, sourced from membership) */
   uploaderRole: Role;
+  /** Uploader's org */
   uploaderOrgId: string;
+  /** Uploader's membershipId — for employee self-upload check */
+  uploaderMembershipId?: string;
   file: Express.Multer.File;
   documentTypeId: string;
   description?: string;
 }
 
 export async function uploadDocument(params: UploadDocumentParams) {
-  const { userId, uploaderId, uploaderRole, uploaderOrgId, file, documentTypeId, description } = params;
+  const { userId, uploaderId, uploaderRole, uploaderOrgId, uploaderMembershipId, file, documentTypeId, description } = params;
 
-  // 1. Verify target user exists and belongs to same org
-  const targetUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, organizationId: true },
+  // 1. Resolve target user to their membership in this org
+  const targetMembership = await prisma.orgMembership.findFirst({
+    where: { userId, organizationId: uploaderOrgId },
+    select: { id: true, userId: true },
   });
-  if (!targetUser || targetUser.organizationId !== uploaderOrgId) {
-    throw { status: 404, message: 'User not found' };
+  if (!targetMembership) {
+    throw { status: 404, message: 'User not found in your organization' };
   }
 
-  // 2. Employee can only upload for self
-  if (uploaderRole === 'EMPLOYEE' && userId !== uploaderId) {
+  // 2. Employee can only upload for self (compare membershipId)
+  if (uploaderRole === 'EMPLOYEE' && targetMembership.id !== uploaderMembershipId) {
     throw { status: 403, message: 'You can only upload documents for yourself' };
   }
 
@@ -103,9 +111,9 @@ export async function uploadDocument(params: UploadDocumentParams) {
     throw { status: 400, message: 'File size exceeds 5MB limit.' };
   }
 
-  // 7. Check total storage per employee
+  // 7. Check total storage per employee (scoped to membershipId)
   const existingDocs = await prisma.employeeDocument.aggregate({
-    where: { userId },
+    where: { membershipId: targetMembership.id },
     _sum: { fileSize: true },
   });
   const currentTotal = existingDocs._sum.fileSize || 0;
@@ -117,7 +125,7 @@ export async function uploadDocument(params: UploadDocumentParams) {
   // 8. Upload to S3
   const sanitized = sanitizeFileName(file.originalname);
   const storedName = `${uuidv4()}-${sanitized}`;
-  const s3Key = buildS3Key(uploaderOrgId, userId, storedName);
+  const s3Key = buildS3Key(uploaderOrgId, targetMembership.id, storedName);
 
   try {
     await s3Client.send(
@@ -131,10 +139,11 @@ export async function uploadDocument(params: UploadDocumentParams) {
           'original-name': encodeURIComponent(file.originalname),
           'uploaded-by': uploaderId,
           'organization-id': uploaderOrgId,
+          'membership-id': targetMembership.id,
         },
       })
     );
-    log.info({ s3Key, userId, uploaderId }, 'Document uploaded to S3');
+    log.info({ s3Key, membershipId: targetMembership.id, uploaderId }, 'Document uploaded to S3');
   } catch (err) {
     log.error({ err, s3Key }, 'Failed to upload to S3');
     cleanupTempFile(file.path);
@@ -144,10 +153,10 @@ export async function uploadDocument(params: UploadDocumentParams) {
   // 9. Cleanup temp file
   cleanupTempFile(file.path);
 
-  // 10. Create DB record — store S3 key instead of local path
+  // 10. Create DB record with membershipId
   const document = await prisma.employeeDocument.create({
     data: {
-      userId,
+      membershipId: targetMembership.id,
       organizationId: uploaderOrgId,
       documentTypeId,
       fileName: s3Key,
@@ -155,7 +164,7 @@ export async function uploadDocument(params: UploadDocumentParams) {
       mimeType: file.mimetype,
       fileSize: file.size,
       description: description || null,
-      uploadedBy: uploaderId,
+      uploadedBy: uploaderId, // Plain string userId for audit trail
     },
     include: {
       documentType: { select: { id: true, name: true, nameNp: true } },
@@ -168,29 +177,32 @@ export async function uploadDocument(params: UploadDocumentParams) {
 // ── List ──
 
 interface ListDocumentsParams {
+  /** Target user's userId — resolved to membership */
   userId: string;
-  requesterId: string;
+  requesterMembershipId?: string;
   requesterRole: Role;
   requesterOrgId: string;
 }
 
 export async function listDocuments(params: ListDocumentsParams) {
-  const { userId, requesterId, requesterRole, requesterOrgId } = params;
+  const { userId, requesterMembershipId, requesterRole, requesterOrgId } = params;
 
-  const targetUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, organizationId: true },
+  // Resolve userId to membership in this org
+  const targetMembership = await prisma.orgMembership.findFirst({
+    where: { userId, organizationId: requesterOrgId },
+    select: { id: true },
   });
-  if (!targetUser || targetUser.organizationId !== requesterOrgId) {
-    throw { status: 404, message: 'User not found' };
+  if (!targetMembership) {
+    throw { status: 404, message: 'User not found in your organization' };
   }
 
-  if (requesterRole === 'EMPLOYEE' && userId !== requesterId) {
+  // Employee can only list own documents
+  if (requesterRole === 'EMPLOYEE' && targetMembership.id !== requesterMembershipId) {
     throw { status: 403, message: 'Access denied' };
   }
 
   return prisma.employeeDocument.findMany({
-    where: { userId, organizationId: requesterOrgId },
+    where: { membershipId: targetMembership.id, organizationId: requesterOrgId },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
@@ -208,20 +220,21 @@ export async function listDocuments(params: ListDocumentsParams) {
 
 interface DownloadDocumentParams {
   documentId: string;
-  requesterId: string;
+  requesterMembershipId?: string;
   requesterRole: Role;
   requesterOrgId: string;
 }
 
 export async function getDocumentForDownload(params: DownloadDocumentParams) {
-  const { documentId, requesterId, requesterRole, requesterOrgId } = params;
+  const { documentId, requesterMembershipId, requesterRole, requesterOrgId } = params;
 
   const doc = await prisma.employeeDocument.findUnique({ where: { id: documentId } });
   if (!doc || doc.organizationId !== requesterOrgId) {
     throw { status: 404, message: 'Document not found' };
   }
 
-  if (requesterRole === 'EMPLOYEE' && doc.userId !== requesterId) {
+  // Employee can only download own documents (compare membershipId)
+  if (requesterRole === 'EMPLOYEE' && doc.membershipId !== requesterMembershipId) {
     throw { status: 403, message: 'Access denied' };
   }
 
@@ -231,7 +244,7 @@ export async function getDocumentForDownload(params: DownloadDocumentParams) {
       s3Client,
       new GetObjectCommand({
         Bucket: S3_BUCKET,
-        Key: doc.fileName, // fileName now stores the S3 key
+        Key: doc.fileName, // fileName stores the S3 key
         ResponseContentDisposition: `inline; filename="${encodeURIComponent(doc.originalName)}"`,
         ResponseContentType: doc.mimeType,
       }),
@@ -249,20 +262,21 @@ export async function getDocumentForDownload(params: DownloadDocumentParams) {
 
 interface DeleteDocumentParams {
   documentId: string;
-  requesterId: string;
+  requesterMembershipId?: string;
   requesterRole: Role;
   requesterOrgId: string;
 }
 
 export async function deleteDocument(params: DeleteDocumentParams) {
-  const { documentId, requesterId, requesterRole, requesterOrgId } = params;
+  const { documentId, requesterMembershipId, requesterRole, requesterOrgId } = params;
 
   const doc = await prisma.employeeDocument.findUnique({ where: { id: documentId } });
   if (!doc || doc.organizationId !== requesterOrgId) {
     throw { status: 404, message: 'Document not found' };
   }
 
-  if (requesterRole === 'EMPLOYEE' && doc.userId !== requesterId) {
+  // Employee can only delete own documents
+  if (requesterRole === 'EMPLOYEE' && doc.membershipId !== requesterMembershipId) {
     throw { status: 403, message: 'Access denied' };
   }
 

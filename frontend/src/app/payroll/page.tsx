@@ -10,6 +10,7 @@ import {
   CreditCard, Users, Clock, CheckCircle, AlertCircle, X,
   Settings, FileText, Play, Download, RefreshCw, AlertTriangle, BarChart3,
 } from 'lucide-react';
+import { adToBS } from '@/components/BSDatePicker';
 
 import { PaySettings, PayrollRecord, Tab } from './types';
 import { defaultSettings, calculateTDS, paySettingsFromApi } from './utils';
@@ -59,27 +60,28 @@ export default function PayrollPage() {
   const [showCopyDropdown, setShowCopyDropdown] = useState(false);
 
   // ── Generate tab ──
-  const [genYear, setGenYear]     = useState(2082);
-  const [genMonth, setGenMonth]   = useState(10);
+  const todayBS =adToBS(new Date());
+  const [genYear, setGenYear]     = useState(todayBS.year);
+  const [genMonth, setGenMonth]   = useState(todayBS.month);
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult]   = useState<any>(null);
 
   // ── Records tab ──
-  const [recYear, setRecYear]         = useState(2082);
-  const [recMonth, setRecMonth]       = useState(10);
+  const [recYear, setRecYear]         = useState(todayBS.year);
+  const [recMonth, setRecMonth]       = useState(todayBS.month);
   const [records, setRecords]         = useState<PayrollRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState<PayrollRecord | null>(null);
 
   // ── Annual tab ──
-  const [annualYear, setAnnualYear]       = useState(2082);
+  const [annualYear, setAnnualYear]       = useState(todayBS.year);
   const [annualData, setAnnualData]       = useState<any>(null);
   const [loadingAnnual, setLoadingAnnual] = useState(false);
 
   // ── Multi-month tab ──
-  const [multiFromYear, setMultiFromYear]   = useState(2082);
+  const [multiFromYear, setMultiFromYear]   = useState(todayBS.year);
   const [multiFromMonth, setMultiFromMonth] = useState(1);
-  const [multiToYear, setMultiToYear]       = useState(2082);
+  const [multiToYear, setMultiToYear]       = useState(todayBS.year);
   const [multiToMonth, setMultiToMonth]     = useState(3);
   const [multiMonthData, setMultiMonthData] = useState<any>(null);
   const [loadingMultiMonth, setLoadingMultiMonth] = useState(false);

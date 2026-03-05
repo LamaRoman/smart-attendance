@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
 import EmployeeDetailModal from "@/components/EmployeeDetailModal";
 import { FileText,
-  Users, UserPlus, Search, Edit, Trash2, Shield, UserCheck,
+  Users, UserPlus, Search, Edit, Trash2, UserMinus,Shield, UserCheck,
   CheckCircle, XCircle, Save, Key, Mail, User, X, AlertCircle,
   RefreshCw, Copy, Eye, EyeOff,
 } from 'lucide-react';
@@ -280,12 +280,12 @@ export default function UsersPage() {
     else { loadUsers(); }
   };
 
-  const deleteUser = async (u: UserData) => {
-    if (!confirm((isNp ? 'मेटाउने: ' : 'Delete: ') + u.firstName + ' ' + u.lastName + '?')) return;
+  const removeUser = async (u: UserData) => {
+    if (!confirm((isNp ? 'संगठनबाट हटाउने' : 'Remove from organization: ') + u.firstName + ' ' + u.lastName + '?')) return;
     const res = await api.delete('/api/users/' + u.id);
     if (res.error) { setError(res.error.message); }
     else {
-      setSuccess(isNp ? 'प्रयोगकर्ता मेटाइयो' : 'User deleted');
+      setSuccess(isNp ? 'संगठनबाट हटाइयो' : 'Removed from organization');
       loadUsers();
       setTimeout(() => setSuccess(''), 3000);
     }
@@ -525,11 +525,11 @@ export default function UsersPage() {
                             <FileText className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => deleteUser(u)}
+                            onClick={() => removeUser(u)}
                             className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title={isNp ? 'मेटाउनुहोस्' : 'Delete'}
+                            title={isNp ? 'संगठनबाट हटाउनुहोस्' : 'Remove'}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <UserMinus className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

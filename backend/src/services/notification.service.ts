@@ -6,14 +6,15 @@ const log = createLogger('notification-service');
 
 export class NotificationService {
   /**
-   * Create a notification
+   * Create a notification.
+   * membershipId is nullable — org-wide notifications have no specific membership.
    */
   async create(data: {
     organizationId: string;
     type: string;
     title: string;
     message: string;
-    userId?: string;
+    membershipId?: string;
     attendanceId?: string;
   }) {
     try {
@@ -23,7 +24,7 @@ export class NotificationService {
           type: data.type as any,
           title: data.title,
           message: data.message,
-          userId: data.userId,
+          membershipId: data.membershipId,
           attendanceId: data.attendanceId,
         },
       });
@@ -37,7 +38,8 @@ export class NotificationService {
   }
 
   /**
-   * Get unread notifications for an organization
+   * Get unread notifications for an organization.
+   * Includes membership → user for display.
    */
   async getUnread(organizationId: string, limit: number = 20) {
     return prisma.notification.findMany({
@@ -46,12 +48,17 @@ export class NotificationService {
         isRead: false,
       },
       include: {
-        user: {
+        membership: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
             employeeId: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
           },
         },
       },
@@ -68,12 +75,17 @@ export class NotificationService {
       prisma.notification.findMany({
         where: { organizationId },
         include: {
-          user: {
+          membership: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
               employeeId: true,
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
             },
           },
         },
@@ -106,7 +118,7 @@ export class NotificationService {
     return prisma.notification.updateMany({
       where: {
         id: notificationId,
-        organizationId, // Ensure org isolation
+        organizationId,
       },
       data: {
         isRead: true,
@@ -138,7 +150,7 @@ export class NotificationService {
     return prisma.notification.deleteMany({
       where: {
         id: notificationId,
-        organizationId, // Ensure org isolation
+        organizationId,
       },
     });
   }
@@ -156,21 +168,23 @@ export class NotificationService {
   }
 
   /**
-   * Create late arrival notification
+   * Create late arrival notification.
+   * Now takes membershipId instead of userId.
+   * The attendance service caller already passes membershipId.
    */
   async createLateArrivalNotification(
     organizationId: string,
-    userId: string,
+    membershipId: string,
     userName: string,
     minutesLate: number,
     checkInTime: Date,
     attendanceId: string
   ) {
     const title = `Late Arrival: ${userName}`;
-    const message = `${userName} arrived ${minutesLate} minutes late at ${checkInTime.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    const message = `${userName} arrived ${minutesLate} minutes late at ${checkInTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true,
     })}`;
 
     return this.create({
@@ -178,24 +192,27 @@ export class NotificationService {
       type: 'LATE_ARRIVAL',
       title,
       message,
-      userId,
+      membershipId,
       attendanceId,
     });
   }
 
   /**
-   * Notify organization admins about status change
+   * Notify organization admins about status change.
+   * Queries OrgMembership for admins instead of User.
+   * Creates org-wide notification (no membershipId — applies to all admins).
    */
   async notifyOrgStatusChanged(
     organizationId: string,
     isActive: boolean
   ) {
     try {
-      const orgAdmins = await prisma.user.findMany({
+      const adminMemberships = await prisma.orgMembership.findMany({
         where: {
           organizationId,
           role: 'ORG_ADMIN',
           isActive: true,
+          leftAt: null,
         },
       });
 
@@ -203,7 +220,8 @@ export class NotificationService {
         ? 'Your organization has been reactivated by the system administrator.'
         : 'Your organization has been deactivated by the system administrator.';
 
-      for (const admin of orgAdmins) {
+      // Create one org-wide notification (membershipId is null)
+      for (const _admin of adminMemberships) {
         await this.create({
           organizationId,
           type: 'ORG_STATUS_CHANGED',
@@ -212,7 +230,7 @@ export class NotificationService {
         });
       }
 
-      log.info({ organizationId, isActive, adminCount: orgAdmins.length }, 'Org status change notified');
+      log.info({ organizationId, isActive, adminCount: adminMemberships.length }, 'Org status change notified');
     } catch (error) {
       log.error({ error, organizationId }, 'Failed to notify org status change');
     }
@@ -255,7 +273,7 @@ export class NotificationService {
           organizationId,
           type: 'MASTER_HOLIDAYS_UPDATED',
           message: {
-            contains: `BS ${bsYear}`
+            contains: `BS ${bsYear}`,
           },
           isRead: false,
         },
@@ -322,6 +340,6 @@ export class NotificationService {
       return 0;
     }
   }
-
 }
+
 export const notificationService = new NotificationService();

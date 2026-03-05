@@ -31,7 +31,7 @@ export class QRService {
         signature,
         status: 'ACTIVE',
         expiresAt,
-        createdById: currentUser.userId,
+        createdByMembershipId: currentUser.membershipId!,
         organizationId,
       },
       select: {
@@ -90,7 +90,7 @@ export class QRService {
         signature,
         status: 'ACTIVE',
         expiresAt: null, // No expiry — permanent
-        createdById: currentUser.userId,
+        createdByMembershipId: currentUser.membershipId!,
         organizationId,
       },
       select: {
@@ -137,7 +137,7 @@ export class QRService {
         signature,
         status: 'ACTIVE',
         expiresAt: null,
-        createdById: currentUser.userId,
+        createdByMembershipId: currentUser.membershipId!,
         organizationId,
       },
       select: {
@@ -159,7 +159,8 @@ export class QRService {
   }
 
   /**
-   * Get current active QR code(s) for the org
+   * Get current active QR code(s) for the org.
+   * Includes creator info via membership → user.
    */
   async getActive(currentUser: JWTPayload) {
     const organizationId = currentUser.organizationId!;
@@ -169,7 +170,7 @@ export class QRService {
         organizationId,
         status: 'ACTIVE',
         OR: [
-          { expiresAt: null },          // Static QR — no expiry
+          { expiresAt: null },               // Static QR — no expiry
           { expiresAt: { gt: new Date() } }, // Rotating QR — not expired
         ],
       },
@@ -181,7 +182,11 @@ export class QRService {
         scanCount: true,
         expiresAt: true,
         createdAt: true,
-        createdBy: { select: { firstName: true, lastName: true } },
+        createdByMembership: {
+          select: {
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -193,8 +198,13 @@ export class QRService {
     const scanUrl = `${config.FRONTEND_URL}/scan?token=${qrCode.token}&signature=${qrCode.signature}`;
     const qrImage = await this.generateQRImage(scanUrl);
 
+    // Flatten createdByMembership.user → createdBy for frontend compatibility
+    const { createdByMembership, ...rest } = qrCode;
     return {
-      qrCode,
+      qrCode: {
+        ...rest,
+        createdBy: createdByMembership?.user || null,
+      },
       scanUrl,
       qrImage,
       isStatic: qrCode.expiresAt === null,
