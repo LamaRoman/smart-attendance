@@ -96,6 +96,11 @@ export class AttendanceService {
       include: { user: { select: { id: true, firstName: true, lastName: true } } },
     });
 
+    log.info(
+  { employeeId: input.employeeId, orgId: qrOrgId, found: !!membership },
+  'scanPublic: employee lookup result'
+);
+
     if (!membership) {
       await this.logAudit({
         employeeId: input.employeeId,
