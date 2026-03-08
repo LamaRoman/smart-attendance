@@ -4,7 +4,7 @@ import { BarChart3, Clock, FileText, Download } from 'lucide-react';
 import { BS_MONTHS_NP, BS_MONTHS_EN, fmt, API_BASE } from '../utils';
 import { STATUS_COLORS } from '../types';
 import { t, Language } from '@/lib/i18n';
-
+import React from 'react';
 interface Props {
   language: Language;
   isStarter: boolean;
@@ -266,11 +266,10 @@ function DataTable({
 
           <tbody className="divide-y divide-slate-100">
             {data.employees.map((emp: any) => (
-              <>
+              <React.Fragment key={emp.membershipId}>
                 <tr
-                  key={emp.userId}
                   className="hover:bg-slate-50/50 cursor-pointer"
-                  onClick={() => onToggleExpand(emp.userId)}
+                  onClick={() => onToggleExpand(emp.membershipId)}
                 >
                   <td className="py-3 px-4 sticky left-0 bg-white z-10">
                     <div className="text-sm font-medium text-slate-900">
@@ -310,8 +309,8 @@ function DataTable({
                 </tr>
 
                 {/* Expanded detail row */}
-                {expandedEmployee === emp.userId && (
-                  <tr key={`${emp.userId}-detail`}>
+                {expandedEmployee === emp.membershipId && (
+                  <tr key={`${emp.membershipId}-detail`}>
                     <td colSpan={data.months.length + 2} className="px-4 py-4 bg-slate-50">
                       <div className="text-xs font-semibold text-slate-900 mb-3">
                         {t('payroll.details', lang)} — {emp.employee.firstName}
@@ -350,7 +349,7 @@ function DataTable({
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
           </tbody>
 

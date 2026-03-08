@@ -1,7 +1,7 @@
 ﻿import { Router, Response, NextFunction } from 'express';
 import { userService } from '../services/user.service';
 import { validate } from '../middleware/validate';
-import { createUserSchema, updateUserSchema, userIdParamSchema } from '../schemas/user.schema';
+import { createUserSchema, updateUserSchema, userIdParamSchema, addExistingUserSchema } from '../schemas/user.schema';
 import { authenticate, requireOrgAdmin, enforceOrgIsolation, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -18,11 +18,21 @@ router.get('/', requireOrgAdmin, enforceOrgIsolation, async (req: AuthRequest, r
   }
 });
 
-// POST /api/users
+// POST /api/users — Create brand new user + membership
 router.post('/', requireOrgAdmin, enforceOrgIsolation, validate(createUserSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = await userService.createUser(req.body, req.user!);
     res.status(201).json({ data: user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/users/add-existing — Add existing platform user by Platform ID
+router.post('/add-existing', requireOrgAdmin, enforceOrgIsolation, validate(addExistingUserSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await userService.addExistingUserByPlatformId(req.body, req.user!);
+    res.status(201).json({ data: result });
   } catch (error) {
     next(error);
   }

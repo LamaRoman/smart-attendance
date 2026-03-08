@@ -10,42 +10,47 @@ const log = createLogger('qr-service');
 
 export class QRService {
   /**
-   * Generate a new rotating QR code (24h expiry) — revokes existing active codes
+   * Generate a new rotating QR code (24h expiry) — revokes existing active codes.
+   *
+   * Q-03 fix: wrapped in a transaction to prevent two admins creating
+   * duplicate active rotating QR codes on concurrent clicks.
    */
   async generate(currentUser: JWTPayload) {
     const organizationId = currentUser.organizationId!;
 
-    // Revoke existing active non-static QR codes for this org
-    await prisma.qRCode.updateMany({
-      where: { organizationId, status: 'ACTIVE', expiresAt: { not: null } },
-      data: { status: 'REVOKED', revokedAt: new Date() },
+    const qrCode = await prisma.$transaction(async (tx) => {
+      // Revoke existing active non-static QR codes for this org
+      await tx.qRCode.updateMany({
+        where: { organizationId, status: 'ACTIVE', expiresAt: { not: null } },
+        data: { status: 'REVOKED', revokedAt: new Date() },
+      });
+
+      const token = generateQRToken();
+      const signature = signQRToken(token);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      return tx.qRCode.create({
+        data: {
+          token,
+          signature,
+          status: 'ACTIVE',
+          expiresAt,
+          createdByMembershipId: currentUser.membershipId!,
+          organizationId,
+        },
+        select: {
+          id: true,
+          token: true,
+          signature: true,
+          status: true,
+          scanCount: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+      });
     });
 
-    const token = generateQRToken();
-    const signature = signQRToken(token);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    const qrCode = await prisma.qRCode.create({
-      data: {
-        token,
-        signature,
-        status: 'ACTIVE',
-        expiresAt,
-        createdByMembershipId: currentUser.membershipId!,
-        organizationId,
-      },
-      select: {
-        id: true,
-        token: true,
-        signature: true,
-        status: true,
-        scanCount: true,
-        expiresAt: true,
-        createdAt: true,
-      },
-    });
-
-    const scanUrl = `${config.FRONTEND_URL}/scan?token=${token}&signature=${signature}`;
+    const scanUrl = `${config.FRONTEND_URL}/scan?token=${qrCode.token}&signature=${qrCode.signature}`;
     const qrImage = await this.generateQRImage(scanUrl);
 
     log.info({ orgId: organizationId, qrId: qrCode.id }, 'QR code generated (rotating)');
@@ -54,7 +59,7 @@ export class QRService {
   }
 
   /**
-   * Generate a static QR code (no expiry) — for printing and sticking on the wall
+   * Generate a static QR code (no expiry) — for printing and sticking on the wall.
    * Only one static QR per org. If one exists, return it.
    */
   async generateStatic(currentUser: JWTPayload) {
@@ -114,46 +119,48 @@ export class QRService {
   }
 
   /**
-   * Regenerate static QR — revokes old static and creates a new one
+   * Regenerate static QR — revokes old static and creates a new one.
+   * Wrapped in transaction for atomicity.
    */
   async regenerateStatic(currentUser: JWTPayload) {
     const organizationId = currentUser.organizationId!;
 
-    // Revoke existing static QR
-    await prisma.qRCode.updateMany({
-      where: { organizationId, status: 'ACTIVE', expiresAt: null },
-      data: { status: 'REVOKED', revokedAt: new Date() },
+    const qrCode = await prisma.$transaction(async (tx) => {
+      // Revoke existing static QR
+      await tx.qRCode.updateMany({
+        where: { organizationId, status: 'ACTIVE', expiresAt: null },
+        data: { status: 'REVOKED', revokedAt: new Date() },
+      });
+
+      const token = generateQRToken();
+      const signature = signQRToken(token);
+
+      return tx.qRCode.create({
+        data: {
+          token,
+          signature,
+          status: 'ACTIVE',
+          expiresAt: null,
+          createdByMembershipId: currentUser.membershipId!,
+          organizationId,
+        },
+        select: {
+          id: true,
+          token: true,
+          signature: true,
+          status: true,
+          scanCount: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+      });
     });
 
-    log.info({ orgId: organizationId }, 'Old static QR revoked, generating new one');
-
-    // Force generate new
-    const token = generateQRToken();
-    const signature = signQRToken(token);
-
-    const qrCode = await prisma.qRCode.create({
-      data: {
-        token,
-        signature,
-        status: 'ACTIVE',
-        expiresAt: null,
-        createdByMembershipId: currentUser.membershipId!,
-        organizationId,
-      },
-      select: {
-        id: true,
-        token: true,
-        signature: true,
-        status: true,
-        scanCount: true,
-        expiresAt: true,
-        createdAt: true,
-      },
-    });
-
-    const scanUrl = `${config.FRONTEND_URL}/scan?token=${token}&signature=${signature}`;
+    const scanUrl = `${config.FRONTEND_URL}/scan?token=${qrCode.token}&signature=${qrCode.signature}`;
     const qrImage = await this.generateQRImage(scanUrl);
     const qrImageLarge = await this.generateQRImageLarge(scanUrl);
+
+    log.info({ orgId: organizationId }, 'Static QR regenerated');
 
     return { qrCode, scanUrl, qrImage, qrImageLarge, isExisting: false };
   }
@@ -170,7 +177,7 @@ export class QRService {
         organizationId,
         status: 'ACTIVE',
         OR: [
-          { expiresAt: null },               // Static QR — no expiry
+          { expiresAt: null }, // Static QR — no expiry
           { expiresAt: { gt: new Date() } }, // Rotating QR — not expired
         ],
       },

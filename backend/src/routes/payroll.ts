@@ -195,6 +195,9 @@ router.get('/records', validate(payrollRecordsQuerySchema, 'query'), async (req:
 // PUT /api/payroll/records/:id/status
 router.put('/records/:id/status', requireFeature('featurePayrollWorkflow'), validate(payrollStatusSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (req.user!.role === 'ORG_ACCOUNTANT' && req.body.status === 'APPROVED') {
+      return res.status(403).json({ error: { message: 'Accountants cannot approve payroll' } });
+    }
     const data = await payrollService.updateStatus(req.params.id, req.body.status, req.user!);
     res.json({ data });
   } catch (error) {
@@ -215,6 +218,9 @@ router.get('/records/:id/audit', requireOrgAdmin, async (req: AuthRequest, res: 
 // PUT /api/payroll/records/bulk-status
 router.put('/records/bulk-status', requireFeature('featurePayrollWorkflow'), validate(bulkPayrollStatusSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (req.user!.role === 'ORG_ACCOUNTANT' && req.body.status === 'APPROVED') {
+      return res.status(403).json({ error: { message: 'Accountants cannot approve payroll' } });
+    }
     const data = await payrollService.bulkUpdateStatus(req.body.bsYear, req.body.bsMonth, req.body.status, req.user!);
     res.json({ data });
   } catch (error) {
@@ -449,6 +455,15 @@ router.get('/annual-report', requireFeature('featurePayrollWorkflow'), async (re
       totalDashainBonus: Math.round(e.totalDashainBonus * 100) / 100,
       totalDeductions: Math.round(e.totalDeductions * 100) / 100,
       monthsProcessed: e.months.length,
+      totals: {
+    basicSalary:     Math.round(e.totalBasic        * 100) / 100,
+    grossSalary:     Math.round(e.totalGross        * 100) / 100,
+    netSalary:       Math.round(e.totalNet          * 100) / 100,
+    employeeSsf:     Math.round(e.totalEmployeeSsf  * 100) / 100,
+    employeePf:      Math.round(e.totalEmployeePf   * 100) / 100,
+    tds:             Math.round(e.totalTds          * 100) / 100,
+    totalDeductions: Math.round(e.totalDeductions   * 100) / 100,
+  },
     }));
     res.json({ data: { bsYear, employees } });
   } catch (error) {

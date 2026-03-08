@@ -7,9 +7,9 @@ import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
 import EmployeeDetailModal from "@/components/EmployeeDetailModal";
 import { FileText,
-  Users, UserPlus, Search, Edit, Trash2, UserMinus,Shield, UserCheck,
+  Users, UserPlus, Search, Edit, Trash2, UserMinus, Shield, UserCheck,
   CheckCircle, XCircle, Save, Key, Mail, User, X, AlertCircle,
-  RefreshCw, Copy, Eye, EyeOff,
+  RefreshCw, Copy, Eye, EyeOff, Link,
 } from 'lucide-react';
 
 interface UserData {
@@ -153,6 +153,9 @@ export default function UsersPage() {
   const [empCap, setEmpCap] = useState<{ current: number; max: number } | null>(null);
   const [resettingPinId, setResettingPinId] = useState<string | null>(null);
 
+  // Modal mode: 'create' = new user, 'existing' = add by platform ID
+  const [modalMode, setModalMode] = useState<'create' | 'existing'>('create');
+
   // PIN reveal state
   const [pinModal, setPinModal] = useState<{
     pin: string;
@@ -164,6 +167,15 @@ export default function UsersPage() {
     email: '', password: '', firstName: '', lastName: '',
     panNumber:'',
     role: 'EMPLOYEE' as 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE',
+    shiftStartTime: '',
+    shiftEndTime: '',
+  });
+
+  // Add existing user form data
+  const [existingFormData, setExistingFormData] = useState({
+    platformId: '',
+    role: 'EMPLOYEE' as 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE',
+    panNumber: '',
     shiftStartTime: '',
     shiftEndTime: '',
   });
@@ -204,13 +216,16 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setEditingUser(null);
+    setModalMode('create');
     setFormData({ email: '', password: '', firstName: '', lastName: '', role: 'EMPLOYEE', panNumber: '', shiftStartTime: '', shiftEndTime: '' });
+    setExistingFormData({ platformId: '', role: 'EMPLOYEE', panNumber: '', shiftStartTime: '', shiftEndTime: '' });
     setShowModal(true);
     setError('');
   };
 
   const openEdit = (u: UserData) => {
     setEditingUser(u);
+    setModalMode('create');
     setFormData({ email: u.email, password: '', firstName: u.firstName, lastName: u.lastName, role: u.role as any, panNumber: (u as any).panNumber || '', shiftStartTime: u.shiftStartTime || '', shiftEndTime: u.shiftEndTime || '' });
     setShowModal(true);
     setError('');
@@ -239,7 +254,6 @@ export default function UsersPage() {
         const created = res.data as any;
         setShowModal(false);
         loadUsers();
-        // Show PIN reveal modal
         if (created?.pin) {
           setPinModal({
             pin: created.pin,
@@ -250,6 +264,36 @@ export default function UsersPage() {
           setSuccess(isNp ? 'प्रयोगकर्ता सिर्जना गरियो' : 'User created');
           setTimeout(() => setSuccess(''), 3000);
         }
+      }
+    }
+    setSaving(false);
+  };
+
+  const handleAddExisting = async () => {
+    setSaving(true); setError('');
+    if (!existingFormData.platformId) {
+      setError(isNp ? 'प्लेटफर्म ID आवश्यक छ' : 'Platform ID is required');
+      setSaving(false); return;
+    }
+    const res = await api.post('/api/users/add-existing', existingFormData);
+    if (res.error) { setError(res.error.message); }
+    else {
+      const result = res.data as any;
+      setShowModal(false);
+      loadUsers();
+      if (result?.pin) {
+        setPinModal({
+          pin: result.pin,
+          employeeName: `${result.firstName} ${result.lastName}`,
+          employeeId: result.employeeId || '',
+        });
+      } else {
+        setSuccess(
+          result?.reactivated
+            ? (isNp ? 'कर्मचारी पुन: सक्रिय गरियो' : 'Employee reactivated successfully')
+            : (isNp ? 'कर्मचारी संगठनमा थपियो' : 'Employee added to organization')
+        );
+        setTimeout(() => setSuccess(''), 3000);
       }
     }
     setSaving(false);
@@ -423,7 +467,7 @@ export default function UsersPage() {
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
               <option value="ALL">{isNp ? 'सबै भूमिका' : 'All roles'}</option>
-             <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
+              <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
               <option value="ORG_ACCOUNTANT">{isNp ? 'लेखापाल' : 'Accountant'}</option>
               <option value="EMPLOYEE">{isNp ? 'कर्मचारी' : 'Employee'}</option>
             </select>
@@ -473,7 +517,7 @@ export default function UsersPage() {
                       </td>
                       <td className="py-3 px-5 text-sm text-slate-600">{u.email}</td>
                       <td className="py-3 px-5">
-                       <span className={
+                        <span className={
                           u.role === 'ORG_ADMIN'
                             ? 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-900'
                             : u.role === 'ORG_ACCOUNTANT'
@@ -570,10 +614,10 @@ export default function UsersPage() {
         />
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Create / Add Existing Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 bg-black/20 flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden border border-slate-200 mb-10">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 rounded-lg bg-slate-100">
@@ -581,11 +625,13 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-slate-900">
-                    {editingUser ? (isNp ? 'प्रयोगकर्ता सम्पादन' : 'Edit user') : (isNp ? 'नयाँ प्रयोगकर्ता' : 'New user')}
+                    {editingUser
+                      ? (isNp ? 'प्रयोगकर्ता सम्पादन' : 'Edit user')
+                      : (isNp ? 'प्रयोगकर्ता थप्नुहोस्' : 'Add user')}
                   </h2>
                   {!editingUser && (
                     <p className="text-xs text-slate-400 mt-0.5">
-                      {isNp ? 'हाजिरी PIN स्वचालित रूपमा उत्पन्न हुनेछ' : 'Attendance PIN will be auto-generated'}
+                      {isNp ? 'नयाँ सिर्जना गर्नुहोस् वा प्लेटफर्म ID बाट थप्नुहोस्' : 'Create new or add by Platform ID'}
                     </p>
                   )}
                 </div>
@@ -595,6 +641,36 @@ export default function UsersPage() {
               </button>
             </div>
 
+            {/* Mode Toggle — only show for new user (not editing) */}
+            {!editingUser && (
+              <div className="px-5 pt-4">
+                <div className="flex bg-slate-100 rounded-lg p-1">
+                  <button
+                    onClick={() => { setModalMode('create'); setError(''); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${
+                      modalMode === 'create'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    {isNp ? 'नयाँ सिर्जना' : 'Create new'}
+                  </button>
+                  <button
+                    onClick={() => { setModalMode('existing'); setError(''); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${
+                      modalMode === 'existing'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <Link className="w-3.5 h-3.5" />
+                    {isNp ? 'प्लेटफर्म ID बाट' : 'Add existing'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="p-5 space-y-4">
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-rose-50 rounded-lg border border-rose-200 text-xs text-rose-700">
@@ -603,87 +679,187 @@ export default function UsersPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">
-                    {isNp ? 'पहिलो नाम' : 'First name'} <span className="text-rose-500">*</span>
-                  </label>
-                  <input type="text" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">
-                    {isNp ? 'थर' : 'Last name'} <span className="text-rose-500">*</span>
-                  </label>
-                  <input type="text" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
-                </div>
-              </div>
-
-              {!editingUser && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">
-                    {isNp ? 'इमेल' : 'Email'} <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                    <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+              {/* ── CREATE NEW USER FORM ── */}
+              {(modalMode === 'create' || editingUser) && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        {isNp ? 'पहिलो नाम' : 'First name'} <span className="text-rose-500">*</span>
+                      </label>
+                      <input type="text" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        {isNp ? 'थर' : 'Last name'} <span className="text-rose-500">*</span>
+                      </label>
+                      <input type="text" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                    </div>
                   </div>
-                </div>
+
+                  {!editingUser && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        {isNp ? 'इमेल' : 'Email'} <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      {editingUser ? (isNp ? 'नयाँ पासवर्ड (ऐच्छिक)' : 'New password (optional)') : (isNp ? 'पासवर्ड' : 'Password')}
+                      {!editingUser && <span className="text-rose-500">*</span>}
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={editingUser ? (isNp ? 'खाली छोड्नुहोस्' : 'Leave blank to keep') : ''} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      {isNp ? 'PAN नम्बर (ऐच्छिक)' : 'PAN number (optional)'}
+                    </label>
+                    <input type="text" value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} placeholder={isNp ? 'PAN नम्बर...' : 'PAN number...'} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">{isNp ? 'भूमिका' : 'Role'}</label>
+                    <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as any })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white">
+                      <option value="EMPLOYEE">{isNp ? 'कर्मचारी' : 'Employee'}</option>
+                      <option value="ORG_ACCOUNTANT">{isNp ? 'लेखापाल' : 'Accountant'}</option>
+                      <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      {isNp ? 'कार्य समय (ऐच्छिक)' : 'Work shift (optional)'}
+                    </label>
+                    <p className="text-xs text-slate-400 mb-2">
+                      {isNp ? 'खाली छोड्नुभयो भने संगठनको पूर्वनिर्धारित समय लागू हुन्छ' : 'Leave empty to use organization default schedule'}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{isNp ? 'सुरु' : 'Start'}</label>
+                        <input type="time" value={formData.shiftStartTime} onChange={(e) => setFormData({ ...formData, shiftStartTime: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{isNp ? 'अन्त्य' : 'End'}</label>
+                        <input type="time" value={formData.shiftEndTime} onChange={(e) => setFormData({ ...formData, shiftEndTime: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {!editingUser && (
+                    <p className="text-xs text-slate-400 bg-slate-50 px-3 py-2 rounded-lg">
+                      {isNp ? 'हाजिरी PIN स्वचालित रूपमा उत्पन्न हुनेछ' : 'Attendance PIN will be auto-generated'}
+                    </p>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                      {isNp ? 'रद्द' : 'Cancel'}
+                    </button>
+                    <button onClick={handleSubmit} disabled={saving} className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                      <Save className="w-3.5 h-3.5" />
+                      {saving ? (isNp ? 'सुरक्षित गर्दै...' : 'Saving...') : editingUser ? (isNp ? 'अपडेट' : 'Update') : (isNp ? 'सिर्जना' : 'Create')}
+                    </button>
+                  </div>
+                </>
               )}
 
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
-                  {editingUser ? (isNp ? 'नयाँ पासवर्ड (ऐच्छिक)' : 'New password (optional)') : (isNp ? 'पासवर्ड' : 'Password')}
-                  {!editingUser && <span className="text-rose-500">*</span>}
-                </label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={editingUser ? (isNp ? 'खाली छोड्नुहोस्' : 'Leave blank to keep') : ''} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
-                  {isNp ? 'PAN नम्बर (ऐच्छिक)' : 'PAN number (optional)'}
-                </label>
-                <input type="text" value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} placeholder={isNp ? 'PAN नम्बर...' : 'PAN number...'} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">{isNp ? 'भूमिका' : 'Role'}</label>
-                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as any })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white">
-                  <option value="EMPLOYEE">{isNp ? 'कर्मचारी' : 'Employee'}</option>
-                  <option value="ORG_ACCOUNTANT">{isNp ? 'लेखापाल' : 'Accountant'}</option>
-                  <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
-                  {isNp ? 'कार्य समय (ऐच्छिक)' : 'Work shift (optional)'}
-                </label>
-                <p className="text-xs text-slate-400 mb-2">
-                  {isNp ? 'खाली छोड्नुभयो भने संगठनको पूर्वनिर्धारित समय लागू हुन्छ' : 'Leave empty to use organization default schedule'}
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">{isNp ? 'सुरु' : 'Start'}</label>
-                    <input type="time" value={formData.shiftStartTime} onChange={(e) => setFormData({ ...formData, shiftStartTime: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+              {/* ── ADD EXISTING USER FORM ── */}
+              {modalMode === 'existing' && !editingUser && (
+                <>
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      {isNp
+                        ? 'कर्मचारीको ८ अंकको प्लेटफर्म ID प्रविष्ट गर्नुहोस्। उनीहरूको अवस्थित खाता तपाईंको संगठनमा लिंक हुनेछ।'
+                        : 'Enter the employee\'s 8-digit Platform ID. Their existing account will be linked to your organization.'}
+                    </p>
                   </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">{isNp ? 'अन्त्य' : 'End'}</label>
-                    <input type="time" value={formData.shiftEndTime} onChange={(e) => setFormData({ ...formData, shiftEndTime: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
-                  </div>
-                </div>
-              </div>
 
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-                  {isNp ? 'रद्द' : 'Cancel'}
-                </button>
-                <button onClick={handleSubmit} disabled={saving} className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                  <Save className="w-3.5 h-3.5" />
-                  {saving ? (isNp ? 'सुरक्षित गर्दै...' : 'Saving...') : editingUser ? (isNp ? 'अपडेट' : 'Update') : (isNp ? 'सिर्जना' : 'Create')}
-                </button>
-              </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      {isNp ? 'प्लेटफर्म ID' : 'Platform ID'} <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        value={existingFormData.platformId}
+                        onChange={(e) => {
+                          // Only allow digits, max 8
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                          setExistingFormData({ ...existingFormData, platformId: val });
+                        }}
+                        placeholder="12345678"
+                        maxLength={8}
+                        className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 font-mono tracking-wider"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {isNp
+                        ? 'कर्मचारीले आफ्नो प्रोफाइलमा प्लेटफर्म ID पाउन सक्छन्'
+                        : 'Employee can find their Platform ID in their profile'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">{isNp ? 'भूमिका' : 'Role'}</label>
+                    <select value={existingFormData.role} onChange={(e) => setExistingFormData({ ...existingFormData, role: e.target.value as any })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white">
+                      <option value="EMPLOYEE">{isNp ? 'कर्मचारी' : 'Employee'}</option>
+                      <option value="ORG_ACCOUNTANT">{isNp ? 'लेखापाल' : 'Accountant'}</option>
+                      <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      {isNp ? 'PAN नम्बर (ऐच्छिक)' : 'PAN number (optional)'}
+                    </label>
+                    <input type="text" value={existingFormData.panNumber} onChange={(e) => setExistingFormData({ ...existingFormData, panNumber: e.target.value })} placeholder={isNp ? 'PAN नम्बर...' : 'PAN number...'} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      {isNp ? 'कार्य समय (ऐच्छिक)' : 'Work shift (optional)'}
+                    </label>
+                    <p className="text-xs text-slate-400 mb-2">
+                      {isNp ? 'खाली छोड्नुभयो भने संगठनको पूर्वनिर्धारित समय लागू हुन्छ' : 'Leave empty to use organization default schedule'}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{isNp ? 'सुरु' : 'Start'}</label>
+                        <input type="time" value={existingFormData.shiftStartTime} onChange={(e) => setExistingFormData({ ...existingFormData, shiftStartTime: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{isNp ? 'अन्त्य' : 'End'}</label>
+                        <input type="time" value={existingFormData.shiftEndTime} onChange={(e) => setExistingFormData({ ...existingFormData, shiftEndTime: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                      {isNp ? 'रद्द' : 'Cancel'}
+                    </button>
+                    <button
+                      onClick={handleAddExisting}
+                      disabled={saving || existingFormData.platformId.length !== 8}
+                      className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <Link className="w-3.5 h-3.5" />
+                      {saving ? (isNp ? 'थप्दै...' : 'Adding...') : (isNp ? 'संगठनमा थप्नुहोस्' : 'Add to organization')}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

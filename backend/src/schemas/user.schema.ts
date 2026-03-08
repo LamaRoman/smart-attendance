@@ -27,6 +27,16 @@ export const createUserSchema = z.object({
   role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE'], { errorMap: () => ({ message: 'Role must be ORG_ADMIN, ORG_ACCOUNTANT, or EMPLOYEE' }) }).default('EMPLOYEE'),
 });
 
+export const addExistingUserSchema = z.object({
+  platformId: z.string().min(1, 'Platform ID is required').regex(/^\d{8}$/, 'Platform ID must be an 8-digit number').trim(),
+  role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE'], {
+    errorMap: () => ({ message: 'Role must be ORG_ADMIN, ORG_ACCOUNTANT, or EMPLOYEE' }),
+  }).default('EMPLOYEE'),
+  panNumber: z.string().optional(),
+  shiftStartTime: timeField,
+  shiftEndTime: timeField,
+});
+
 export const updateUserSchema = z.object({
   email: z.string().email('Invalid email format').transform((v) => v.toLowerCase().trim()).optional(),
   password: z
@@ -52,4 +62,5 @@ export const userIdParamSchema = z.object({
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type AddExistingUserInput = z.infer<typeof addExistingUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

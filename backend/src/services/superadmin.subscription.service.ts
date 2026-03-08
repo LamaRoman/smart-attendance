@@ -10,101 +10,157 @@ const log = createLogger('superadmin-subscription-service');
 
 export class SuperAdminSubscriptionService {
 
-  // ── List all org subscriptions ──
-  async listSubscriptions(query: {
-    page?: number;
-    limit?: number;
-    status?: SubscriptionStatus;
-    tier?: TierName;
-    search?: string;
-  }) {
-    const page  = query.page  ?? 1;
-    const limit = query.limit ?? 20;
-    const skip  = (page - 1) * limit;
+// ── List all org subscriptions ──
+async listSubscriptions(query: {
+  page?: number;
+  limit?: number;
+  status?: SubscriptionStatus;
+  tier?: TierName;
+  search?: string;
+}) {
+  const page  = query.page  ?? 1;
+  const limit = query.limit ?? 20;
+  const skip  = (page - 1) * limit;
 
-    const where: Prisma.OrgSubscriptionWhereInput = {};
-    if (query.status) where.status = query.status;
-    if (query.tier)   where.plan   = { tier: query.tier };
-    if (query.search) {
-      where.organization = {
-        name: { contains: query.search, mode: 'insensitive' },
-      };
-    }
+  // Query from Organization so orgs WITHOUT a subscription still appear
+  const where: Prisma.OrganizationWhereInput = {};
 
-    const [subscriptions, total] = await Promise.all([
-      prisma.orgSubscription.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          organization: {
-            select: { id: true, name: true, email: true },
-          },
-          plan: {
-            select: {
-              tier: true,
-              displayName: true,
-              pricePerEmployee: true,
-              maxEmployees: true,
-              featureTotp: true,
-              featureLeave: true,
-              featureManualCorrection: true,
-              featureFullPayroll: true,
-              featurePayrollWorkflow: true,
-              featureReports: true,
-              featureNotifications: true,
-              featureOnboarding: true,
-              featureAuditLog: true,
-              featureFileDownload: true,
-              featureDownloadReports: true,
-              featureDownloadPayslips: true,
-              featureDownloadAuditLog: true,
-              featureDownloadLeaveRecords: true,
-            },
-          },
-          adminNotes: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.orgSubscription.count({ where }),
-    ]);
+  if (query.search) {
+    where.name = { contains: query.search, mode: 'insensitive' };
+  }
 
-    // Count employees/admins per org via OrgMembership (not User)
-    const orgIds = subscriptions.map(s => s.organizationId);
-    const membershipCounts = await prisma.orgMembership.groupBy({
-      by: ['organizationId', 'role'],
-      where: {
-        organizationId: { in: orgIds },
-        isActive: true,
-        leftAt: null,
-        role: { in: ['EMPLOYEE', 'ORG_ADMIN'] },
-      },
-      _count: { id: true },
-    });
-
-    const countMap: Record<string, { employeeCount: number; adminCount: number }> = {};
-    for (const row of membershipCounts) {
-      if (!countMap[row.organizationId]) {
-        countMap[row.organizationId] = { employeeCount: 0, adminCount: 0 };
-      }
-      if (row.role === 'EMPLOYEE') countMap[row.organizationId].employeeCount = row._count.id;
-      if (row.role === 'ORG_ADMIN') countMap[row.organizationId].adminCount = row._count.id;
-    }
-
-    const enriched = subscriptions.map(sub => ({
-      ...sub,
-      employeeCount: countMap[sub.organizationId]?.employeeCount ?? 0,
-      adminCount:    countMap[sub.organizationId]?.adminCount    ?? 0,
-    }));
-
-    return {
-      subscriptions: enriched,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  // Status/tier filters only apply to orgs that have a subscription
+  if (query.status || query.tier) {
+    where.subscription = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.tier   ? { plan: { tier: query.tier } } : {}),
     };
   }
+
+  const [organizations, total] = await Promise.all([
+    prisma.organization.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        subscription: {
+          include: {
+            plan: {
+              select: {
+                tier: true,
+                displayName: true,
+                pricePerEmployee: true,
+                maxEmployees: true,
+                featureTotp: true,
+                featureLeave: true,
+                featureManualCorrection: true,
+                featureFullPayroll: true,
+                featurePayrollWorkflow: true,
+                featureReports: true,
+                featureNotifications: true,
+                featureOnboarding: true,
+                featureAuditLog: true,
+                featureFileDownload: true,
+                featureDownloadReports: true,
+                featureDownloadPayslips: true,
+                featureDownloadAuditLog: true,
+                featureDownloadLeaveRecords: true,
+              },
+            },
+            adminNotes: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.organization.count({ where }),
+  ]);
+
+  // Count employees/admins per org via OrgMembership
+  const orgIds = organizations.map(o => o.id);
+  const membershipCounts = await prisma.orgMembership.groupBy({
+    by: ['organizationId', 'role'],
+    where: {
+      organizationId: { in: orgIds },
+      isActive: true,
+      leftAt: null,
+      role: { in: ['EMPLOYEE', 'ORG_ADMIN'] },
+    },
+    _count: { id: true },
+  });
+
+  const countMap: Record<string, { employeeCount: number; adminCount: number }> = {};
+  for (const row of membershipCounts) {
+    if (!countMap[row.organizationId]) {
+      countMap[row.organizationId] = { employeeCount: 0, adminCount: 0 };
+    }
+    if (row.role === 'EMPLOYEE') countMap[row.organizationId].employeeCount = row._count.id;
+    if (row.role === 'ORG_ADMIN') countMap[row.organizationId].adminCount   = row._count.id;
+  }
+
+  const subscriptions = organizations.map(org => {
+    const sub = org.subscription;
+    return {
+      // Use sub.id if exists, otherwise org.id — so frontend key is always unique and non-null
+      id:                     sub?.id ?? org.id,
+      status:                 sub?.status ?? 'NO_SUBSCRIPTION',
+      billingCycle:           sub?.billingCycle ?? 'MONTHLY',
+      isPriceLockedForever:   sub?.isPriceLockedForever ?? false,
+      currentEmployeeCount:   sub?.currentEmployeeCount ?? 0,
+      customPricePerEmployee: sub?.customPricePerEmployee ?? null,
+      customPriceExpiresAt:   sub?.customPriceExpiresAt ?? null,
+      trialEndsAt:            sub?.trialEndsAt ?? null,
+      setupFeeWaived:         sub?.setupFeeWaived ?? false,
+      setupFeeWaivedNote:     sub?.setupFeeWaivedNote ?? null,
+      organization:           { id: org.id, name: org.name, email: org.email ?? '' },
+      plan: sub?.plan ?? {
+        tier: 'STARTER' as TierName,
+        displayName: 'No Plan',
+        pricePerEmployee: 0,
+        maxEmployees: null,
+        featureTotp: false,
+        featureLeave: false,
+        featureManualCorrection: false,
+        featureFullPayroll: false,
+        featurePayrollWorkflow: false,
+        featureReports: false,
+        featureNotifications: false,
+        featureOnboarding: false,
+        featureAuditLog: false,
+        featureFileDownload: false,
+        featureDownloadReports: false,
+        featureDownloadPayslips: false,
+        featureDownloadAuditLog: false,
+        featureDownloadLeaveRecords: false,
+      },
+      adminNotes: sub?.adminNotes ?? [],
+      employeeCount: countMap[org.id]?.employeeCount ?? 0,
+      adminCount:    countMap[org.id]?.adminCount    ?? 0,
+      // Override fields — null means "use plan default"
+      overrideFeatureLeave:                sub?.overrideFeatureLeave                ?? null,
+      overrideFeatureManualCorrection:     sub?.overrideFeatureManualCorrection     ?? null,
+      overrideFeatureFullPayroll:          sub?.overrideFeatureFullPayroll          ?? null,
+      overrideFeaturePayrollWorkflow:      sub?.overrideFeaturePayrollWorkflow      ?? null,
+      overrideFeatureReports:              sub?.overrideFeatureReports              ?? null,
+      overrideFeatureNotifications:        sub?.overrideFeatureNotifications        ?? null,
+      overrideFeatureOnboarding:           sub?.overrideFeatureOnboarding           ?? null,
+      overrideFeatureAuditLog:             sub?.overrideFeatureAuditLog             ?? null,
+      overrideFeatureFileDownload:         sub?.overrideFeatureFileDownload         ?? null,
+      overrideFeatureDownloadReports:      sub?.overrideFeatureDownloadReports      ?? null,
+      overrideFeatureDownloadPayslips:     sub?.overrideFeatureDownloadPayslips     ?? null,
+      overrideFeatureDownloadAuditLog:     sub?.overrideFeatureDownloadAuditLog     ?? null,
+      overrideFeatureDownloadLeaveRecords: sub?.overrideFeatureDownloadLeaveRecords ?? null,
+    };
+  });
+
+  return {
+    subscriptions,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  };
+}
 
   // ── Get single org subscription ──
   async getSubscription(organizationId: string) {

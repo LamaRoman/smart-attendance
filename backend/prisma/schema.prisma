@@ -360,6 +360,8 @@ model AttendanceAuditLog {
   employeeId     String? // The employee ID entered (may not match a real user)
   userId         String? // Resolved user ID (null if employee not found)
   organizationId String?
+  latitude       Float?   
+  longitude      Float? 
 
   action    String // CLOCK_IN, CLOCK_OUT, FAILED
   method    String // QR_SCAN, MANUAL

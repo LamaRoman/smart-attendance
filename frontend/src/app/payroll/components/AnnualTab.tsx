@@ -27,7 +27,7 @@ export default function AnnualTab({
 
   const handleCsvExport = async () => {
     const res = await fetch(
-      `${API_BASE}/api/payroll/annual/export?bsYear=${annualYear}`,
+      `${API_BASE}/api/payroll/annual-report/csv?bsYear=${annualYear}`,
       { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
     );
     const blob = await res.blob();
@@ -159,7 +159,7 @@ export default function AnnualTab({
 
               <tbody className="divide-y divide-slate-100">
                 {annualData.employees.map((emp: any) => (
-                  <tr key={emp.userId} className="hover:bg-slate-50/50">
+                  <tr key={emp.membershipId} className="hover:bg-slate-50/50">
                     <td className="py-3 px-4">
                       <div className="text-sm font-medium text-slate-900">
                         {emp.employee.firstName} {emp.employee.lastName}

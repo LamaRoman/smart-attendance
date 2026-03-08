@@ -22,14 +22,18 @@ import prisma from '../lib/prisma';
 
 const router = Router();
 
-// POST /api/attendance/scan-public -- Unauthenticated, uses employee ID
+// POST /api/attendance/scan-public -- Unauthenticated, uses employee ID + PIN
 router.post(
   '/scan-public',
   scanRateLimiter,
   validate(scanPublicSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await attendanceService.scanPublic(req.body, req.ip || undefined, req.get('user-agent') || undefined);
+      const result = await attendanceService.scanPublic(
+        req.body,
+        req.ip || undefined,
+        req.get('user-agent') || undefined
+      );
       res.json({ data: result });
     } catch (error) {
       next(error);
@@ -38,41 +42,62 @@ router.post(
 );
 
 // GET /api/attendance/org-mode/:orgId -- Public
-router.get('/org-mode/:orgId', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const org = await prisma.organization.findUnique({
-      where: { id: req.params.orgId },
-      select: { attendanceMode: true, geofenceEnabled: true },
-    });
-    if (!org) { res.status(404).json({ error: { message: 'Organization not found' } }); return; }
-    res.json({ data: { attendanceMode: org.attendanceMode, geofenceEnabled: org.geofenceEnabled } });
-  } catch (error) {
-    next(error);
+router.get(
+  '/org-mode/:orgId',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: req.params.orgId },
+        select: { attendanceMode: true, geofenceEnabled: true },
+      });
+      if (!org) {
+        res.status(404).json({ error: { message: 'Organization not found' } });
+        return;
+      }
+      res.json({
+        data: {
+          attendanceMode: org.attendanceMode,
+          geofenceEnabled: org.geofenceEnabled,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 // GET /api/attendance/org-slug/:slug -- Public
-router.get('/org-slug/:slug', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const org = await prisma.organization.findUnique({
-      where: { slug: req.params.slug.toLowerCase() },
-      select: { id: true, attendanceMode: true, geofenceEnabled: true },
-    });
-    if (!org) { res.status(404).json({ error: { message: 'Organization not found' } }); return; }
-    res.json({ data: org });
-  } catch (error) {
-    next(error);
+router.get(
+  '/org-slug/:slug',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { slug: req.params.slug.toLowerCase() },
+        select: { id: true, attendanceMode: true, geofenceEnabled: true },
+      });
+      if (!org) {
+        res.status(404).json({ error: { message: 'Organization not found' } });
+        return;
+      }
+      res.json({ data: org });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
-// POST /api/attendance/mobile-checkin -- Unauthenticated, GPS-based
+// POST /api/attendance/mobile-checkin -- Unauthenticated, GPS-based, requires PIN
 router.post(
   '/mobile-checkin',
   scanRateLimiter,
   validate(mobileCheckinSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await attendanceService.mobileCheckin(req.body, req.ip || undefined, req.get('user-agent') || undefined);
+      const result = await attendanceService.mobileCheckin(
+        req.body,
+        req.ip || undefined,
+        req.get('user-agent') || undefined
+      );
       res.json({ data: result });
     } catch (error) {
       next(error);
@@ -87,7 +112,12 @@ router.post(
   validate(scanAuthenticatedSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const result = await attendanceService.scanAuthenticated(req.body, req.user!, req.ip || undefined, req.get('user-agent') || undefined);
+      const result = await attendanceService.scanAuthenticated(
+        req.body,
+        req.user!,
+        req.ip || undefined,
+        req.get('user-agent') || undefined
+      );
       res.json({ data: result });
     } catch (error) {
       next(error);
@@ -96,17 +126,21 @@ router.post(
 );
 
 // GET /api/attendance/status -- Current clock-in status for the active membership
-router.get('/status', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.user!.membershipId) {
-      return res.status(400).json({ error: { message: 'No active membership' } });
+router.get(
+  '/status',
+  authenticate,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user!.membershipId) {
+        return res.status(400).json({ error: { message: 'No active membership' } });
+      }
+      const status = await attendanceService.getStatus(req.user!.membershipId);
+      res.json({ data: status });
+    } catch (error) {
+      next(error);
     }
-    const status = await attendanceService.getStatus(req.user!.membershipId);
-    res.json({ data: status });
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 // GET /api/attendance/my -- My attendance records (scoped to active membership)
 router.get(
@@ -119,7 +153,11 @@ router.get(
         return res.status(400).json({ error: { message: 'No active membership' } });
       }
       const { limit, offset } = req.query as any;
-      const result = await attendanceService.getMyAttendance(req.user!.membershipId, limit, offset);
+      const result = await attendanceService.getMyAttendance(
+        req.user!.membershipId,
+        limit,
+        offset
+      );
       res.json({ data: result });
     } catch (error) {
       next(error);
@@ -137,7 +175,10 @@ router.get(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { limit, offset, userId, status } = req.query as any;
-      const result = await attendanceService.listAttendance(req.user!, limit, offset, { userId, status });
+      const result = await attendanceService.listAttendance(req.user!, limit, offset, {
+        userId,
+        status,
+      });
       res.json({ data: result });
     } catch (error) {
       next(error);
@@ -171,7 +212,11 @@ router.put(
   validate(editAttendanceSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const result = await attendanceService.editAttendance(req.params.id, req.body, req.user!);
+      const result = await attendanceService.editAttendance(
+        req.params.id,
+        req.body,
+        req.user!
+      );
       res.json({ data: result });
     } catch (error) {
       next(error);
@@ -203,7 +248,9 @@ router.get(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.organizationId) {
-        return res.status(400).json({ error: { message: 'No organization associated' } });
+        return res
+          .status(400)
+          .json({ error: { message: 'No organization associated' } });
       }
 
       const { range = 'today', fromDate, toDate } = req.query;
@@ -223,32 +270,44 @@ router.get(
 
       switch (range) {
         case 'today':
-          startDate = new Date(now); startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(startDate); endDate.setDate(endDate.getDate() + 1);
+          startDate = new Date(now);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 1);
           break;
         case 'week':
-          startDate = new Date(now); startDate.setDate(now.getDate() - 7); startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(now); endDate.setHours(23, 59, 59, 999);
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(now);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case 'month':
-          startDate = new Date(now); startDate.setDate(now.getDate() - 30); startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(now); endDate.setHours(23, 59, 59, 999);
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 30);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(now);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case 'custom':
           if (fromDate && toDate) {
             startDate = new Date(fromDate as string);
-            endDate = new Date(toDate as string); endDate.setHours(23, 59, 59, 999);
+            endDate = new Date(toDate as string);
+            endDate.setHours(23, 59, 59, 999);
           } else {
-            startDate = new Date(now); startDate.setHours(0, 0, 0, 0);
-            endDate = new Date(startDate); endDate.setDate(endDate.getDate() + 1);
+            startDate = new Date(now);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 1);
           }
           break;
         default:
-          startDate = new Date(now); startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(startDate); endDate.setDate(endDate.getDate() + 1);
+          startDate = new Date(now);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 1);
       }
 
-      // Join through "membership" — confirmed relation name on AttendanceRecord in schema
       const records = await prisma.attendanceRecord.findMany({
         where: {
           organizationId: req.user.organizationId,
@@ -273,7 +332,9 @@ router.get(
           const checkIn = new Date(record.checkInTime!);
           const workStart = new Date(checkIn);
           workStart.setHours(workHour, workMinute, 0, 0);
-          const minutesLate = Math.floor((checkIn.getTime() - workStart.getTime()) / 60000);
+          const minutesLate = Math.floor(
+            (checkIn.getTime() - workStart.getTime()) / 60000
+          );
 
           if (minutesLate > threshold) {
             return {
@@ -294,11 +355,19 @@ router.get(
         totalLateArrivals: lateArrivals.length,
         averageMinutesLate:
           lateArrivals.length > 0
-            ? Math.round(lateArrivals.reduce((sum: number, r: any) => sum + r.minutesLate, 0) / lateArrivals.length)
+            ? Math.round(
+                lateArrivals.reduce((sum: number, r: any) => sum + r.minutesLate, 0) /
+                  lateArrivals.length
+              )
             : 0,
         repeatOffenders: Object.entries(
           lateArrivals.reduce((acc: any, r: any) => {
-            acc[r.userId] = acc[r.userId] || { userName: r.userName, employeeId: r.employeeId, count: 0, totalMinutesLate: 0 };
+            acc[r.userId] = acc[r.userId] || {
+              userName: r.userName,
+              employeeId: r.employeeId,
+              count: 0,
+              totalMinutesLate: 0,
+            };
             acc[r.userId].count++;
             acc[r.userId].totalMinutesLate += r.minutesLate;
             return acc;

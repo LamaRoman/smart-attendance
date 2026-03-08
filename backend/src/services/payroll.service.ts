@@ -310,43 +310,65 @@ export class PayrollService {
       };
     }
 
+    // ─────────────────────────────────────────────────────────
+    // REPLACE lines 313–348 in payroll.service.ts with this block
+    // (everything from "const daysAbsent =" through "const netSalary =")
+    // The "return {" block after this stays unchanged.
+    // ─────────────────────────────────────────────────────────
+
     const daysAbsent = Math.max(0, workingDaysInMonth - effectivePresent);
     const totalAllowances = dearnessAllowance + transportAllowance + medicalAllowance + otherAllowances;
-    const absenceDeduction = workingDaysInMonth > 0
-      ? Math.round((basicSalary / workingDaysInMonth) * daysAbsent * 100) / 100
-      : 0;
+
+    // Nepal payroll standard: fixed 30-day divisor for monthly salaried employees.
+    // This keeps deductions consistent across months (28–31 days) and aligns with
+    // Nepal Labour Act practice and SSF guidelines from the Ministry of Labour.
+    const MONTHLY_DIVISOR = 30;
+    const dailyRate = Math.round((basicSalary / MONTHLY_DIVISOR) * 100) / 100;
+    const absenceDeduction = Math.round(dailyRate * daysAbsent * 100) / 100;
+
     const overtimePay = Math.round(overtimeHours * overtimeRatePerHour * 100) / 100;
     const grossSalary = Math.round((basicSalary + totalAllowances + overtimePay - absenceDeduction) * 100) / 100;
 
+    // Effective basic = basic salary actually paid after absence deduction.
+    // Per Nepal's SSF Act, contribution is on "the basic wage the worker receives".
+    // SSF is calculated on the adjusted basic, not the contractual/paper salary.
+    const effectiveBasic = Math.max(0, Math.round((basicSalary - absenceDeduction) * 100) / 100);
+
+    // If effective earnings are zero or negative, no SSF/PF/TDS/CIT applies
+    const hasEffectiveEarnings = grossSalary > 0;
+
     let employeeSsf = 0;
     let employerSsf = 0;
-    if (s.ssfEnabled) {
-      employeeSsf = Math.round(basicSalary * (employeeSsfRate / 100) * 100) / 100;
-      employerSsf = Math.round(basicSalary * (employerSsfRate / 100) * 100) / 100;
+    if (s.ssfEnabled && hasEffectiveEarnings) {
+      employeeSsf = Math.round(effectiveBasic * (employeeSsfRate / 100) * 100) / 100;
+      employerSsf = Math.round(effectiveBasic * (employerSsfRate / 100) * 100) / 100;
     }
 
     let employeePf = 0;
     let employerPf = 0;
-    if (s.pfEnabled) {
+    if (s.pfEnabled && hasEffectiveEarnings) {
       const pfEmployeeRate = toNum(s.employeePfRate);
       const pfEmployerRate = toNum(s.employerPfRate);
-      employeePf = Math.round(basicSalary * (pfEmployeeRate / 100) * 100) / 100;
-      employerPf = Math.round(basicSalary * (pfEmployerRate / 100) * 100) / 100;
+      employeePf = Math.round(effectiveBasic * (pfEmployeeRate / 100) * 100) / 100;
+      employerPf = Math.round(effectiveBasic * (pfEmployerRate / 100) * 100) / 100;
     }
 
-    const citDeduction = s.citEnabled ? toNum(s.citAmount) : 0;
-    const advanceDeduct = toNum(s.advanceDeduction);
+    // CIT and advance: only apply when there are actual earnings
+    const citDeduction = (s.citEnabled && hasEffectiveEarnings) ? toNum(s.citAmount) : 0;
+    const advanceDeduct = hasEffectiveEarnings ? toNum(s.advanceDeduction) : 0;
+
     const dashainBonus = bsMonth === 6 ? basicSalary : 0;
 
     let tds = 0;
-    if (s.tdsEnabled) {
+    if (s.tdsEnabled && hasEffectiveEarnings) {
       const annualTaxable = (grossSalary + dashainBonus - employeeSsf - employeePf - citDeduction) * 12;
       tds = calculateNepalTDS(annualTaxable, s.isMarried, tdsConfig);
     }
 
-    const totalDeductions = Math.round((absenceDeduction + employeeSsf + employeePf + citDeduction + advanceDeduct + tds) * 100) / 100;
+    // Total deductions capped so net salary never goes negative
+    const rawTotalDeductions = Math.round((absenceDeduction + employeeSsf + employeePf + citDeduction + advanceDeduct + tds) * 100) / 100;
+    const totalDeductions = Math.min(rawTotalDeductions, grossSalary + dashainBonus);
     const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDeductions) * 100) / 100);
-
     return {
       membershipId: membership.id,
       organizationId,

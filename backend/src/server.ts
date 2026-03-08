@@ -33,12 +33,13 @@ import leaveRoutes from './routes/leaves';
 import orgSettingsRoutes from './routes/orgSettings';
 import superAdminSubscriptionRouter from './routes/superadmin.subscription.routes';
 import platformConfigRouter from './routes/superadmin.platform-config.routes';
-import superAdminPlansRouter from "./routes/superadmin.plans.routes";
+import superAdminPlansRouter from './routes/superadmin.plans.routes';
 import documentTypeRoutes from './routes/documentTypes';
 import documentRoutes from './routes/documents';
 
 const app = express();
-app.set('trust proxy',1);
+app.set('trust proxy', 1);
+
 // Redirect HTTP to HTTPS in production
 if (config.NODE_ENV === 'production') {
   app.use((req, res, next) => {
@@ -52,32 +53,38 @@ if (config.NODE_ENV === 'production') {
 // ============================================================
 // Security Middleware
 // ============================================================
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", ...(config.NODE_ENV === 'production' ? [] : ["http://localhost:3000", "http://localhost:5001"])],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      frameSrc: ["'none'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'"],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: [
+          "'self'",
+          ...(config.NODE_ENV === 'production'
+            ? []
+            : ['http://localhost:3000', 'http://localhost:5001']),
+        ],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
     },
-  },
-  crossOriginEmbedderPolicy: false,
-  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  noSniff: true,
-  xssFilter: true,
-}));
+    crossOriginEmbedderPolicy: false,
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    noSniff: true,
+    xssFilter: true,
+  })
+);
 app.use(generalRateLimiter);
 
 // ============================================================
 // Request ID -- unique per request for log correlation
-// FIX L-02: Validate x-request-id before accepting it (max 36 chars, alphanumeric+hyphen only)
 // ============================================================
 app.use((req, res, next) => {
   const rawId = req.headers['x-request-id'] as string | undefined;
@@ -89,18 +96,18 @@ app.use((req, res, next) => {
 });
 
 // ============================================================
-// CSRF Protection -- Custom Header Check (C-04)
-// Any state-changing request (POST/PUT/PATCH/DELETE) must include
-// the X-Requested-With header. Browsers cannot set custom headers
-// on cross-origin requests without CORS preflight -- which our
-// CORS policy blocks -- making CSRF from malicious sites impossible.
+// CSRF Protection -- Custom Header Check
 //
 // Exemptions:
 //   - GET/HEAD/OPTIONS (safe methods)
-//   - /api/attendance/scan-public (intentionally unauthenticated QR scan)
+//   - /api/attendance/scan-public  (unauthenticated QR scan)
+//   - /api/attendance/mobile-checkin (unauthenticated GPS check-in)
 // ============================================================
 const CSRF_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const CSRF_EXEMPT_PATHS = new Set(['/api/attendance/scan-public']);
+const CSRF_EXEMPT_PATHS = new Set([
+  '/api/attendance/scan-public',
+  '/api/attendance/mobile-checkin',
+]);
 
 app.use((req, res, next) => {
   if (CSRF_SAFE_METHODS.has(req.method)) return next();
@@ -108,11 +115,14 @@ app.use((req, res, next) => {
 
   const hasCustomHeader = req.headers['x-requested-with'] === 'XMLHttpRequest';
   if (!hasCustomHeader) {
-    logger.warn({
-      method: req.method,
-      path: req.path,
-      ip: req.ip,
-    }, 'CSRF check failed -- missing X-Requested-With header');
+    logger.warn(
+      {
+        method: req.method,
+        path: req.path,
+        ip: req.ip,
+      },
+      'CSRF check failed -- missing X-Requested-With header'
+    );
     return res.status(403).json({
       error: { message: 'CSRF check failed', code: 'CSRF_REJECTED' },
     });
@@ -122,28 +132,28 @@ app.use((req, res, next) => {
 
 // ============================================================
 // Core Middleware
-// FIX C-01: express.json() MUST come before sanitizeInput.
-// Previously sanitizeInput ran first, meaning req.body was always
-// undefined when sanitization ran -- all JSON bodies were unsanitized.
 // ============================================================
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(cookieParser());
-app.use(express.json({ limit: '100kb' }));          // ← parse body FIRST
+app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
-app.use(sanitizeInput);                              // ← then sanitize
+app.use(sanitizeInput);
 
 // Request logging
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
-    logger.info({
-      requestId: (req as any).requestId,
-      method: req.method,
-      path: req.path,
-      status: res.statusCode,
-      duration: `${Date.now() - start}ms`,
-      ip: req.ip,
-    }, `${req.method} ${req.path} ${res.statusCode}`);
+    logger.info(
+      {
+        requestId: (req as any).requestId,
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        duration: `${Date.now() - start}ms`,
+        ip: req.ip,
+      },
+      `${req.method} ${req.path} ${res.statusCode}`
+    );
   });
   next();
 });
@@ -152,8 +162,8 @@ app.use((req, res, next) => {
 // Routes
 // ============================================================
 app.use('/api/auth', authRoutes);
-app.use("/api", documentTypeRoutes);
-app.use("/api", documentRoutes);
+app.use('/api', documentTypeRoutes);
+app.use('/api', documentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/attendance', attendanceRoutes);
@@ -170,7 +180,7 @@ app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/super-admin/subscriptions', superAdminSubscriptionRouter);
 app.use('/api/super-admin/platform-config', platformConfigRouter);
-app.use("/api/super-admin/plans", superAdminPlansRouter);
+app.use('/api/super-admin/plans', superAdminPlansRouter);
 
 // Enhanced health check -- includes DB connectivity
 app.get('/api/health', async (req, res) => {
@@ -207,16 +217,30 @@ const server = app.listen(PORT, () => {
   logger.info(`CORS origins: ${corsOrigins.join(', ')}`);
 
   // Cleanup expired sessions every hour
-  setInterval(async () => {
-    try { await authService.cleanExpiredSessions(); } catch (e) { /* ignore */ }
-  }, 60 * 60 * 1000);
+  setInterval(
+    async () => {
+      try {
+        await authService.cleanExpiredSessions();
+      } catch (e) {
+        /* ignore */
+      }
+    },
+    60 * 60 * 1000
+  );
 
   // Cleanup old notifications daily
-  setInterval(async () => {
-    try { await notificationService.deleteOldNotifications(); } catch (e) { /* ignore */ }
-  }, 24 * 60 * 60 * 1000);
+  setInterval(
+    async () => {
+      try {
+        await notificationService.deleteOldNotifications();
+      } catch (e) {
+        /* ignore */
+      }
+    },
+    24 * 60 * 60 * 1000
+  );
 
-  // Trial expiry cron -- runs daily at 08:00 NPT
+  // Scheduled jobs
   startTrialExpiryJob();
   startBillingJob();
   startPriceExpiryJob();

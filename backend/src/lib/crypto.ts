@@ -52,5 +52,3 @@ export function parseQRPayload(
     return null;
   }
 }
-
-

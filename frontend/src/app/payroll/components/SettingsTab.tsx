@@ -9,6 +9,7 @@ import { BS_MONTHS_NP, BS_MONTHS_EN, fmt } from '../utils';
 
 interface Props {
   isNp: boolean;
+  readOnly:boolean;
   users: any[];
   allPaySettings: Record<string, any>;
   selectedUser: string;
@@ -30,7 +31,7 @@ interface Props {
 }
 
 export default function SettingsTab({
-  isNp, users, allPaySettings, selectedUser, form, originalForm,
+  isNp,readOnly, users, allPaySettings, selectedUser, form, originalForm,
   hasUnsavedChanges, liveCalculation, tdsSlabs, showTdsInfo,
   showCopyDropdown, saving,
   onSelectUser, onFormChange, onSave, onCancel, onCopyFrom,

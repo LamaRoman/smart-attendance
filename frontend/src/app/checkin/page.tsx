@@ -13,6 +13,7 @@ import {
   Loader2,
   Globe,
   Smartphone,
+  Lock,
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
 
@@ -22,9 +23,16 @@ function CheckinPageContent() {
   const searchParams = useSearchParams();
   const orgId = searchParams.get('org');
   const [employeeId, setEmployeeId] = useState('');
+  const [pin, setPin] = useState('');
   const [lang, setLang] = useState<'NEPALI' | 'ENGLISH'>('NEPALI');
-  const [step, setStep] = useState<'input' | 'locating' | 'processing' | 'success' | 'error'>('input');
-  const [orgInfo, setOrgInfo] = useState<{ name: string; attendanceMode: string; geofenceEnabled: boolean } | null>(null);
+  const [step, setStep] = useState<
+    'input' | 'locating' | 'processing' | 'success' | 'error'
+  >('input');
+  const [orgInfo, setOrgInfo] = useState<{
+    name: string;
+    attendanceMode: string;
+    geofenceEnabled: boolean;
+  } | null>(null);
   const [result, setResult] = useState<{
     action: string;
     message: string;
@@ -37,29 +45,46 @@ function CheckinPageContent() {
 
   // Fetch org info
   useEffect(() => {
-    if (!orgId) { setLoading(false); return; }
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const res = await fetch(API_URL + '/api/attendance/org-mode/' + orgId);
         const data = await res.json();
         if (data.data) setOrgInfo(data.data);
-      } catch {}
+      } catch {
+        /* ignore */
+      }
       setLoading(false);
     })();
   }, [orgId]);
 
   const handleSubmit = async () => {
     if (!employeeId.trim()) {
-      setErrorMsg(isNp ? 'कृपया कर्मचारी आईडी हाल्नुहोस्' : 'Please enter your Employee ID');
+      setErrorMsg(
+        isNp ? 'कृपया कर्मचारी आईडी हाल्नुहोस्' : 'Please enter your Employee ID'
+      );
       return;
     }
+    // S-02 fix: PIN is required
+    if (!pin.trim()) {
+      setErrorMsg(isNp ? 'कृपया PIN हाल्नुहोस्' : 'Please enter your PIN');
+      return;
+    }
+
     setStep('locating');
     setErrorMsg('');
 
     // Get GPS location
     if (!navigator.geolocation) {
       setStep('error');
-      setErrorMsg(isNp ? 'तपाईंको ब्राउजरले GPS सपोर्ट गर्दैन' : 'Your browser does not support GPS');
+      setErrorMsg(
+        isNp
+          ? 'तपाईंको ब्राउजरले GPS सपोर्ट गर्दैन'
+          : 'Your browser does not support GPS'
+      );
       return;
     }
 
@@ -69,46 +94,75 @@ function CheckinPageContent() {
         try {
           const response = await fetch(API_URL + '/api/attendance/mobile-checkin', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              // CSRF header required by backend for POST requests
+              'X-Requested-With': 'XMLHttpRequest',
+            },
             body: JSON.stringify({
               employeeId: employeeId.trim().toUpperCase(),
+              pin: pin.trim(),
+              organizationId: orgId,
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy, // G-02: send accuracy
             }),
           });
           const data = await response.json();
           if (!response.ok) {
             setStep('error');
-            setErrorMsg(data.error?.message || (isNp ? 'त्रुटि भयो' : 'Something went wrong'));
+            setErrorMsg(
+              data.error?.message || (isNp ? 'त्रुटि भयो' : 'Something went wrong')
+            );
             return;
           }
           setResult(data.data);
           setStep('success');
+          setPin(''); // Clear PIN immediately after success
           setTimeout(() => {
             setStep('input');
             setEmployeeId('');
             setResult(null);
-          }, 8000);
+          }, 10000); // F-03: increased from 8s to 10s
         } catch (err) {
           setStep('error');
-          setErrorMsg(isNp ? 'सर्भरसँग जडान हुन सकेन' : 'Could not connect to server');
+          setErrorMsg(
+            isNp ? 'सर्भरसँग जडान हुन सकेन' : 'Could not connect to server'
+          );
         }
       },
       (err) => {
         setStep('error');
         if (err.code === err.PERMISSION_DENIED) {
-          setErrorMsg(isNp ? 'कृपया GPS अनुमति दिनुहोस्' : 'Please allow location access to check in');
+          setErrorMsg(
+            isNp
+              ? 'कृपया GPS अनुमति दिनुहोस्'
+              : 'Please allow location access to check in'
+          );
+        } else if (err.code === err.TIMEOUT) {
+          setErrorMsg(
+            isNp
+              ? 'GPS समय सकियो। कृपया खुला ठाउँमा पुनः प्रयास गर्नुहोस्'
+              : 'GPS timed out. Please try again in an open area'
+          );
         } else {
-          setErrorMsg(isNp ? 'स्थान प्राप्त गर्न सकिएन' : 'Could not get your location');
+          setErrorMsg(
+            isNp ? 'स्थान प्राप्त गर्न सकिएन' : 'Could not get your location'
+          );
         }
       },
-      { enableHighAccuracy: true, timeout: 15000 }
+      {
+        enableHighAccuracy: true,
+        timeout: 10000, // F-02: reduced from 15s to 10s
+        maximumAge: 10000, // F-02: accept cached position up to 10s old
+      }
     );
   };
 
   const handleReset = () => {
     setStep('input');
     setEmployeeId('');
+    setPin('');
     setResult(null);
     setErrorMsg('');
   };
@@ -132,7 +186,9 @@ function CheckinPageContent() {
             {isNp ? 'अमान्य लिङ्क' : 'Invalid Link'}
           </h1>
           <p className="text-gray-500 text-sm">
-            {isNp ? 'कृपया सही चेक-इन लिङ्क प्रयोग गर्नुहोस्।' : 'Please use the correct check-in link from your organization.'}
+            {isNp
+              ? 'कृपया सही चेक-इन लिङ्क प्रयोग गर्नुहोस्।'
+              : 'Please use the correct check-in link from your organization.'}
           </p>
         </div>
       </div>
@@ -150,7 +206,9 @@ function CheckinPageContent() {
             {isNp ? 'मोबाइल चेक-इन उपलब्ध छैन' : 'Mobile Check-in Not Available'}
           </h1>
           <p className="text-gray-500 text-sm">
-            {isNp ? 'कृपया कार्यालयमा रहेको QR कोड स्क्यान गर्नुहोस्।' : 'Please scan the QR code at your office.'}
+            {isNp
+              ? 'कृपया कार्यालयमा रहेको QR कोड स्क्यान गर्नुहोस्।'
+              : 'Please scan the QR code at your office.'}
           </p>
         </div>
       </div>
@@ -186,6 +244,7 @@ function CheckinPageContent() {
           {/* Input Step */}
           {step === 'input' && (
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 space-y-4">
+              {/* Employee ID */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   {isNp ? 'कर्मचारी आईडी' : 'Employee ID'}
@@ -195,11 +254,41 @@ function CheckinPageContent() {
                   <input
                     type="text"
                     value={employeeId}
-                    onChange={(e) => { setEmployeeId(e.target.value.toUpperCase()); setErrorMsg(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                    placeholder={isNp ? 'EMP001' : 'EMP001'}
+                    onChange={(e) => {
+                      setEmployeeId(e.target.value.toUpperCase());
+                      setErrorMsg('');
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && document.getElementById('pin-input')?.focus()}
+                    placeholder="EMP001"
                     className="w-full pl-11 pr-4 py-3 text-lg font-mono tracking-wider border-2 border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 transition-colors text-center uppercase"
                     autoFocus
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              {/* PIN — S-02 fix */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  {isNp ? 'PIN' : 'PIN'}
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    id="pin-input"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={pin}
+                    onChange={(e) => {
+                      // Only allow digits
+                      const val = e.target.value.replace(/\D/g, '');
+                      setPin(val);
+                      setErrorMsg('');
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                    placeholder="••••"
+                    className="w-full pl-11 pr-4 py-3 text-lg font-mono tracking-[0.5em] border-2 border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 transition-colors text-center"
                     autoComplete="off"
                   />
                 </div>
@@ -214,7 +303,7 @@ function CheckinPageContent() {
 
               <button
                 onClick={handleSubmit}
-                disabled={!employeeId.trim()}
+                disabled={!employeeId.trim() || !pin.trim()}
                 className="w-full py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl font-semibold text-base hover:from-slate-700 hover:to-slate-800 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <MapPin className="w-5 h-5" />
@@ -223,7 +312,9 @@ function CheckinPageContent() {
 
               <p className="text-center text-xs text-slate-400">
                 <MapPin className="w-3 h-3 inline mr-1" />
-                {isNp ? 'GPS स्थान प्रयोग गरिनेछ' : 'Your GPS location will be verified'}
+                {isNp
+                  ? 'GPS स्थान प्रयोग गरिनेछ'
+                  : 'Your GPS location will be verified'}
               </p>
             </div>
           )}
@@ -256,15 +347,31 @@ function CheckinPageContent() {
           {/* Success Step */}
           {step === 'success' && result && (
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 text-center">
-              <div className={"inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 " + (result.action === 'CLOCK_IN' ? "bg-emerald-100" : "bg-blue-100")}>
-                {result.action === 'CLOCK_IN'
-                  ? <LogIn className="w-10 h-10 text-emerald-600" />
-                  : <LogOutIcon className="w-10 h-10 text-blue-600" />}
+              <div
+                className={
+                  'inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ' +
+                  (result.action === 'CLOCK_IN' ? 'bg-emerald-100' : 'bg-blue-100')
+                }
+              >
+                {result.action === 'CLOCK_IN' ? (
+                  <LogIn className="w-10 h-10 text-emerald-600" />
+                ) : (
+                  <LogOutIcon className="w-10 h-10 text-blue-600" />
+                )}
               </div>
-              <h2 className={"text-xl font-bold mb-1 " + (result.action === 'CLOCK_IN' ? "text-emerald-700" : "text-blue-700")}>
+              <h2
+                className={
+                  'text-xl font-bold mb-1 ' +
+                  (result.action === 'CLOCK_IN' ? 'text-emerald-700' : 'text-blue-700')
+                }
+              >
                 {result.action === 'CLOCK_IN'
-                  ? (isNp ? 'चेक इन सफल!' : 'Checked In!')
-                  : (isNp ? 'चेक आउट सफल!' : 'Checked Out!')}
+                  ? isNp
+                    ? 'चेक इन सफल!'
+                    : 'Checked In!'
+                  : isNp
+                    ? 'चेक आउट सफल!'
+                    : 'Checked Out!'}
               </h2>
               <p className="text-base font-semibold text-slate-900 mb-1">
                 {result.user.firstName} {result.user.lastName}
@@ -275,12 +382,16 @@ function CheckinPageContent() {
                   ? new Date(result.record.checkInTime).toLocaleTimeString()
                   : new Date(result.record.checkOutTime!).toLocaleTimeString()}
               </p>
-              {result.record.duration && (
+              {result.record.duration != null && (
                 <p className="text-sm text-slate-400 mt-1">
-                  {isNp ? 'अवधि' : 'Duration'}: {Math.floor(result.record.duration / 60)}h {result.record.duration % 60}m
+                  {isNp ? 'अवधि' : 'Duration'}:{' '}
+                  {Math.floor(result.record.duration / 60)}h {result.record.duration % 60}m
                 </p>
               )}
-              <button onClick={handleReset} className="mt-4 text-sm text-slate-500 hover:text-slate-700 underline">
+              <button
+                onClick={handleReset}
+                className="mt-4 text-sm text-slate-500 hover:text-slate-700 underline"
+              >
                 {isNp ? 'फेरि चेक गर्नुहोस्' : 'Check again'}
               </button>
             </div>
@@ -313,11 +424,13 @@ function CheckinPageContent() {
 
 export default function CheckinPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+        </div>
+      }
+    >
       <CheckinPageContent />
     </Suspense>
   );

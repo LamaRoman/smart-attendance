@@ -39,10 +39,7 @@ export default function PayrollPage() {
 
   // ── UI state ──
   const [tab, setTab] = useState<Tab>('settings');
-  // Redirect accountant to records tab on mount
-  useEffect(() => {
-    if (user?.role === 'ORG_ACCOUNTANT') setTab('records');
-  }, [user?.role]);
+ 
 
   const [error, setError]             = useState('');
   const [success, setSuccess]         = useState('');
@@ -319,15 +316,13 @@ useEffect(() => {
   }
   if (!user) return null;
 
-const tabDefs: { key: Tab; label: string; icon: React.ElementType; locked?: boolean }[] = isAccountant
-    ? [{ key: 'records', label: isNp ? 'तलब रेकर्ड' : 'Payroll records', icon: FileText }]
-    : [
-        { key: 'settings',   label: isNp ? 'तलब सेटिङ'      : 'Pay settings',    icon: Settings  },
-        { key: 'generate',   label: isNp ? 'तलब गणना'       : 'Generate payroll', icon: Play      },
-        { key: 'records',    label: isNp ? 'तलब रेकर्ड'     : 'Payroll records',  icon: FileText  },
-        { key: 'annual',     label: isNp ? 'वार्षिक विवरण'  : 'Annual report',    icon: CreditCard, locked: isStarter },
-        { key: 'multimonth', label: isNp ? 'बहु-महिना दृश्य': 'Multi-Month',      icon: BarChart3,  locked: isStarter },
-      ];
+const tabDefs: { key: Tab; label: string; icon: React.ElementType; locked?: boolean }[] = [
+    { key: 'settings',   label: isNp ? 'तलब सेटिङ'      : 'Pay settings',    icon: Settings  },
+    { key: 'generate',   label: isNp ? 'तलब गणना'       : 'Generate payroll', icon: Play      },
+    { key: 'records',    label: isNp ? 'तलब रेकर्ड'     : 'Payroll records',  icon: FileText  },
+    { key: 'annual',     label: isNp ? 'वार्षिक विवरण'  : 'Annual report',    icon: CreditCard, locked: isStarter },
+    { key: 'multimonth', label: isNp ? 'बहु-महिना दृश्य': 'Multi-Month',      icon: BarChart3,  locked: isStarter },
+  ];
   const isBusy = saving || generating || loadingRecords;
 
 const Layout = isAccountant ? AccountantLayout : AdminLayout;
@@ -435,6 +430,7 @@ const Layout = isAccountant ? AccountantLayout : AdminLayout;
         {tab === 'settings' && (
           <SettingsTab
             isNp={isNp}
+            readOnly = {isAccountant}
             users={users}
             allPaySettings={allPaySettings}
             selectedUser={selectedUser}

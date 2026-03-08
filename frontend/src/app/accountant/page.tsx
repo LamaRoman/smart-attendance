@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
+import AccountantLayout from '@/components/AccountantLayout';
 import { CreditCard, Clock, FileText, CalendarDays, TrendingUp, AlertCircle } from 'lucide-react';
 
 export default function AccountantDashboard() {
@@ -13,11 +14,9 @@ export default function AccountantDashboard() {
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        // Fetch current month payroll summary
         const now = new Date();
-        // Approximate current BS month (this is a rough estimate — your app may have a helper)
         const bsYear = 2082;
-        const bsMonth = 11; // Adjust based on current date
+        const bsMonth = 11;
 
         const payrollRes = await api.get(`/payroll/records?bsYear=${bsYear}&bsMonth=${bsMonth}`);
         const payroll = (payrollRes.data as any)?.data;
@@ -39,9 +38,11 @@ export default function AccountantDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-slate-800 animate-spin" />
-      </div>
+      <AccountantLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-slate-800 animate-spin" />
+        </div>
+      </AccountantLayout>
     );
   }
 
@@ -73,55 +74,56 @@ export default function AccountantDashboard() {
   ];
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">
-          {isNp ? 'लेखापाल ड्यासबोर्ड' : 'Accountant Dashboard'}
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          {isNp ? 'तलब र वित्तीय सारांश' : 'Payroll & financial summary'}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {statCards.map((card) => (
-          <div key={card.label} className="bg-white rounded-lg border border-slate-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-slate-500">{card.label}</span>
-              <div className={`w-8 h-8 rounded-md flex items-center justify-center ${card.color}`}>
-                <card.icon className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-lg font-semibold text-slate-900">{card.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Payroll status breakdown */}
-      {stats?.records?.length > 0 && (
-        <div className="bg-white rounded-lg border border-slate-200 p-5">
-          <h2 className="text-sm font-semibold text-slate-900 mb-4">
-            {isNp ? 'तलब स्थिति' : 'Payroll Status Overview'}
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {['DRAFT', 'PROCESSED', 'APPROVED', 'PAID'].map((status) => {
-              const count = stats.records.filter((r: any) => r.status === status).length;
-              const colors: Record<string, string> = {
-                DRAFT: 'text-slate-600 bg-slate-50',
-                PROCESSED: 'text-blue-600 bg-blue-50',
-                APPROVED: 'text-green-600 bg-green-50',
-                PAID: 'text-emerald-600 bg-emerald-50',
-              };
-              return (
-                <div key={status} className={`rounded-md p-3 ${colors[status]}`}>
-                  <p className="text-xs font-medium">{status}</p>
-                  <p className="text-lg font-bold mt-1">{count}</p>
-                </div>
-              );
-            })}
-          </div>
+    <AccountantLayout>
+      <div>
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-slate-900">
+            {isNp ? 'लेखापाल ड्यासबोर्ड' : 'Accountant Dashboard'}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {isNp ? 'तलब र वित्तीय सारांश' : 'Payroll & financial summary'}
+          </p>
         </div>
-      )}
-    </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {statCards.map((card) => (
+            <div key={card.label} className="bg-white rounded-lg border border-slate-200 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-slate-500">{card.label}</span>
+                <div className={`w-8 h-8 rounded-md flex items-center justify-center ${card.color}`}>
+                  <card.icon className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-lg font-semibold text-slate-900">{card.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {stats?.records?.length > 0 && (
+          <div className="bg-white rounded-lg border border-slate-200 p-5">
+            <h2 className="text-sm font-semibold text-slate-900 mb-4">
+              {isNp ? 'तलब स्थिति' : 'Payroll Status Overview'}
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {['DRAFT', 'PROCESSED', 'APPROVED', 'PAID'].map((status) => {
+                const count = stats.records.filter((r: any) => r.status === status).length;
+                const colors: Record<string, string> = {
+                  DRAFT: 'text-slate-600 bg-slate-50',
+                  PROCESSED: 'text-blue-600 bg-blue-50',
+                  APPROVED: 'text-green-600 bg-green-50',
+                  PAID: 'text-emerald-600 bg-emerald-50',
+                };
+                return (
+                  <div key={status} className={`rounded-md p-3 ${colors[status]}`}>
+                    <p className="text-xs font-medium">{status}</p>
+                    <p className="text-lg font-bold mt-1">{count}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </AccountantLayout>
   );
 }

@@ -5,7 +5,7 @@ import { randomInt } from 'crypto';
 import { NotFoundError, ConflictError } from '../lib/errors';
 import { createLogger } from '../logger';
 import { emailService } from './email.service';
-import { CreateUserInput, UpdateUserInput } from '../schemas/user.schema';
+import { CreateUserInput, UpdateUserInput, AddExistingUserInput } from '../schemas/user.schema';
 import { generatePlatformId } from '../utils/platformId';
 import { invalidatePlanCache } from './plan.service';
 
@@ -173,9 +173,10 @@ export class UserService {
         }
       }
 
-      // User exists in another org — create new membership only
-      // (Future: this is the "onboard by platformId" flow)
-      throw new ConflictError('User with this email already exists on the platform');
+      // User exists in another org — guide admin to use Platform ID flow
+      throw new ConflictError(
+        'A user with this email already exists on the platform. To add them to your organization, use "Add existing employee" with their Platform ID.'
+      );
     }
 
     // New user — create User + OrgMembership in transaction
@@ -271,6 +272,176 @@ export class UserService {
       organizationId: result.membership.organizationId,
       isActive: result.membership.isActive,
       createdAt: result.user.createdAt,
+      pin: plainPin,
+    };
+  }
+
+  /**
+   * Add an existing platform user to the organization by their Platform ID.
+   * Looks up the user, verifies they exist and don't already have an active membership,
+   * then creates a new OrgMembership (or reactivates a departed one).
+   */
+  async addExistingUserByPlatformId(input: AddExistingUserInput, currentUser: JWTPayload) {
+    const organizationId = currentUser.organizationId;
+    if (!organizationId) {
+      throw new Error('No organization assigned to current user');
+    }
+
+    // Employee cap check
+    const subscription = await prisma.orgSubscription.findUnique({
+      where: { organizationId },
+      include: { plan: true },
+    });
+
+    if (subscription) {
+      const cap = subscription.customMaxEmployees ?? subscription.plan.hardEmployeeCap;
+      if (cap && subscription.currentEmployeeCount >= cap) {
+        throw new ConflictError(
+          `Employee limit reached. Your current plan allows up to ${cap} employees. Please upgrade to add more.`
+        );
+      }
+    }
+
+    // Look up user by platformId
+    const existingUser = await prisma.user.findUnique({
+      where: { platformId: input.platformId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        platformId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundError('No user found with this Platform ID. Please verify the ID and try again.');
+    }
+
+    // Check if they already have a membership in this org
+    const existingMembership = await prisma.orgMembership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: existingUser.id,
+          organizationId,
+        },
+      },
+    });
+
+    if (existingMembership) {
+      if (existingMembership.isActive && !existingMembership.leftAt) {
+        throw new ConflictError('This user is already an active member of your organization.');
+      }
+
+      // Reactivate departed membership
+      const reactivated = await prisma.orgMembership.update({
+        where: { id: existingMembership.id },
+        data: {
+          isActive: true,
+          leftAt: null,
+          deletedAt: null,
+          role: input.role as any,
+          panNumber: input.panNumber || existingMembership.panNumber,
+          shiftStartTime: input.shiftStartTime || existingMembership.shiftStartTime,
+          shiftEndTime: input.shiftEndTime || existingMembership.shiftEndTime,
+          joinedAt: new Date(),
+        },
+      });
+
+      log.info(
+        { userId: existingUser.id, membershipId: reactivated.id, orgId: organizationId },
+        'Membership reactivated for returning employee'
+      );
+
+      await this.syncEmployeeCount(organizationId);
+
+      // Generate a new PIN for the reactivated member
+      const plainPin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
+      const attendancePinHash = await hashPassword(plainPin);
+      await prisma.orgMembership.update({
+        where: { id: reactivated.id },
+        data: { attendancePinHash },
+      });
+
+      return {
+        id: existingUser.id,
+        email: existingUser.email,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        phone: existingUser.phone,
+        platformId: existingUser.platformId,
+        membershipId: reactivated.id,
+        role: reactivated.role,
+        employeeId: reactivated.employeeId,
+        organizationId: reactivated.organizationId,
+        isActive: true,
+        createdAt: existingUser.createdAt,
+        reactivated: true,
+        pin: plainPin,
+      };
+    }
+
+    // Brand new membership for this org
+    const employeeId = await this.generateEmployeeId(organizationId);
+    const plainPin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
+    const attendancePinHash = await hashPassword(plainPin);
+
+    const membership = await prisma.orgMembership.create({
+      data: {
+        userId: existingUser.id,
+        organizationId,
+        role: input.role as any,
+        employeeId,
+        shiftStartTime: input.shiftStartTime || null,
+        shiftEndTime: input.shiftEndTime || null,
+        panNumber: input.panNumber || null,
+        attendancePinHash,
+        isActive: true,
+      },
+    });
+
+    log.info(
+      { userId: existingUser.id, membershipId: membership.id, orgId: organizationId },
+      'Existing user added to organization via Platform ID'
+    );
+
+    await this.syncEmployeeCount(organizationId);
+
+    // Send notification email
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { name: true },
+      });
+
+      emailService.sendWelcomeEmail({
+        to: existingUser.email,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        employeeId,
+        resetLink: '', // No password reset needed — they already have credentials
+        orgName: org?.name || '',
+      }).catch(err => log.error({ err }, 'Failed to send org-join notification email'));
+    } catch (err) {
+      log.error({ err }, 'Failed to send org-join notification email');
+    }
+
+    return {
+      id: existingUser.id,
+      email: existingUser.email,
+      firstName: existingUser.firstName,
+      lastName: existingUser.lastName,
+      phone: existingUser.phone,
+      platformId: existingUser.platformId,
+      membershipId: membership.id,
+      role: membership.role,
+      employeeId: membership.employeeId,
+      organizationId: membership.organizationId,
+      isActive: membership.isActive,
+      createdAt: existingUser.createdAt,
       pin: plainPin,
     };
   }
