@@ -26,6 +26,8 @@ const markExpiredSchema = z.object({
   reason: z.string().min(1, 'Reason is required').max(500),
 });
 
+// ── Non-param routes FIRST (must be before /:organizationId to avoid param capture) ──
+
 // GET /api/super-admin/subscriptions
 router.get('/', validate(listOrgsQuerySchema, 'query'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -35,6 +37,18 @@ router.get('/', validate(listOrgsQuerySchema, 'query'), async (req: AuthRequest,
     next(error);
   }
 });
+
+// POST /api/super-admin/subscriptions/run-trial-job
+router.post('/run-trial-job', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    await runTrialExpiryJob();
+    res.json({ data: { message: 'Trial expiry job completed successfully' } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ── Param routes below ──
 
 // GET /api/super-admin/subscriptions/:organizationId
 router.get('/:organizationId', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -150,16 +164,6 @@ router.get('/:organizationId/billing-log', validate(orgIdParamSchema, 'params'),
   }
 });
 
-// POST /api/super-admin/subscriptions/run-trial-job
-router.post('/run-trial-job', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    await runTrialExpiryJob();
-    res.json({ data: { message: 'Trial expiry job completed successfully' } });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // PATCH /api/super-admin/subscriptions/:organizationId/feature-overrides
 router.patch('/:organizationId/feature-overrides', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -195,4 +199,3 @@ router.patch('/:organizationId/feature-overrides', validate(orgIdParamSchema, 'p
 });
 
 export default router;
-
