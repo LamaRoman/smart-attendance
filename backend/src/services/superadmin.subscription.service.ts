@@ -194,7 +194,7 @@ async listSubscriptions(query: {
     const existing = await prisma.orgSubscription.findUnique({ where: { organizationId } });
     const now = new Date();
 
-    const canUseTrial = (input.forceTrial === true) || (plan.trialDaysMonthly > 0 && !(existing?.isTrialUsed ?? false));
+    const canUseTrial = input.forceTrial === true && plan.trialDaysMonthly > 0 && !(existing?.isTrialUsed ?? false);
 
     const trialEndsAt = canUseTrial
       ? new Date(now.getTime() + plan.trialDaysMonthly * 24 * 60 * 60 * 1000)
