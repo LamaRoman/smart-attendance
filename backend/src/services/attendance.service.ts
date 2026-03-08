@@ -23,7 +23,13 @@ import {
 const log = createLogger('attendance-service');
 
 const SCAN_COOLDOWN_MINUTES = 2;
-const MAX_DAILY_SCANS = 4;
+
+// FIX 2: Once in, once out — max 2 actions per day (1 clock-in + 1 clock-out)
+const MAX_DAILY_SCANS = 2;
+
+// FIX 4: Auto-close stale open records older than this many hours
+const STALE_RECORD_HOURS = 24;
+
 const MAX_EDIT_WINDOW_DAYS = 90;
 
 /** Nepal timezone for consistent server-side formatting (R-03 fix) */
@@ -36,6 +42,21 @@ const NPT: Intl.DateTimeFormatOptions = {
 
 function formatTimeNPT(date: Date): string {
   return date.toLocaleTimeString('en-US', NPT);
+}
+
+/**
+ * FIX 1 + 3: Get today's start and end in Nepal time (Asia/Kathmandu).
+ * Requires TZ=Asia/Kathmandu set on the server (Railway env variable).
+ * This ensures daily limits and date checks are scoped to Nepal calendar day.
+ */
+function getTodayRangeNPT(): { todayStart: Date; todayEnd: Date } {
+  const now = new Date();
+  // With TZ=Asia/Kathmandu set on server, setHours uses local (NPT) time
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  return { todayStart, todayEnd };
 }
 
 function validateTimestamp(raw: string, fieldName: string): Date {
@@ -59,23 +80,12 @@ export class AttendanceService {
 
   /**
    * Public QR scan — unauthenticated, uses employeeId + PIN.
-   *
-   * Fixes applied:
-   *   S-03: per-employeeId lockout on failed PIN
-   *   S-05: employee lookup scoped by organizationId from QR
-   *   S-07: GPS coords logged in audit
-   *   G-01/G-02/G-04: centralised geofence validation
-   *   R-01: late-arrival notification moved outside transaction
-   *   R-03: NPT time formatting
    */
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
-    // S-03: check lockout FIRST, before any DB work
     checkScanLockout(input.employeeId);
 
-    // Validate QR and extract organizationId BEFORE employee lookup (S-05)
     const qrOrgId = await this.validateQRPayloadAndGetOrg(input.qrPayload);
 
-    // S-05: scope employee lookup by organizationId from QR
     const membership = await prisma.orgMembership.findFirst({
       where: {
         employeeId: input.employeeId,
@@ -111,7 +121,6 @@ export class AttendanceService {
 
     const isPinValid = await verifyPassword(input.pin, membership.attendancePinHash);
     if (!isPinValid) {
-      // S-03: record failed attempt
       recordFailedScanAttempt(input.employeeId);
       await this.logAudit({
         employeeId: input.employeeId,
@@ -129,13 +138,10 @@ export class AttendanceService {
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
-    // PIN valid — clear lockout counter
     clearFailedScanAttempts(input.employeeId);
 
-    // Increment scan count on QR (already validated above)
     await this.incrementQRScanCount(input.qrPayload);
 
-    // Geofence check (G-01, G-02, G-04 fixes inside validateGeofence)
     const org = await prisma.organization.findUnique({
       where: { id: membership.organizationId },
       select: {
@@ -155,7 +161,6 @@ export class AttendanceService {
           accuracy: input.accuracy,
         });
       } catch (err) {
-        // Log the failed geofence check before re-throwing
         await this.logAudit({
           employeeId: input.employeeId,
           userId: membership.user.id,
@@ -173,14 +178,12 @@ export class AttendanceService {
       }
     }
 
-    // R-01 fix: perform clock action, then notify AFTER transaction resolves
     const result = await this.performClockActionSafe(
       membership.id,
       membership.organizationId,
       'QR_SCAN'
     );
 
-    // R-01: late-arrival notification OUTSIDE transaction
     if (result.action === 'CLOCK_IN') {
       this.checkAndNotifyLateArrival(
         membership.id,
@@ -190,7 +193,6 @@ export class AttendanceService {
       ).catch((err) => log.error({ err }, 'Late arrival check failed'));
     }
 
-    // S-07: log GPS coords in audit
     await this.logAudit({
       employeeId: input.employeeId,
       userId: membership.user.id,
@@ -223,20 +225,10 @@ export class AttendanceService {
 
   /**
    * Mobile check-in — unauthenticated, GPS-based, requires PIN.
-   *
-   * Fixes applied:
-   *   S-02: PIN is now required in the schema and enforced here
-   *   S-03: per-employeeId lockout
-   *   S-06: employee lookup scoped by organizationId
-   *   G-01/G-02/G-04: centralised geofence
-   *   R-01: notification outside transaction
-   *   R-03: NPT formatting
    */
   async mobileCheckin(input: MobileCheckinInput, ipAddress?: string, userAgent?: string) {
-    // S-03: check lockout
     checkScanLockout(input.employeeId);
 
-    // S-06: require organizationId from the frontend
     if (!input.organizationId) {
       throw new ValidationError(
         'Organization context is required for mobile check-in.',
@@ -244,7 +236,6 @@ export class AttendanceService {
       );
     }
 
-    // S-06: scope employee lookup by organizationId
     const membership = await prisma.orgMembership.findFirst({
       where: {
         employeeId: input.employeeId,
@@ -271,7 +262,6 @@ export class AttendanceService {
       throw new ValidationError('Invalid employee ID', 'INVALID_SCAN');
     }
 
-    // S-02: PIN is mandatory
     if (!membership.attendancePinHash) {
       throw new ValidationError(
         'Attendance PIN not set. Please contact your administrator.',
@@ -312,7 +302,6 @@ export class AttendanceService {
       );
     }
 
-    // G-01: fail explicitly if geofencing not configured
     if (!org.geofenceEnabled || org.officeLat == null || org.officeLng == null) {
       throw new ValidationError(
         'Geofencing must be enabled and configured for mobile check-in. Contact your administrator.',
@@ -320,7 +309,6 @@ export class AttendanceService {
       );
     }
 
-    // Centralised geofence check (G-01, G-02, G-04)
     try {
       validateGeofence(org, {
         latitude: input.latitude,
@@ -350,7 +338,6 @@ export class AttendanceService {
       'MOBILE_CHECKIN'
     );
 
-    // R-01: notification outside transaction
     if (result.action === 'CLOCK_IN') {
       this.checkAndNotifyLateArrival(
         membership.id,
@@ -442,7 +429,6 @@ export class AttendanceService {
       'QR_SCAN'
     );
 
-    // R-01: notification outside transaction
     if (result.action === 'CLOCK_IN') {
       this.checkAndNotifyLateArrival(
         currentUser.membershipId,
@@ -909,11 +895,6 @@ export class AttendanceService {
 
   // ======== Private helpers ========
 
-  /**
-   * Validate QR payload and return the organizationId it belongs to.
-   * Used by scanPublic to scope the employee lookup BEFORE touching
-   * any employee data. (S-05 fix)
-   */
   private async validateQRPayloadAndGetOrg(qrPayload: string): Promise<string> {
     const parsed = parseQRPayload(qrPayload);
     if (!parsed)
@@ -933,9 +914,6 @@ export class AttendanceService {
     return qrCode.organizationId;
   }
 
-  /**
-   * Increment scan count on a QR code. Called after full validation passes.
-   */
   private async incrementQRScanCount(qrPayload: string) {
     const parsed = parseQRPayload(qrPayload);
     if (!parsed) return;
@@ -945,10 +923,6 @@ export class AttendanceService {
     });
   }
 
-  /**
-   * Original validateQRPayload — used by scanAuthenticated which already
-   * has organizationId from the JWT.
-   */
   private async validateQRPayload(qrPayload: string, organizationId: string) {
     const parsed = parseQRPayload(qrPayload);
     if (!parsed)
@@ -1030,8 +1004,11 @@ export class AttendanceService {
   /**
    * Core clock-in/out logic in a Serializable transaction.
    *
-   * R-01 fix: late-arrival notification removed from inside the transaction.
-   * R-02 fix: cooldown orders by checkInTime (not updatedAt).
+   * FIX 1: Uses getTodayRangeNPT() for Nepal timezone-aware day boundaries.
+   * FIX 2: MAX_DAILY_SCANS = 2 (once in, once out).
+   *         Explicit guard blocks any action after a completed (CHECKED_OUT or AUTO_CLOSED) record today.
+   * FIX 3: Daily count checks both clock-in records (by checkInTime) today — consistent with NPT range.
+   * FIX 4: Stale open record (>24h) is auto-closed before allowing a new clock-in.
    */
   private async performClockActionSafe(
     membershipId: string,
@@ -1040,7 +1017,43 @@ export class AttendanceService {
   ) {
     return prisma.$transaction(
       async (tx) => {
-        // Cooldown check — R-02 fix: order by checkInTime, not updatedAt
+        const { todayStart, todayEnd } = getTodayRangeNPT();
+
+        // ── FIX 2: Explicit once-in/once-out guard ──────────────────────────
+        // Block any action if employee already has a completed record today
+        // (CHECKED_OUT or AUTO_CLOSED both count as "done for the day")
+        const completedToday = await tx.attendanceRecord.findFirst({
+          where: {
+            membershipId,
+            checkInTime: { gte: todayStart, lte: todayEnd },
+            status: { in: ['CHECKED_OUT', 'AUTO_CLOSED'] },
+          },
+        });
+
+        if (completedToday) {
+          throw new ValidationError(
+            'You have already completed your attendance for today. See you tomorrow!',
+            'ATTENDANCE_COMPLETE'
+          );
+        }
+
+        // ── FIX 3: Daily scan count (NPT-aware) ─────────────────────────────
+        // Count all records created today (clock-ins) — consistent with NPT range
+        const todayCount = await tx.attendanceRecord.count({
+          where: {
+            membershipId,
+            checkInTime: { gte: todayStart, lte: todayEnd },
+          },
+        });
+
+        if (todayCount >= MAX_DAILY_SCANS) {
+          throw new ValidationError(
+            `Daily attendance limit reached. You can only clock in and out once per day.`,
+            'DAILY_LIMIT_REACHED'
+          );
+        }
+
+        // ── Cooldown check ───────────────────────────────────────────────────
         const cooldownTime = new Date(Date.now() - SCAN_COOLDOWN_MINUTES * 60 * 1000);
         const recentAction = await tx.attendanceRecord.findFirst({
           where: {
@@ -1064,26 +1077,76 @@ export class AttendanceService {
             );
         }
 
-        // Daily limit check
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
-        const todayCount = await tx.attendanceRecord.count({
-          where: { membershipId, checkInTime: { gte: todayStart, lte: todayEnd } },
-        });
-        if (todayCount >= MAX_DAILY_SCANS)
-          throw new ValidationError(
-            `Daily scan limit reached (${MAX_DAILY_SCANS} actions per day)`,
-            'DAILY_LIMIT_REACHED'
-          );
-
+        // ── FIX 4: Auto-close stale open record (>24h) ──────────────────────
+        // If employee has an open record from yesterday (forgot to clock out),
+        // auto-close it so they can clock in fresh today.
         const openRecord = await tx.attendanceRecord.findFirst({
           where: { membershipId, status: 'CHECKED_IN' },
         });
 
         if (openRecord) {
-          // Clock OUT
+          const ageHours =
+            (Date.now() - openRecord.checkInTime.getTime()) / (1000 * 60 * 60);
+
+          if (ageHours >= STALE_RECORD_HOURS) {
+            // Auto-close the stale record
+            const autoCloseTime = new Date(
+              openRecord.checkInTime.getTime() + STALE_RECORD_HOURS * 60 * 60 * 1000
+            );
+            const duration = Math.floor(
+              (autoCloseTime.getTime() - openRecord.checkInTime.getTime()) / 60000
+            );
+
+            await tx.attendanceRecord.update({
+              where: { id: openRecord.id },
+              data: {
+                checkOutTime: autoCloseTime,
+                checkOutMethod: 'MANUAL', // System-initiated close, not employee scan
+                duration,
+                status: 'AUTO_CLOSED',
+                notes: 'Auto-closed: employee did not clock out within 24 hours',
+              },
+            });
+
+            log.warn(
+              { membershipId, recordId: openRecord.id, ageHours },
+              'Stale open record auto-closed before new clock-in'
+            );
+
+            // Now proceed to clock in fresh
+            const now = new Date();
+            const bs = adToBS(now);
+            const newRecord = await tx.attendanceRecord.create({
+              data: {
+                membershipId,
+                organizationId,
+                checkInMethod: method,
+                status: 'CHECKED_IN',
+                bsYear: bs.year,
+                bsMonth: bs.month,
+                bsDay: bs.day,
+              },
+              include: {
+                membership: {
+                  include: { user: { select: { firstName: true, lastName: true } } },
+                },
+              },
+            });
+
+            return {
+              action: 'CLOCK_IN' as const,
+              record: {
+                ...newRecord,
+                user: {
+                  firstName: newRecord.membership.user.firstName,
+                  lastName: newRecord.membership.user.lastName,
+                  employeeId: newRecord.membership.employeeId,
+                },
+              },
+            };
+          }
+
+          // ── Clock OUT (open record is fresh, not stale) ──────────────────
           const checkOutTime = new Date();
           const durationMinutes = Math.floor(
             (checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000
@@ -1102,6 +1165,7 @@ export class AttendanceService {
               },
             },
           });
+
           return {
             action: 'CLOCK_OUT' as const,
             record: {
@@ -1113,39 +1177,39 @@ export class AttendanceService {
               },
             },
           };
-        } else {
-          // Clock IN
-          const now = new Date();
-          const bs = adToBS(now);
-          const record = await tx.attendanceRecord.create({
-            data: {
-              membershipId,
-              organizationId,
-              checkInMethod: method,
-              status: 'CHECKED_IN',
-              bsYear: bs.year,
-              bsMonth: bs.month,
-              bsDay: bs.day,
-            },
-            include: {
-              membership: {
-                include: { user: { select: { firstName: true, lastName: true } } },
-              },
-            },
-          });
-          // R-01: DO NOT call checkAndNotifyLateArrival here — caller handles it
-          return {
-            action: 'CLOCK_IN' as const,
-            record: {
-              ...record,
-              user: {
-                firstName: record.membership.user.firstName,
-                lastName: record.membership.user.lastName,
-                employeeId: record.membership.employeeId,
-              },
-            },
-          };
         }
+
+        // ── Clock IN (no open record) ────────────────────────────────────────
+        const now = new Date();
+        const bs = adToBS(now);
+        const record = await tx.attendanceRecord.create({
+          data: {
+            membershipId,
+            organizationId,
+            checkInMethod: method,
+            status: 'CHECKED_IN',
+            bsYear: bs.year,
+            bsMonth: bs.month,
+            bsDay: bs.day,
+          },
+          include: {
+            membership: {
+              include: { user: { select: { firstName: true, lastName: true } } },
+            },
+          },
+        });
+
+        return {
+          action: 'CLOCK_IN' as const,
+          record: {
+            ...record,
+            user: {
+              firstName: record.membership.user.firstName,
+              lastName: record.membership.user.lastName,
+              employeeId: record.membership.employeeId,
+            },
+          },
+        };
       },
       { isolationLevel: 'Serializable' }
     );
@@ -1175,9 +1239,6 @@ export class AttendanceService {
       );
   }
 
-  /**
-   * S-07 fix: latitude and longitude fields added to audit log data.
-   */
   private async logAudit(data: {
     employeeId?: string;
     userId?: string;
