@@ -6,6 +6,14 @@ import { createLogger } from '../logger';
 import { CreateOrganizationInput, UpdateOrganizationInput } from '../schemas/organization.schema';
 import { notificationService } from './notification.service';
 
+
+// Add this helper at the top of the file, after the imports
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 const log = createLogger('super-admin-service');
 
 export class SuperAdminService {
@@ -133,6 +141,7 @@ export class SuperAdminService {
       const organization = await tx.organization.create({
         data: {
           name: input.name,
+          slug:generateSlug(input.name),
           email: input.email,
           phone: input.phone,
           address: input.address,
