@@ -710,7 +710,7 @@ export class UserService {
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const randomNum = randomInt(10000, 99999);
-      const employeeId = `EMP-${randomNum}`;
+      const employeeId = `${randomNum}`;
 
       const existing = await prisma.orgMembership.findFirst({
         where: {
@@ -724,7 +724,7 @@ export class UserService {
 
     // Fallback: use crypto random bytes for guaranteed uniqueness
     const { randomBytes } = await import('crypto');
-    return `EMP-${randomBytes(3).toString('hex').toUpperCase()}`;
+    return `${randomBytes(3).toString('hex').toUpperCase()}`;
   }
 
   /**
