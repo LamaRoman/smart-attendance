@@ -96,10 +96,6 @@ export class AttendanceService {
       include: { user: { select: { id: true, firstName: true, lastName: true } } },
     });
 
- // TEMPORARY DEBUG — remove after diagnosing
-log.info(
-  `DEBUG scanPublic: employeeId="${input.employeeId}" orgId="${qrOrgId}" found=${!!membership}`
-);
     if (!membership) {
       await this.logAudit({
         employeeId: input.employeeId,
@@ -124,11 +120,6 @@ log.info(
     }
 
     const isPinValid = await verifyPassword(input.pin, membership.attendancePinHash);
-
-// TEMPORARY DEBUG — remove after diagnosing
-log.info(
-  `DEBUG PIN check: inputPin="${input.pin}" hashExists=${!!membership.attendancePinHash} hashPreview="${membership.attendancePinHash?.substring(0, 10)}" isPinValid=${isPinValid}`
-);
     if (!isPinValid) {
       recordFailedScanAttempt(input.employeeId);
       await this.logAudit({
