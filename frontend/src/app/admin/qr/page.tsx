@@ -12,7 +12,6 @@ import {
   Download,
   CheckCircle,
   AlertCircle,
-  Eye,
   Shield,
   Trash2,
   Copy,
@@ -333,21 +332,6 @@ export default function AdminQRPage() {
                   <p className="text-sm font-medium text-slate-900">
                     {isStatic ? (isNp ? 'स्थिर' : 'Static') : (isNp ? 'अस्थायी' : 'Temp')}
                   </p>
-                </div>
-              </div>
-
-              {/* Scan URL */}
-              <div className="mt-5 w-full max-w-xl">
-                <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                  <Eye className="w-3.5 h-3.5 text-slate-400" />
-                  <code className="text-xs text-slate-600 truncate flex-1 font-mono">{qrData.scanUrl}</code>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(qrData.scanUrl)}
-                    className="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 px-2 py-1 rounded-md hover:bg-white transition-colors"
-                  >
-                    <Copy className="w-3 h-3" />
-                    {isNp ? 'कपि' : 'Copy'}
-                  </button>
                 </div>
               </div>
             </div>

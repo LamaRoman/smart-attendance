@@ -255,11 +255,11 @@ function CheckinPageContent() {
                     type="text"
                     value={employeeId}
                     onChange={(e) => {
-                      setEmployeeId(e.target.value.toUpperCase());
+                      setEmployeeId(e.target.value.trim());
                       setErrorMsg('');
                     }}
                     onKeyDown={(e) => e.key === 'Enter' && document.getElementById('pin-input')?.focus()}
-                    placeholder="EMP001"
+                    placeholder="1001"
                     className="w-full pl-11 pr-4 py-3 text-lg font-mono tracking-wider border-2 border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 transition-colors text-center uppercase"
                     autoFocus
                     autoComplete="off"
