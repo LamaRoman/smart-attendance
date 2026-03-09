@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
+import BSDatePicker from '@/components/BSDatePicker';
 import { Clock, Calendar, RefreshCw, Edit, UserPlus, X, AlertCircle, CheckCircle, Save, Pencil, Lock } from 'lucide-react';
 
 interface AttendanceRecord {
@@ -25,10 +26,13 @@ interface UserOption {
 }
 
 export default function AdminAttendancePage() {
-  const { user, isLoading, language, features } = useAuth();
+  const { user, isLoading, language, features, calendarMode } = useAuth();
   const canManualCorrect = features.manualCorrection;
   const router = useRouter();
   const isNp = language === 'NEPALI';
+  const isBs = calendarMode === 'NEPALI';
+
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -42,7 +46,6 @@ export default function AdminAttendancePage() {
   const [employees, setEmployees] = useState<UserOption[]>([]);
   const [markForm, setMarkForm] = useState({ userId: '', date: '', checkInTime: '', checkOutTime: '', note: '' });
 
-  // Tooltips — state-based so they show instantly
   const [tooltip, setTooltip] = useState<string | null>(null);
   const [showMarkPresentTooltip, setShowMarkPresentTooltip] = useState(false);
 
@@ -52,13 +55,13 @@ export default function AdminAttendancePage() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/api/attendance');
+    const res = await api.get('/api/attendance?date=' + selectedDate);
     if (res.data) {
       setRecords((res.data as { records: AttendanceRecord[] }).records);
       setLastRefreshed(new Date());
     }
     setLoading(false);
-  }, []);
+  }, [selectedDate]);
 
   const loadEmployees = async () => {
     const res = await api.get('/api/users');
@@ -125,8 +128,7 @@ export default function AdminAttendancePage() {
   };
 
   const openMarkPresent = () => {
-    const today = new Date().toISOString().split('T')[0];
-    setMarkForm({ userId: '', date: today, checkInTime: '10:00', checkOutTime: '18:00', note: '' });
+    setMarkForm({ userId: '', date: selectedDate, checkInTime: '10:00', checkOutTime: '18:00', note: '' });
     setShowMarkPresent(true);
     setError('');
   };
@@ -166,7 +168,7 @@ export default function AdminAttendancePage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
               {isNp ? 'उपस्थिति रेकर्ड' : 'Attendance records'}
@@ -175,7 +177,24 @@ export default function AdminAttendancePage() {
               {isNp ? 'वास्तविक समयको उपस्थिति ट्र्याकिङ' : 'Real-time attendance tracking'}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Date picker */}
+            {isBs ? (
+              <div className="w-56">
+                <BSDatePicker
+                  value={selectedDate}
+                  onChange={(adDateStr) => setSelectedDate(adDateStr)}
+                />
+              </div>
+            ) : (
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
+              />
+            )}
+
             {lastRefreshed && (
               <span className="text-xs text-slate-400">
                 {isNp ? 'अपडेट:' : 'Updated'}{' '}
@@ -195,7 +214,6 @@ export default function AdminAttendancePage() {
                 {isNp ? 'उपस्थित चिन्ह' : 'Mark present'}
               </button>
             ) : (
-              /* Locked for Starter — state-based tooltip, no title attribute */
               <div
                 className="relative"
                 onMouseEnter={() => setShowMarkPresentTooltip(true)}
@@ -332,14 +350,14 @@ export default function AdminAttendancePage() {
                     )}
                   </tr>
                 ))}
-                {records.length === 0 && (
+                {records.length === 0 && !loading && (
                   <tr>
                     <td colSpan={canManualCorrect ? 7 : 6} className="py-16 px-5 text-center">
                       <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                         <Clock className="w-6 h-6 text-slate-400" />
                       </div>
                       <p className="text-sm font-medium text-slate-900 mb-1">{isNp ? 'कुनै रेकर्ड छैन' : 'No records found'}</p>
-                      <p className="text-xs text-slate-500">{isNp ? 'उपस्थिति रेकर्ड यहाँ देखा पर्नेछ' : 'Attendance records will appear here'}</p>
+                      <p className="text-xs text-slate-500">{isNp ? 'यस मितिको उपस्थिति रेकर्ड छैन' : 'No attendance records for this date'}</p>
                     </td>
                   </tr>
                 )}
