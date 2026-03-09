@@ -442,9 +442,11 @@ export default function UsersPage() {
             </div>
             <div className="flex items-center gap-3">
 
-              {empCap && (empCap.max === null
-                ? <span className="text-xs font-medium text-slate-500">{empCap.current} / {isNp ? "असीमित" : "Unlimited"} {isNp ? "कर्मचारी" : "employees"}</span>
-                : <span className={"text-xs font-medium " + (empCap.current >= empCap.max ? "text-red-600" : empCap.current >= empCap.max - 1 ? "text-amber-600" : "text-slate-500")}>{empCap.current}/{empCap.max} {isNp ? "कर्मचारी" : "employees"}</span>
+
+              {empCap && empCap.max !== null && (
+                <span className={"text-xs font-medium " + (empCap.current >= empCap.max ? "text-red-600" : empCap.current >= empCap.max - 1 ? "text-amber-600" : "text-slate-500")}>
+                  {empCap.current}/{empCap.max} {isNp ? "कर्मचारी" : "employees"}
+                </span>
               )}
               <button
                 onClick={openCreate}
@@ -656,8 +658,8 @@ export default function UsersPage() {
                   <button
                     onClick={() => { setModalMode('create'); setError(''); }}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${modalMode === 'create'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
                       }`}
                   >
                     <UserPlus className="w-3.5 h-3.5" />
@@ -666,8 +668,8 @@ export default function UsersPage() {
                   <button
                     onClick={() => { setModalMode('existing'); setError(''); }}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${modalMode === 'existing'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
                       }`}
                   >
                     <Link className="w-3.5 h-3.5" />
