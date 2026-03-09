@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
-import UserDocumentsModal from '@/components/UserDocumentsModal';
 import DocumentCompliance from '@/components/DocumentCompliance';
 import {
   Users,
@@ -14,9 +13,6 @@ import {
   Clock,
   Percent,
   ArrowRight,
-  QrCode,
-  FileText,
-  Calendar,
 } from 'lucide-react';
 
 interface DailyReport {
@@ -42,10 +38,6 @@ export default function AdminDashboard() {
     totalHoursToday: 0,
   });
   const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
-
-  // Document modal state
-  const [docUserId, setDocUserId] = useState<string | null>(null);
-  const [docUserName, setDocUserName] = useState('');
 
 useEffect(() => {
     if (user) {
@@ -235,23 +227,11 @@ useEffect(() => {
                             {record.user?.lastName?.[0]}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <div className="text-sm font-medium text-slate-900">
-                              {record.user?.firstName} {record.user?.lastName}
-                            </div>
-                            <div className="text-xs text-slate-400">{record.user?.employeeId}</div>
+                        <div>
+                          <div className="text-sm font-medium text-slate-900">
+                            {record.user?.firstName} {record.user?.lastName}
                           </div>
-                          <button
-                            onClick={() => {
-                              setDocUserId(record.user.id);
-                              setDocUserName(`${record.user.firstName} ${record.user.lastName}`);
-                            }}
-                            className="p-1.5 hover:bg-slate-100 rounded-md transition-colors"
-                            title={isNp ? 'दस्तावेज़' : 'Documents'}
-                          >
-                            <FileText className="w-3.5 h-3.5 text-slate-500" />
-                          </button>
+                          <div className="text-xs text-slate-400">{record.user?.employeeId}</div>
                         </div>
                       </div>
                     </td>
@@ -310,14 +290,6 @@ useEffect(() => {
 
       </div>
 
-      {/* Modal stays outside the content div — it's a full-screen overlay */}
-      <UserDocumentsModal
-        isOpen={!!docUserId}
-        onClose={() => setDocUserId(null)}
-        userId={docUserId || ''}
-        userName={docUserName}
-        language={language}
-      />
     </AdminLayout>
   );
 }
