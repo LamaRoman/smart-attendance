@@ -45,6 +45,8 @@ function PinRevealModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
@@ -142,6 +144,8 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'ORG_ADMIN' | 'EMPLOYEE'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
   const [showModal, setShowModal] = useState(false);
   const [docUserId, setDocUserId] = useState<string | null>(null);
   const [docUserName, setDocUserName] = useState("");
@@ -215,6 +219,8 @@ export default function UsersPage() {
     const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? isActive : !isActive);
     return matchSearch && matchRole && matchStatus;
   });
+  const totalPages = Math.ceil(filteredUsers.length / PAGE_SIZE);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const openCreate = () => {
     setEditingUser(null);
@@ -466,14 +472,17 @@ export default function UsersPage() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                 placeholder={isNp ? 'नाम, इमेल, ID खोज्नुहोस्...' : 'Search name, email, ID...'}
                 className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 placeholder:text-slate-400"
               />
             </div>
             <select
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as any)}
+
+              onChange={(e) => { setRoleFilter(e.target.value as any); setCurrentPage(1); }}
+
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
               <option value="ALL">{isNp ? 'सबै भूमिका' : 'All roles'}</option>
@@ -483,7 +492,8 @@ export default function UsersPage() {
             </select>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+
+              onChange={(e) => { setStatusFilter(e.target.value as any); setCurrentPage(1); }}
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
               <option value="ALL">{isNp ? 'सबै स्थिति' : 'All status'}</option>
@@ -508,7 +518,7 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredUsers.map((u) => {
+                {paginatedUsers.map((u) => {
                   const isActive = u.status === 'ACTIVE' || u.isActive;
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -607,6 +617,34 @@ export default function UsersPage() {
                 )}
               </tbody>
             </table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
+                <p className="text-xs text-slate-500">
+                  {isNp
+                    ? `${filteredUsers.length} मध्ये ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} देखाइएको`
+                    : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} of ${filteredUsers.length}`}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isNp ? 'अघिल्लो' : 'Previous'}
+                  </button>
+                  <span className="px-3 py-1.5 text-xs text-slate-500">
+                    {isNp ? `${currentPage} / ${totalPages}` : `${currentPage} of ${totalPages}`}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isNp ? 'अर्को' : 'Next'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
