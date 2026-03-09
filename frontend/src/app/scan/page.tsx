@@ -16,6 +16,7 @@ import {
   Lock,
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
+import { BS_MONTHS_EN, BS_MONTHS_NP, toNepaliDigits } from '@/components/BSDatePicker';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -34,7 +35,9 @@ function ScanPageContent() {
     action: string;
     message: string;
     user: { firstName: string; lastName: string; employeeId: string };
-    record: { checkInTime: string; checkOutTime?: string; duration?: number };
+    // AFTER
+
+    record: { checkInTime: string; checkOutTime?: string; duration?: number; bsYear: number; bsMonth: number; bsDay: number };
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   // FIX 4: Track submitting state to prevent double submit
@@ -251,11 +254,10 @@ function ScanPageContent() {
           {/* SUCCESS */}
           {step === 'success' && result && (
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className={`p-8 text-center ${
-                result.action === 'CLOCK_IN'
-                  ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                  : 'bg-gradient-to-br from-orange-500 to-red-500'
-              }`}>
+              <div className={`p-8 text-center ${result.action === 'CLOCK_IN'
+                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                : 'bg-gradient-to-br from-orange-500 to-red-500'
+                }`}>
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 rounded-full mb-4">
                   {result.action === 'CLOCK_IN'
                     ? <LogIn className="w-10 h-10 text-white" />
@@ -293,7 +295,10 @@ function ScanPageContent() {
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                   <span className="text-sm text-gray-500">{isNp ? 'मिति' : 'Date'}</span>
                   <span className="text-sm font-semibold text-gray-900">
-                    {new Date().toLocaleDateString(isNp ? 'ne-NP' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    {isNp
+                      ? `${toNepaliDigits(result.record.bsDay)} ${BS_MONTHS_NP[(result.record.bsMonth ?? 1) - 1]} ${toNepaliDigits(result.record.bsYear)}`
+                      : `${result.record.bsDay} ${BS_MONTHS_EN[(result.record.bsMonth ?? 1) - 1]} ${result.record.bsYear}`
+                    }
                   </span>
                 </div>
                 <button
