@@ -53,15 +53,15 @@ export default function AdminAttendancePage() {
     if (!isLoading && (!user || user.role !== 'ORG_ADMIN')) router.push('/login');
   }, [user, isLoading, router]);
 
-  const loadRecords = useCallback(async () => {
+  const loadRecords = useCallback(async (date: string) => {
     setLoading(true);
-    const res = await api.get('/api/attendance?date=' + selectedDate);
+    const res = await api.get('/api/attendance?date=' + date);
     if (res.data) {
       setRecords((res.data as { records: AttendanceRecord[] }).records);
       setLastRefreshed(new Date());
     }
     setLoading(false);
-  }, [selectedDate]);
+  }, []);
 
   const loadEmployees = async () => {
     const res = await api.get('/api/users');
@@ -71,14 +71,14 @@ export default function AdminAttendancePage() {
   };
 
   useEffect(() => {
-    if (user?.role === 'ORG_ADMIN') { loadRecords(); loadEmployees(); }
-  }, [user, loadRecords]);
+    if (user?.role === 'ORG_ADMIN') { loadRecords(selectedDate); loadEmployees(); }
+  }, [user, selectedDate, loadRecords]);
 
   useEffect(() => {
     if (user?.role !== 'ORG_ADMIN') return;
-    const interval = setInterval(loadRecords, 30000);
+    const interval = setInterval(() => loadRecords(selectedDate), 30000);
     return () => clearInterval(interval);
-  }, [user, loadRecords]);
+  }, [user, selectedDate, loadRecords]);
 
   const formatTime = (dateStr: string) =>
     new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -122,7 +122,7 @@ export default function AdminAttendancePage() {
     else {
       setSuccess(isNp ? 'रेकर्ड अपडेट भयो' : 'Record updated');
       setEditRecord(null);
-      loadRecords();
+      loadRecords(selectedDate);
       setTimeout(() => setSuccess(''), 3000);
     }
   };
@@ -151,7 +151,7 @@ export default function AdminAttendancePage() {
     else {
       setSuccess(isNp ? 'उपस्थित चिन्ह लगाइयो' : 'Marked as present');
       setShowMarkPresent(false);
-      loadRecords();
+      loadRecords(selectedDate);
       setTimeout(() => setSuccess(''), 3000);
     }
   };
@@ -201,7 +201,7 @@ export default function AdminAttendancePage() {
                 {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
             )}
-            <button onClick={loadRecords} disabled={loading}
+            <button onClick={() => loadRecords(selectedDate)} disabled={loading}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 disabled:opacity-50">
               <RefreshCw className={'w-3.5 h-3.5 ' + (loading ? 'animate-spin' : '')} />
               {isNp ? 'रिफ्रेश' : 'Refresh'}
