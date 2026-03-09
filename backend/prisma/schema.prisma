@@ -755,7 +755,6 @@ model PricingPlan {
   currency              String  @default("NPR")
 
   maxEmployees          Int?
-  hardEmployeeCap       Int?
 
   trialDaysMonthly      Int @default(30)
   annualDiscountPercent Int @default(0)
