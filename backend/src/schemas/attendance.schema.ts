@@ -78,6 +78,8 @@ export const attendanceListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   userId: z.string().uuid().optional(),
   status: z.enum(['CHECKED_IN', 'CHECKED_OUT', 'AUTO_CLOSED']).optional(),
+  // Optional date filter — format: YYYY-MM-DD
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export const myAttendanceQuerySchema = z.object({

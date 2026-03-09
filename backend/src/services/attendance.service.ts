@@ -808,11 +808,13 @@ export class AttendanceService {
     };
   }
 
+ // ONLY THIS METHOD CHANGES — everything else in attendance.service.ts is untouched
+
   async listAttendance(
     currentUser: JWTPayload,
     limit: number,
     offset: number,
-    filters: { userId?: string; status?: string }
+    filters: { userId?: string; status?: string; date?: string }
   ) {
     const where: Record<string, unknown> = {};
 
@@ -837,6 +839,15 @@ export class AttendanceService {
     }
 
     if (filters.status) where.status = filters.status;
+
+    // Date filter — scope to a single calendar day
+    if (filters.date) {
+      const startOfDay = new Date(filters.date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(filters.date);
+      endOfDay.setHours(23, 59, 59, 999);
+      where.checkInTime = { gte: startOfDay, lte: endOfDay };
+    }
 
     const [rawRecords, total] = await Promise.all([
       prisma.attendanceRecord.findMany({
@@ -887,7 +898,6 @@ export class AttendanceService {
       pagination: { total, limit, offset, hasMore: offset + records.length < total },
     };
   }
-
   // ======== Private helpers ========
 
   private async validateQRPayloadAndGetOrg(qrPayload: string): Promise<string> {
