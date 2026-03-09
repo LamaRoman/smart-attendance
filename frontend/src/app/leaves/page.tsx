@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import BSDatePicker, { toNepaliDigits, BS_MONTHS_NP, BS_MONTHS_EN } from '@/components/BSDatePicker';
+import AdminLayout from '@/components/AdminLayout';
+import AccountantLayout from '@/components/AccountantLayout';
 import {
   Calendar,
   CalendarDays,
@@ -61,18 +63,18 @@ interface LeaveRequest {
 }
 
 const LEAVE_TYPES = [
-  { value: 'SICK', label: 'बिरामी बिदा', labelEn: 'Sick Leave', icon: Thermometer, accent: 'border-l-rose-400', iconColor: 'text-rose-500' },
-  { value: 'CASUAL', label: 'आकस्मिक बिदा', labelEn: 'Casual Leave', icon: Umbrella, accent: 'border-l-blue-400', iconColor: 'text-blue-500' },
-  { value: 'ANNUAL', label: 'वार्षिक बिदा', labelEn: 'Annual Leave', icon: Sun, accent: 'border-l-amber-400', iconColor: 'text-amber-500' },
-  { value: 'UNPAID', label: 'बिना तलब बिदा', labelEn: 'Unpaid Leave', icon: Ban, accent: 'border-l-slate-400', iconColor: 'text-slate-500' },
-  { value: 'MATERNITY', label: 'प्रसूति बिदा', labelEn: 'Maternity Leave', icon: Baby, accent: 'border-l-pink-400', iconColor: 'text-pink-500' },
-  { value: 'PATERNITY', label: 'पितृत्व बिदा', labelEn: 'Paternity Leave', icon: User, accent: 'border-l-cyan-400', iconColor: 'text-cyan-500' },
+  { value: 'SICK',      label: 'बिरामी बिदा',      labelEn: 'Sick Leave',      icon: Thermometer, accent: 'border-l-rose-400',   iconColor: 'text-rose-500'   },
+  { value: 'CASUAL',    label: 'आकस्मिक बिदा',     labelEn: 'Casual Leave',    icon: Umbrella,    accent: 'border-l-blue-400',   iconColor: 'text-blue-500'   },
+  { value: 'ANNUAL',    label: 'वार्षिक बिदा',      labelEn: 'Annual Leave',    icon: Sun,         accent: 'border-l-amber-400',  iconColor: 'text-amber-500'  },
+  { value: 'UNPAID',    label: 'बिना तलब बिदा',    labelEn: 'Unpaid Leave',    icon: Ban,         accent: 'border-l-slate-400',  iconColor: 'text-slate-500'  },
+  { value: 'MATERNITY', label: 'प्रसूति बिदा',      labelEn: 'Maternity Leave', icon: Baby,        accent: 'border-l-pink-400',   iconColor: 'text-pink-500'   },
+  { value: 'PATERNITY', label: 'पितृत्व बिदा',      labelEn: 'Paternity Leave', icon: User,        accent: 'border-l-cyan-400',   iconColor: 'text-cyan-500'   },
 ];
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: typeof CheckCircle; label: string; labelNp: string }> = {
-  PENDING: { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: Clock, label: 'Pending', labelNp: 'विचाराधीन' },
-  APPROVED: { color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: CheckCircle, label: 'Approved', labelNp: 'स्वीकृत' },
-  REJECTED: { color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', icon: XCircle, label: 'Rejected', labelNp: 'अस्वीकृत' },
+  PENDING:  { color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',   icon: Clock,         label: 'Pending',  labelNp: 'विचाराधीन' },
+  APPROVED: { color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: CheckCircle, label: 'Approved', labelNp: 'स्वीकृत'   },
+  REJECTED: { color: 'text-rose-700',    bg: 'bg-rose-50 border-rose-200',     icon: XCircle,       label: 'Rejected', labelNp: 'अस्वीकृत'  },
 };
 
 const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
@@ -91,32 +93,29 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
 );
 
 export default function LeavePage() {
-  const { user, isLoading, logout, isAdmin, isAccountant,calendarMode, language } = useAuth();
+  const { user, isLoading, logout, isAdmin, isAccountant, calendarMode, language } = useAuth();
   const router = useRouter();
   const isNepali = language === 'NEPALI';
   const isNepaliCalendar = calendarMode === 'NEPALI';
+  const isStaff = isAdmin || isAccountant;
 
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [myLeaves, setMyLeaves] = useState<LeaveRequest[]>([]);
   const [activeTab, setActiveTab] = useState<'my' | 'all'>('my');
   const [showModal, setShowModal] = useState(false);
   const [rejectingLeaveId, setRejectingLeaveId] = useState<string | null>(null);
-  const [rejectMessage, setRejectMessage] = useState("");
+  const [rejectMessage, setRejectMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  const [formData, setFormData] = useState({
-    startDate: '',
-    endDate: '',
-    reason: '',
-    type: 'CASUAL',
-  });
+  const [formData, setFormData] = useState({ startDate: '', endDate: '', reason: '', type: 'CASUAL' });
 
-useEffect(() => {
-    if (!isLoading && user && (isAdmin || isAccountant)) setActiveTab('all');
-  }, [user, isLoading, isAdmin, isAccountant]);
+  useEffect(() => {
+    if (!isLoading && user && isStaff) setActiveTab('all');
+  }, [user, isLoading, isStaff]);
+
   const loadMyLeaves = useCallback(async () => {
     setLoading(true);
     const res = await api.get('/api/leaves/my?limit=50');
@@ -144,13 +143,15 @@ useEffect(() => {
     if (!user) return;
     (async () => {
       const checkRes = await api.get(isAdmin ? '/api/leaves?limit=1' : '/api/leaves/my?limit=1');
-      if (checkRes.error?.code === 'FEATURE_NOT_AVAILABLE' || checkRes.error?.code === 'NO_SUBSCRIPTION' || checkRes.error?.code === 'SUBSCRIPTION_INACTIVE') {
-        return;
-      }
-      if (isAdmin || isAccountant) { loadAllLeaves(); }
+      if (
+        checkRes.error?.code === 'FEATURE_NOT_AVAILABLE' ||
+        checkRes.error?.code === 'NO_SUBSCRIPTION' ||
+        checkRes.error?.code === 'SUBSCRIPTION_INACTIVE'
+      ) return;
+      if (isStaff) { loadAllLeaves(); }
       else { loadMyLeaves(); }
     })();
-  }, [user, isAdmin, loadAllLeaves, loadMyLeaves]);
+  }, [user, isAdmin, isStaff, loadAllLeaves, loadMyLeaves]);
 
   const handleSubmit = async () => {
     if (!formData.startDate || !formData.endDate || !formData.reason) {
@@ -201,9 +202,7 @@ useEffect(() => {
   };
 
   const formatBSDate = (year: number, month: number, day: number) => {
-    if (isNepali) {
-      return `${toNepaliDigits(year)} ${BS_MONTHS_NP[month - 1]} ${toNepaliDigits(day)}`;
-    }
+    if (isNepali) return `${toNepaliDigits(year)} ${BS_MONTHS_NP[month - 1]} ${toNepaliDigits(day)}`;
     return `${year}/${month}/${day} (${BS_MONTHS_EN[month - 1]})`;
   };
 
@@ -213,10 +212,10 @@ useEffect(() => {
   const formatDateDisplay = (leave: LeaveRequest) => {
     if (isNepali) {
       const start = formatBSDate(leave.bsStartYear, leave.bsStartMonth, leave.bsStartDay);
-      const end = formatBSDate(leave.bsEndYear, leave.bsEndMonth, leave.bsEndDay);
+      const end   = formatBSDate(leave.bsEndYear,   leave.bsEndMonth,   leave.bsEndDay);
       return { primary: `${start} → ${end}`, secondary: `${formatADDate(leave.startDate)} → ${formatADDate(leave.endDate)}` };
     }
-   return {
+    return {
       primary: `${formatADDate(leave.startDate)} → ${formatADDate(leave.endDate)}`,
       secondary: `BS: ${formatBSDate(leave.bsStartYear, leave.bsStartMonth, leave.bsStartDay)} → ${formatBSDate(leave.bsEndYear, leave.bsEndMonth, leave.bsEndDay)}`,
     };
@@ -239,39 +238,92 @@ useEffect(() => {
 
   if (!user) return null;
 
-  const pendingCount = (activeTab === 'all' && isAdmin ? leaves : myLeaves).filter((l) => l.status === 'PENDING').length;
+  const pendingCount  = (activeTab === 'all' && isAdmin ? leaves : myLeaves).filter((l) => l.status === 'PENDING').length;
   const approvedCount = (activeTab === 'all' && isAdmin ? leaves : myLeaves).filter((l) => l.status === 'APPROVED').length;
   const rejectedCount = (activeTab === 'all' && isAdmin ? leaves : myLeaves).filter((l) => l.status === 'REJECTED').length;
   const totalDaysUsed = myLeaves.filter((l) => l.status === 'APPROVED').reduce((sum, l) => sum + l.durationDays, 0);
   const displayLeaves = activeTab === 'my' ? myLeaves : leaves;
 
-  return (
-    <div className="min-h-screen bg-white flex flex-col">
+  const pageContent = (
+    <div className={isStaff ? '' : 'min-h-screen bg-white flex flex-col'}>
 
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <button
-              onClick={() => router.push(isAdmin ? '/admin' : isAccountant ? '/accountant' : '/employee')}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4 text-slate-600" />
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-900">
-                  <CalendarDays className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-sm font-semibold text-slate-900">
-                    {isNepali ? 'बिदा व्यवस्थापन' : 'Leave management'}
-                  </h1>
-                  <p className="text-xs text-slate-500">
-                    {user.firstName} {user.lastName} • {user.role === 'ORG_ADMIN' ? (isNepali ? 'प्रशासक' : 'Admin') : user.role === 'ORG_ACCOUNTANT' ? (isNepali ? 'लेखापाल' : 'Accountant') : (isNepali ? 'कर्मचारी' : 'Employee')}
-                  </p>
+      {/* Header — only for employees (admin/accountant use their sidebar layout) */}
+      {!isStaff && (
+        <header className="border-b border-slate-200 bg-white sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => router.push(isAdmin ? '/admin' : isAccountant ? '/accountant' : '/employee')}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4 text-slate-600" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-slate-900">
+                    <CalendarDays className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-sm font-semibold text-slate-900">
+                      {isNepali ? 'बिदा व्यवस्थापन' : 'Leave management'}
+                    </h1>
+                    <p className="text-xs text-slate-500">
+                      {user.firstName} {user.lastName} •{' '}
+                      {user.role === 'ORG_ADMIN'
+                        ? isNepali ? 'प्रशासक' : 'Admin'
+                        : user.role === 'ORG_ACCOUNTANT'
+                          ? isNepali ? 'लेखापाल' : 'Accountant'
+                          : isNepali ? 'कर्मचारी' : 'Employee'}
+                    </p>
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center gap-3">
+                {lastRefreshed && (
+                  <span className="text-xs text-slate-400">
+                    {isNepali ? 'पछिल्लो अपडेट:' : 'Updated'}{' '}
+                    {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                )}
+                <button
+                  onClick={() => loadMyLeaves()}
+                  disabled={loading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors border border-slate-200 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                  {isNepali ? 'रिफ्रेश' : 'Refresh'}
+                </button>
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {isNepali ? 'बिदा माग्नुहोस्' : 'Request leave'}
+                </button>
+                <button
+                  onClick={logout}
+                  className="p-2 hover:bg-rose-50 rounded-lg transition-colors text-slate-400 hover:text-rose-600"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+      )}
+
+      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* Page title + refresh for admin/accountant */}
+        {isStaff && (
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+                {isNepali ? 'बिदा व्यवस्थापन' : 'Leave management'}
+              </h1>
+              <p className="text-sm text-slate-500 mt-1">
+                {isNepali ? 'कर्मचारीहरूका बिदा अनुरोधहरू' : 'Employee leave requests'}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               {lastRefreshed && (
@@ -283,32 +335,14 @@ useEffect(() => {
               <button
                 onClick={() => isAdmin ? loadAllLeaves() : loadMyLeaves()}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                 {isNepali ? 'रिफ्रेश' : 'Refresh'}
               </button>
-              {!isAdmin && (
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {isNepali ? 'बिदा माग्नुहोस्' : 'Request leave'}
-                </button>
-              )}
-              <button
-                onClick={logout}
-                className="p-2 hover:bg-rose-50 rounded-lg transition-colors text-slate-400 hover:text-rose-600"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
             </div>
           </div>
-        </div>
-      </header>
-
-      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        )}
 
         {error && (
           <div className="mb-6 flex items-center justify-between p-3.5 bg-rose-50 rounded-lg border border-rose-200">
@@ -330,9 +364,9 @@ useEffect(() => {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <StatCard title={isNepali ? 'विचाराधीन' : 'Pending'} value={pendingCount} icon={Clock} color="text-amber-600" />
-          <StatCard title={isNepali ? 'स्वीकृत' : 'Approved'} value={approvedCount} icon={CheckCircle} color="text-emerald-600" />
-          <StatCard title={isNepali ? 'अस्वीकृत' : 'Rejected'} value={rejectedCount} icon={XCircle} color="text-rose-600" />
+          <StatCard title={isNepali ? 'विचाराधीन' : 'Pending'}  value={pendingCount}  icon={Clock}         color="text-amber-600"  />
+          <StatCard title={isNepali ? 'स्वीकृत'   : 'Approved'} value={approvedCount} icon={CheckCircle}   color="text-emerald-600" />
+          <StatCard title={isNepali ? 'अस्वीकृत'  : 'Rejected'} value={rejectedCount} icon={XCircle}       color="text-rose-600"   />
           {!isAdmin && (
             <StatCard
               title={isNepali ? 'प्रयोग भएका दिन' : 'Days used'}
@@ -344,16 +378,15 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Tabs & Filters */}
+        {/* Tabs & Filters — admin only */}
         {isAdmin && (
           <div className="flex items-center justify-between mb-6">
             <div className="flex bg-white rounded-lg border border-slate-200 p-1">
               <button
                 onClick={() => setActiveTab('all')}
-                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'all'
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
+                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  activeTab === 'all' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
               >
                 {isNepali ? 'सबै अनुरोधहरू' : 'All requests'}
                 {leaves.filter((l) => l.status === 'PENDING').length > 0 && (
@@ -408,18 +441,18 @@ useEffect(() => {
             </div>
           ) : (
             displayLeaves.map((leave) => {
-              const typeConfig = getLeaveTypeConfig(leave.type);
-              const TypeIcon = typeConfig.icon;
+              const typeConfig   = getLeaveTypeConfig(leave.type);
+              const TypeIcon     = typeConfig.icon;
               const statusConfig = STATUS_CONFIG[leave.status] || STATUS_CONFIG.PENDING;
-              const StatusIcon = statusConfig.icon;
-              const dates = formatDateDisplay(leave);
+              const StatusIcon   = statusConfig.icon;
+              const dates        = formatDateDisplay(leave);
 
               return (
                 <div key={leave.id} className={`bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-all overflow-hidden border-l-4 ${typeConfig.accent}`}>
                   <div className="p-5">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-lg bg-slate-50 mt-0.5`}>
+                        <div className="p-2 rounded-lg bg-slate-50 mt-0.5">
                           <TypeIcon className={`w-4 h-4 ${typeConfig.iconColor}`} />
                         </div>
                         <div>
@@ -442,7 +475,9 @@ useEffect(() => {
                             <div className="flex items-center gap-2 text-xs text-slate-600">
                               <Clock className="w-3.5 h-3.5 text-slate-400" />
                               <span className="font-medium">
-                                {isNepali ? `${toNepaliDigits(leave.durationDays)} दिन` : `${leave.durationDays} day${leave.durationDays > 1 ? 's' : ''}`}
+                                {isNepali
+                                  ? `${toNepaliDigits(leave.durationDays)} दिन`
+                                  : `${leave.durationDays} day${leave.durationDays > 1 ? 's' : ''}`}
                               </span>
                             </div>
                             <p className="text-xs text-slate-400">{dates.secondary}</p>
@@ -457,16 +492,14 @@ useEffect(() => {
                                 {leave.approver.firstName} {leave.approver.lastName}
                                 {leave.approvedAt && <> • {formatADDate(leave.approvedAt)}</>}
                               </p>
-
                               {leave.status === 'REJECTED' && leave.rejectionMessage && (
                                 <p className="text-[10px] text-rose-600 mt-1 bg-rose-50 px-2.5 py-1.5 rounded-md">
-                                  {isNepali ? "कारण: " : "Reason: "}
+                                  {isNepali ? 'कारण: ' : 'Reason: '}
                                   {leave.rejectionMessage}
                                 </p>
                               )}
                             </>
                           )}
-
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -495,7 +528,7 @@ useEffect(() => {
                               {isNepali ? 'स्वीकृत' : 'Approve'}
                             </button>
                             <button
-                              onClick={() => { setRejectingLeaveId(leave.id); setRejectMessage(""); }}
+                              onClick={() => { setRejectingLeaveId(leave.id); setRejectMessage(''); }}
                               className="flex items-center gap-1 px-2 py-1 bg-rose-50 text-rose-700 rounded-md text-[10px] font-medium hover:bg-rose-100 transition-colors"
                             >
                               <XCircle className="w-3 h-3" />
@@ -513,19 +546,20 @@ useEffect(() => {
         </div>
       </div>
 
-      <PoweredBy />
+      {/* PoweredBy — only for employees */}
+      {!isStaff && <PoweredBy />}
 
-      {/* Rejection Message Modal */}
+      {/* Rejection Modal */}
       {rejectingLeaveId && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4">
             <h3 className="text-sm font-semibold text-slate-900">
-              {isNepali ? "बिदा अस्वीकार गर्नुहोस्" : "Reject Leave"}
+              {isNepali ? 'बिदा अस्वीकार गर्नुहोस्' : 'Reject Leave'}
             </h3>
             <textarea
               value={rejectMessage}
               onChange={(e) => setRejectMessage(e.target.value)}
-              placeholder={isNepali ? "कारण (वैकल्पिक)..." : "Reason for rejection (optional)..."}
+              placeholder={isNepali ? 'कारण (वैकल्पिक)...' : 'Reason for rejection (optional)...'}
               rows={3}
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 resize-none placeholder:text-slate-400"
             />
@@ -534,23 +568,23 @@ useEffect(() => {
                 onClick={() => setRejectingLeaveId(null)}
                 className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
               >
-                {isNepali ? "रद्द गर्नुहोस्" : "Cancel"}
+                {isNepali ? 'रद्द गर्नुहोस्' : 'Cancel'}
               </button>
               <button
                 onClick={() => {
-                  handleStatusUpdate(rejectingLeaveId, "REJECTED", rejectMessage || undefined);
+                  handleStatusUpdate(rejectingLeaveId, 'REJECTED', rejectMessage || undefined);
                   setRejectingLeaveId(null);
                 }}
                 className="flex-1 py-2 bg-rose-600 text-white rounded-lg text-xs font-medium hover:bg-rose-700 transition-colors"
               >
-                {isNepali ? "अस्वीकार गर्नुहोस्" : "Confirm Reject"}
+                {isNepali ? 'अस्वीकार गर्नुहोस्' : 'Confirm Reject'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Request Leave Modal */}
+      {/* Request Leave Modal — employees only */}
       {showModal && !isAdmin && (
         <div className="fixed inset-0 bg-black/20 flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md border border-slate-200 mb-10">
@@ -572,8 +606,6 @@ useEffect(() => {
             </div>
 
             <div className="p-5 space-y-4">
-
-              {/* Leave type — clean list with icon + colored left border */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-2">
                   {isNepali ? 'बिदाको प्रकार' : 'Leave type'}
@@ -588,25 +620,19 @@ useEffect(() => {
                         onClick={() => setFormData({ ...formData, type: type.value })}
                         className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-l-4 border border-slate-200 transition-all text-left
                           ${type.accent}
-                          ${isSelected
-                            ? 'bg-slate-50 border-slate-200 shadow-sm'
-                            : 'bg-white hover:bg-slate-50'
-                          }`}
+                          ${isSelected ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white hover:bg-slate-50'}`}
                       >
                         <Icon className={`w-4 h-4 flex-shrink-0 ${isSelected ? type.iconColor : 'text-slate-400'}`} />
                         <span className={`text-xs font-medium leading-tight ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>
                           {isNepali ? type.label : type.labelEn}
                         </span>
-                        {isSelected && (
-                          <CheckCircle className="w-3.5 h-3.5 text-slate-900 ml-auto flex-shrink-0" />
-                        )}
+                        {isSelected && <CheckCircle className="w-3.5 h-3.5 text-slate-900 ml-auto flex-shrink-0" />}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Date pickers */}
               <div className="flex flex-col gap-4">
                 {isNepaliCalendar ? (
                   <>
@@ -656,9 +682,7 @@ useEffect(() => {
               {getDurationDays() > 0 && (
                 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs text-slate-700 font-medium">
-                    {isNepali
-                      ? `अवधि: ${toNepaliDigits(getDurationDays())} दिन`
-                      : `Duration: ${getDurationDays()} day(s)`}
+                    {isNepali ? `अवधि: ${toNepaliDigits(getDurationDays())} दिन` : `Duration: ${getDurationDays()} day(s)`}
                   </p>
                 </div>
               )}
@@ -699,4 +723,8 @@ useEffect(() => {
       )}
     </div>
   );
+
+  if (isAdmin) return <AdminLayout>{pageContent}</AdminLayout>;
+  if (isAccountant) return <AccountantLayout>{pageContent}</AccountantLayout>;
+  return pageContent;
 }
