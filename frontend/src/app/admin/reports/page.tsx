@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
-
 import ProBlurOverlay from "@/components/ProBlurOverlay";
+import { adToBS, bsToAD, BS_MONTHS_EN, BS_MONTHS_NP } from '@/components/BSDatePicker';
 import {
   Calendar,
   CalendarDays,
@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
-  Award,
   Target,
   RefreshCw,
 } from 'lucide-react';
@@ -43,10 +42,15 @@ interface MonthlyReport {
 
 type ReportTab = 'daily' | 'weekly' | 'monthly';
 
+// BS years supported in BSDatePicker
+const BS_YEARS = [2079, 2080, 2081, 2082, 2083, 2084, 2085, 2086, 2087, 2088, 2089, 2090];
+
 export default function AdminReportsPage() {
-  const { user, isLoading, language } = useAuth();
+  const { user, isLoading, language, calendarMode } = useAuth();
   const router = useRouter();
   const isNp = language === 'NEPALI';
+  // FIX: calendarMode === 'NEPALI' means Bikram Sambat
+  const isBs = calendarMode === 'NEPALI';
 
   const [tab, setTab] = useState<ReportTab>('daily');
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
@@ -54,8 +58,16 @@ export default function AdminReportsPage() {
     const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1);
     return d.toISOString().split('T')[0];
   });
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // FIX: Initialize selectedMonth/selectedYear with BS values when isBs
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (isBs) return adToBS(new Date()).month;
+    return new Date().getMonth() + 1;
+  });
+  const [selectedYear, setSelectedYear] = useState(() => {
+    if (isBs) return adToBS(new Date()).year;
+    return new Date().getFullYear();
+  });
 
   const [daily, setDaily] = useState<DailyReport | null>(null);
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
@@ -77,6 +89,7 @@ export default function AdminReportsPage() {
       setFeatureChecked(true);
     })();
   }, [user, featureChecked]);
+
   const loadDaily = useCallback(async () => {
     setLoading(true);
     const res = await api.get('/api/reports/daily?date=' + reportDate);
@@ -99,13 +112,21 @@ export default function AdminReportsPage() {
 
   const loadMonthly = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/api/reports/monthly?year=' + selectedYear + '&month=' + selectedMonth);
+    // FIX: Convert BS year/month to AD before sending to backend
+    let apiYear = selectedYear;
+    let apiMonth = selectedMonth;
+    if (isBs) {
+      const adDate = bsToAD(selectedYear, selectedMonth, 1);
+      apiYear = adDate.getFullYear();
+      apiMonth = adDate.getMonth() + 1;
+    }
+    const res = await api.get('/api/reports/monthly?year=' + apiYear + '&month=' + apiMonth);
     if (res.data) {
       setMonthly(res.data as MonthlyReport);
       setLastRefreshed(new Date());
     }
     setLoading(false);
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, isBs]);
 
   useEffect(() => {
     if (user?.role === 'ORG_ADMIN' && featureChecked) {
@@ -125,6 +146,23 @@ export default function AdminReportsPage() {
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     return isNp ? `${h} घण्टा ${m} मि` : `${h}h ${m}m`;
+  };
+
+  // FIX: Format week range in BS or AD depending on calendarMode
+  const formatWeekRange = () => {
+    const startDate = new Date(weekStart);
+    const endDate = new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+    if (isBs) {
+      const startBS = adToBS(startDate);
+      const endBS = adToBS(endDate);
+      const months = isNp ? BS_MONTHS_NP : BS_MONTHS_EN;
+      return `${startBS.day} ${months[startBS.month - 1]} - ${endBS.day} ${months[endBS.month - 1]}`;
+    }
+    return (
+      startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+      ' - ' +
+      endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    );
   };
 
   if (isLoading) {
@@ -364,10 +402,9 @@ export default function AdminReportsPage() {
                   >
                     <ChevronLeft className="w-4 h-4 text-slate-600" />
                   </button>
+                  {/* FIX: Show BS week range when calendarMode is NEPALI */}
                   <span className="px-3 py-1.5 bg-slate-50 rounded-lg text-xs font-medium text-slate-700">
-                    {new Date(weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    {' - '}
-                    {new Date(new Date(weekStart).getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {formatWeekRange()}
                   </span>
                   <button
                     onClick={() => changeWeek(1)}
@@ -474,6 +511,7 @@ export default function AdminReportsPage() {
                     {isNp ? 'महिना चयन गर्नुहोस्' : 'Select a month'}
                   </p>
                 </div>
+                {/* FIX: Show BS months and years when calendarMode is NEPALI */}
                 <div className="flex items-center gap-2">
                   <select
                     value={selectedMonth}
@@ -482,9 +520,11 @@ export default function AdminReportsPage() {
                   >
                     {Array.from({ length: 12 }, (_, i) => (
                       <option key={i + 1} value={i + 1}>
-                        {isNp
-                          ? ['बैशाख', 'जेठ', 'असार', 'श्रावण', 'भाद्र', 'आश्विन', 'कार्तिक', 'मंसिर', 'पौष', 'माघ', 'फाल्गुन', 'चैत्र'][i]
-                          : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i]}
+                        {isBs
+                          ? (isNp ? BS_MONTHS_NP[i] : BS_MONTHS_EN[i])
+                          : (isNp
+                            ? ['बैशाख', 'जेठ', 'असार', 'श्रावण', 'भाद्र', 'आश्विन', 'कार्तिक', 'मंसिर', 'पौष', 'माघ', 'फाल्गुन', 'चैत्र'][i]
+                            : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i])}
                       </option>
                     ))}
                   </select>
@@ -493,7 +533,9 @@ export default function AdminReportsPage() {
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                     className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
                   >
-                    {[2024, 2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
+                    {(isBs ? BS_YEARS : [2024, 2025, 2026, 2027]).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
                   </select>
                 </div>
               </div>
