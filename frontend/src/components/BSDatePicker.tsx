@@ -220,7 +220,7 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
     : '';
 
   return (
-    <div className="w-full" ref={containerRef}>
+    <div className="w-full relative" ref={containerRef}>
       {label && (
         <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
       )}
@@ -252,7 +252,8 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
 
       {/* Dropdown panel */}
       {isOpen && (
-        <div className="mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-md overflow-hidden">
+
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-md overflow-hidden">
 
           {/* Month / Year navigation */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
