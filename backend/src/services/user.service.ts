@@ -294,7 +294,7 @@ export class UserService {
     });
 
     if (subscription) {
-      const cap = subscription.customMaxEmployees ?? subscription.plan.hardEmployeeCap;
+      const cap = subscription.customMaxEmployees ?? subscription.plan.maxEmployees;
       if (cap && subscription.currentEmployeeCount >= cap) {
         throw new ConflictError(
           `Employee limit reached. Your current plan allows up to ${cap} employees. Please upgrade to add more.`
