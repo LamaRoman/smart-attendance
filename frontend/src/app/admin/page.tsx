@@ -99,35 +99,35 @@ useEffect(() => {
       title: isNp ? 'जम्मा कर्मचारी' : 'Total employees',
       value: stats.totalEmployees,
       icon: Users,
-      bg: 'bg-slate-50',
+      bg: 'bg-gradient-to-br from-slate-50 to-slate-100',
       iconColor: 'text-slate-600',
     },
     {
       title: isNp ? 'आज उपस्थित' : 'Present today',
       value: stats.todayPresent,
       icon: CheckCircle,
-      bg: 'bg-emerald-50',
+      bg: 'bg-gradient-to-br from-emerald-50 to-emerald-100',
       iconColor: 'text-emerald-600',
     },
     {
       title: isNp ? 'आज अनुपस्थित' : 'Absent today',
       value: stats.todayAbsent,
       icon: XCircle,
-      bg: 'bg-rose-50',
+      bg: 'bg-gradient-to-br from-rose-50 to-rose-100',
       iconColor: 'text-rose-600',
     },
     {
       title: isNp ? 'उपस्थिति दर' : 'Attendance rate',
       value: stats.avgAttendance + '%',
       icon: Percent,
-      bg: 'bg-slate-100',
+      bg: 'bg-gradient-to-br from-slate-100 to-slate-200',
       iconColor: 'text-slate-900',
     },
     {
       title: isNp ? 'आजको घण्टा' : 'Hours today',
       value: stats.totalHoursToday + 'h',
       icon: Clock,
-      bg: 'bg-blue-50',
+      bg: 'bg-gradient-to-br from-blue-50 to-blue-100',
       iconColor: 'text-blue-600',
     },
   ];
@@ -188,13 +188,22 @@ useEffect(() => {
                 {isNp ? 'पछिल्ला ५ रेकर्डहरू' : 'Last 5 records'}
               </p>
             </div>
-            <button
-              onClick={() => router.push('/admin/attendance')}
-              className="text-xs font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              {isNp ? 'सबै हेर्नुहोस्' : 'View all'}
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.push('/admin/attendance/late-arrivals')}
+                className="text-xs font-medium text-amber-600 hover:text-amber-700 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-colors"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                {isNp ? 'ढिलो आगमन' : 'Late arrivals'}
+              </button>
+              <button
+                onClick={() => router.push('/admin/attendance')}
+                className="text-xs font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                {isNp ? 'सबै हेर्नुहोस्' : 'View all'}
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
