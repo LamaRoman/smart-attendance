@@ -39,6 +39,7 @@ function ScanPageContent() {
     record: { checkInTime: string; checkOutTime?: string; duration?: number; bsYear: number; bsMonth: number; bsDay: number };
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [errorCode, setErrorCode] = useState('');
   // FIX 4: Track submitting state to prevent double submit
   const [submitting, setSubmitting] = useState(false);
   // FIX: Track timeout so it can be cleared on manual reset
@@ -67,6 +68,7 @@ function ScanPageContent() {
     setSubmitting(true);
     setStep('processing');
     setErrorMsg('');
+    setErrorCode('');
 
     try {
       const qrPayload = JSON.stringify({ token, signature });
@@ -86,12 +88,9 @@ function ScanPageContent() {
 
       if (!response.ok) {
         setStep('error');
-        // FIX: Use error code for i18n translation, fallback to raw message
-        const code = data.error?.code;
-        const errorMessage = code
-          ? t(`scan.error.${code}`, lang)
-          : (data.error?.message || (isNp ? 'त्रुटि भयो' : 'Something went wrong'));
-        setErrorMsg(errorMessage);
+        // FIX: Store code and raw message — translate at render time so language toggle works
+        setErrorCode(data.error?.code || '');
+        setErrorMsg(data.error?.message || '');
         setSubmitting(false);
         return;
       }
@@ -128,6 +127,7 @@ function ScanPageContent() {
     setPin('');
     setResult(null);
     setErrorMsg('');
+    setErrorCode('');
     setSubmitting(false);
   };
 
@@ -337,7 +337,11 @@ function ScanPageContent() {
               <h2 className="text-xl font-bold text-gray-900 mb-2">
                 {isNp ? 'त्रुटि!' : 'Error!'}
               </h2>
-              <p className="text-gray-600 mb-6">{errorMsg}</p>
+              <p className="text-gray-600 mb-6">
+                {errorCode
+                  ? t(`scan.error.${errorCode}`, lang)
+                  : (errorMsg || (isNp ? 'त्रुटि भयो' : 'Something went wrong'))}
+              </p>
               <button
                 onClick={handleReset}
                 className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-semibold hover:bg-slate-800 transition-all"
