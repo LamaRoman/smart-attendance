@@ -1,11 +1,10 @@
 ﻿'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Shield,
   Clock,
-  CheckCircle,
   XCircle,
   AlertCircle,
   LogIn,
@@ -14,6 +13,7 @@ import {
   Loader2,
   ArrowLeft,
   Globe,
+  Lock,
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
 
@@ -26,7 +26,9 @@ function ScanPageContent() {
 
   const [employeeId, setEmployeeId] = useState('');
   const [pin, setPin] = useState('');
-  const [lang, setLang] = useState<'NEPALI' | 'ENGLISH'>('NEPALI');
+
+  // FIX 1: Default language is ENGLISH
+  const [lang, setLang] = useState<'NEPALI' | 'ENGLISH'>('ENGLISH');
   const [step, setStep] = useState<'input' | 'processing' | 'success' | 'error'>('input');
   const [result, setResult] = useState<{
     action: string;
@@ -35,11 +37,16 @@ function ScanPageContent() {
     record: { checkInTime: string; checkOutTime?: string; duration?: number };
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  // FIX 4: Track submitting state to prevent double submit
+  const [submitting, setSubmitting] = useState(false);
 
   const isNp = lang === 'NEPALI';
   const isValidQR = token && signature;
 
   const handleSubmit = async () => {
+    // FIX 4: Prevent double submit
+    if (submitting) return;
+
     if (!employeeId.trim()) {
       setErrorMsg(isNp ? 'कृपया कर्मचारी आईडी हाल्नुहोस्' : 'Please enter your Employee ID');
       return;
@@ -53,6 +60,7 @@ function ScanPageContent() {
       return;
     }
 
+    setSubmitting(true);
     setStep('processing');
     setErrorMsg('');
 
@@ -61,7 +69,13 @@ function ScanPageContent() {
       const response = await fetch(`${API_URL}/api/attendance/scan-public`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qrPayload, employeeId: employeeId.trim().toUpperCase(), pin }),
+        body: JSON.stringify({
+          qrPayload,
+          employeeId: employeeId.trim().toUpperCase(),
+          pin,
+          // FIX 6: GPS fields are optional for QR scan — omit entirely,
+          // z.coerce.number().optional() rejects explicit null values
+        }),
       });
 
       const data = await response.json();
@@ -69,28 +83,37 @@ function ScanPageContent() {
       if (!response.ok) {
         setStep('error');
         setErrorMsg(data.error?.message || (isNp ? 'त्रुटि भयो' : 'Something went wrong'));
+        setSubmitting(false);
         return;
       }
 
       setResult(data.data);
       setStep('success');
+      // FIX 2 + 3: Clear PIN on success
+      setPin('');
 
       setTimeout(() => {
         setStep('input');
         setEmployeeId('');
+        setPin('');
         setResult(null);
+        setSubmitting(false);
       }, 8000);
     } catch (err) {
       setStep('error');
       setErrorMsg(isNp ? 'सर्भरसँग जडान हुन सकेन' : 'Could not connect to server');
+      setSubmitting(false);
     }
   };
 
+  // FIX 2: Clear PIN on reset
   const handleReset = () => {
     setStep('input');
     setEmployeeId('');
+    setPin('');
     setResult(null);
     setErrorMsg('');
+    setSubmitting(false);
   };
 
   if (!isValidQR) {
@@ -139,7 +162,7 @@ function ScanPageContent() {
                   {isNp ? 'स्मार्ट उपस्थिति' : 'Smart Attendance'}
                 </h1>
                 <p className="text-white/70 text-sm mt-1">
-                  {isNp ? 'कृपया आफ्नो कर्मचारी आईडी हाल्नुहोस्' : 'Enter your Employee ID'}
+                  {isNp ? 'कृपया आफ्नो कर्मचारी आईडी हाल्नुहोस्' : 'Enter your Employee ID and PIN'}
                 </p>
               </div>
               <div className="p-6 space-y-4">
@@ -158,9 +181,13 @@ function ScanPageContent() {
                     <input
                       type="text"
                       value={employeeId}
-                      onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                      placeholder={isNp ? 'उदा: EMP-10001' : 'e.g., EMP-10001'}
+                      onChange={(e) => {
+                        setEmployeeId(e.target.value.trim());
+                        setErrorMsg('');
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && document.getElementById('pin-input')?.focus()}
+                      // FIX 5: Updated placeholder to reflect numeric IDs
+                      placeholder={isNp ? 'उदा: 10001' : 'e.g., 10001'}
                       className="w-full pl-11 pr-4 py-3.5 border border-gray-300 rounded-xl text-lg font-medium focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-transparent transition-all text-center tracking-wider"
                       autoFocus
                       autoComplete="off"
@@ -171,21 +198,30 @@ function ScanPageContent() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     {isNp ? 'हाजिरी PIN' : 'Attendance PIN'}
                   </label>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                    placeholder="••••"
-                    className="w-full px-4 py-3.5 border border-gray-300 rounded-xl text-lg font-medium focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-transparent transition-all text-center tracking-widest"
-                    autoComplete="off"
-                  />
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="pin-input"
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={4}
+                      value={pin}
+                      onChange={(e) => {
+                        setPin(e.target.value.replace(/\D/g, '').slice(0, 4));
+                        setErrorMsg('');
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                      placeholder="••••"
+                      className="w-full pl-11 pr-4 py-3.5 border border-gray-300 rounded-xl text-lg font-medium focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-transparent transition-all text-center tracking-widest"
+                      autoComplete="off"
+                    />
+                  </div>
                 </div>
+                {/* FIX 4: Disable button while submitting */}
                 <button
                   onClick={handleSubmit}
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3.5 rounded-xl font-semibold text-lg hover:bg-slate-800 transition-all shadow-sm hover:shadow active:scale-[0.98]"
+                  disabled={submitting || !employeeId.trim() || pin.length !== 4}
+                  className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3.5 rounded-xl font-semibold text-lg hover:bg-slate-800 transition-all shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Clock className="w-5 h-5" />
                   {isNp ? 'उपस्थिति जनाउनुहोस्' : 'Record Attendance'}
@@ -297,7 +333,6 @@ function ScanPageContent() {
         </div>
       </div>
 
-      {/* Footer */}
       <PoweredBy />
     </div>
   );
