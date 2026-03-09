@@ -24,15 +24,12 @@ const log = createLogger('attendance-service');
 
 const SCAN_COOLDOWN_MINUTES = 2;
 
-// FIX 2: Once in, once out — max 2 actions per day (1 clock-in + 1 clock-out)
+// Once in, once out — max 2 actions per day (1 clock-in + 1 clock-out)
 const MAX_DAILY_SCANS = 2;
-
-// FIX 4: Auto-close stale open records older than this many hours
-const STALE_RECORD_HOURS = 24;
 
 const MAX_EDIT_WINDOW_DAYS = 90;
 
-/** Nepal timezone for consistent server-side formatting (R-03 fix) */
+/** Nepal timezone for consistent server-side formatting */
 const NPT: Intl.DateTimeFormatOptions = {
   timeZone: 'Asia/Kathmandu',
   hour: '2-digit',
@@ -45,13 +42,11 @@ function formatTimeNPT(date: Date): string {
 }
 
 /**
- * FIX 1 + 3: Get today's start and end in Nepal time (Asia/Kathmandu).
+ * Get today's start and end in Nepal time (Asia/Kathmandu).
  * Requires TZ=Asia/Kathmandu set on the server (Railway env variable).
- * This ensures daily limits and date checks are scoped to Nepal calendar day.
  */
 function getTodayRangeNPT(): { todayStart: Date; todayEnd: Date } {
   const now = new Date();
-  // With TZ=Asia/Kathmandu set on server, setHours uses local (NPT) time
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(now);
@@ -1004,11 +999,11 @@ export class AttendanceService {
   /**
    * Core clock-in/out logic in a Serializable transaction.
    *
-   * FIX 1: Uses getTodayRangeNPT() for Nepal timezone-aware day boundaries.
-   * FIX 2: MAX_DAILY_SCANS = 2 (once in, once out).
-   *         Explicit guard blocks any action after a completed (CHECKED_OUT or AUTO_CLOSED) record today.
-   * FIX 3: Daily count checks both clock-in records (by checkInTime) today — consistent with NPT range.
-   * FIX 4: Stale open record (>24h) is auto-closed before allowing a new clock-in.
+   * - Uses getTodayRangeNPT() for Nepal timezone-aware day boundaries.
+   * - MAX_DAILY_SCANS = 2 (once in, once out).
+   * - Auto-closes previous day's open record (forgot to clock out) at 23:59:59 of that day.
+   * - Blocks clock-in after shift end time (fallback to org workEndTime).
+   * - Clock-out is always allowed until midnight.
    */
   private async performClockActionSafe(
     membershipId: string,
@@ -1019,9 +1014,8 @@ export class AttendanceService {
       async (tx) => {
         const { todayStart, todayEnd } = getTodayRangeNPT();
 
-        // ── FIX 2: Explicit once-in/once-out guard ──────────────────────────
+        // ── Once-in/once-out guard ───────────────────────────────────────────
         // Block any action if employee already has a completed record today
-        // (CHECKED_OUT or AUTO_CLOSED both count as "done for the day")
         const completedToday = await tx.attendanceRecord.findFirst({
           where: {
             membershipId,
@@ -1037,8 +1031,7 @@ export class AttendanceService {
           );
         }
 
-        // ── FIX 3: Daily scan count (NPT-aware) ─────────────────────────────
-        // Count all records created today (clock-ins) — consistent with NPT range
+        // ── Daily scan count (NPT-aware) ─────────────────────────────────────
         const todayCount = await tx.attendanceRecord.count({
           where: {
             membershipId,
@@ -1077,22 +1070,19 @@ export class AttendanceService {
             );
         }
 
-        // ── FIX 4: Auto-close stale open record (>24h) ──────────────────────
-        // If employee has an open record from yesterday (forgot to clock out),
-        // auto-close it so they can clock in fresh today.
+        // ── Auto-close previous day's open record ────────────────────────────
+        // If employee has an open record from a previous calendar day (NPT),
+        // auto-close it at 23:59:59.999 of that day so they can clock in fresh today.
         const openRecord = await tx.attendanceRecord.findFirst({
           where: { membershipId, status: 'CHECKED_IN' },
         });
 
         if (openRecord) {
-          const ageHours =
-            (Date.now() - openRecord.checkInTime.getTime()) / (1000 * 60 * 60);
+          const isFromPreviousDay = openRecord.checkInTime < todayStart;
 
-          if (ageHours >= STALE_RECORD_HOURS) {
-            // Auto-close the stale record
-            const autoCloseTime = new Date(
-              openRecord.checkInTime.getTime() + STALE_RECORD_HOURS * 60 * 60 * 1000
-            );
+          if (isFromPreviousDay) {
+            // Close at 23:59:59.999 of the day they clocked in
+            const autoCloseTime = new Date(todayStart.getTime() - 1);
             const duration = Math.floor(
               (autoCloseTime.getTime() - openRecord.checkInTime.getTime()) / 60000
             );
@@ -1101,19 +1091,38 @@ export class AttendanceService {
               where: { id: openRecord.id },
               data: {
                 checkOutTime: autoCloseTime,
-                checkOutMethod: 'MANUAL', // System-initiated close, not employee scan
+                checkOutMethod: 'MANUAL',
                 duration,
                 status: 'AUTO_CLOSED',
-                notes: 'Auto-closed: employee did not clock out within 24 hours',
+                notes: 'Auto-closed at midnight: employee did not clock out',
               },
             });
 
             log.warn(
-              { membershipId, recordId: openRecord.id, ageHours },
-              'Stale open record auto-closed before new clock-in'
+              { membershipId, recordId: openRecord.id },
+              'Previous day record auto-closed before new clock-in'
             );
 
-            // Now proceed to clock in fresh
+            // Check clock-in restriction before allowing new clock-in
+            const membershipData = await tx.orgMembership.findUnique({
+              where: { id: membershipId },
+              include: { organization: { select: { workEndTime: true } } },
+            });
+            const endTime =
+              membershipData?.shiftEndTime || membershipData?.organization.workEndTime;
+            if (endTime) {
+              const [endHour, endMinute] = endTime.split(':').map(Number);
+              const shiftEnd = new Date();
+              shiftEnd.setHours(endHour, endMinute, 0, 0);
+              if (new Date() > shiftEnd) {
+                throw new ValidationError(
+                  'Clock-in is closed for today. See you tomorrow!',
+                  'CLOCKIN_CLOSED'
+                );
+              }
+            }
+
+            // Proceed to clock in fresh
             const now = new Date();
             const bs = adToBS(now);
             const newRecord = await tx.attendanceRecord.create({
@@ -1146,7 +1155,8 @@ export class AttendanceService {
             };
           }
 
-          // ── Clock OUT (open record is fresh, not stale) ──────────────────
+          // ── Clock OUT (open record is from today) ────────────────────────
+          // Clock-out is always allowed — no shift end restriction
           const checkOutTime = new Date();
           const durationMinutes = Math.floor(
             (checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000
@@ -1180,6 +1190,25 @@ export class AttendanceService {
         }
 
         // ── Clock IN (no open record) ────────────────────────────────────────
+        // Block clock-in after shift end time (fallback to org workEndTime)
+        const membershipData = await tx.orgMembership.findUnique({
+          where: { id: membershipId },
+          include: { organization: { select: { workEndTime: true } } },
+        });
+        const endTime =
+          membershipData?.shiftEndTime || membershipData?.organization.workEndTime;
+        if (endTime) {
+          const [endHour, endMinute] = endTime.split(':').map(Number);
+          const shiftEnd = new Date();
+          shiftEnd.setHours(endHour, endMinute, 0, 0);
+          if (new Date() > shiftEnd) {
+            throw new ValidationError(
+              'Clock-in is closed for today. See you tomorrow!',
+              'CLOCKIN_CLOSED'
+            );
+          }
+        }
+
         const now = new Date();
         const bs = adToBS(now);
         const record = await tx.attendanceRecord.create({

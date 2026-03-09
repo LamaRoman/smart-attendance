@@ -17,6 +17,8 @@ import { startBillingJob } from './jobs/billing.job';
 import { startPriceExpiryJob } from './jobs/price-expiry.job';
 import { startGracePeriodJob } from './jobs/grace-period.job';
 import { startAbandonedJob } from './jobs/abandoned.job';
+import { startMidnightAutoCloseJob } from './jobs/midnight-autoclose.job';
+
 // Route imports
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
@@ -246,6 +248,7 @@ const server = app.listen(PORT, () => {
   startPriceExpiryJob();
   startGracePeriodJob();
   startAbandonedJob();
+  startMidnightAutoCloseJob();
 });
 
 // Graceful shutdown
