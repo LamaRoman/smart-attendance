@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
 import ProBlurOverlay from "@/components/ProBlurOverlay";
-import { adToBS, bsToAD, BS_MONTHS_EN, BS_MONTHS_NP } from '@/components/BSDatePicker';
+import BSDatePicker, { adToBS, bsToAD, BS_MONTHS_EN, BS_MONTHS_NP } from '@/components/BSDatePicker';
 import {
   Calendar,
   CalendarDays,
@@ -256,12 +256,21 @@ export default function AdminReportsPage() {
                     {isNp ? 'मिति चयन गर्नुहोस्' : 'Select a date'}
                   </p>
                 </div>
-                <input
-                  type="date"
-                  value={reportDate}
-                  onChange={(e) => setReportDate(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
-                />
+                {isBs ? (
+                  <div className="w-52">
+                    <BSDatePicker
+                      value={reportDate}
+                      onChange={(adDateStr) => setReportDate(adDateStr)}
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="date"
+                    value={reportDate}
+                    onChange={(e) => setReportDate(e.target.value)}
+                    className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  />
+                )}
               </div>
             </div>
 
