@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
 import EmployeeDetailModal from "@/components/EmployeeDetailModal";
-import { FileText,
+import {
+  FileText,
   Users, UserPlus, Search, Edit, Trash2, UserMinus, Shield, UserCheck,
   CheckCircle, XCircle, Save, Key, Mail, User, X, AlertCircle,
   RefreshCw, Copy, Eye, EyeOff, Link,
@@ -150,7 +151,7 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  const [empCap, setEmpCap] = useState<{ current: number; max: number } | null>(null);
+  const [empCap, setEmpCap] = useState<{ current: number; max: number | null } | null>(null);
   const [resettingPinId, setResettingPinId] = useState<string | null>(null);
 
   // Modal mode: 'create' = new user, 'existing' = add by platform ID
@@ -165,7 +166,7 @@ export default function UsersPage() {
 
   const [formData, setFormData] = useState({
     email: '', password: '', firstName: '', lastName: '',
-    panNumber:'',
+    panNumber: '',
     role: 'EMPLOYEE' as 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE',
     shiftStartTime: '',
     shiftEndTime: '',
@@ -194,7 +195,8 @@ export default function UsersPage() {
     const subRes = await api.get("/api/org-settings/subscription");
     if (subRes.data) {
       const d = subRes.data as any;
-      setEmpCap({ current: d?.currentEmployeeCount || 0, max: d?.plan?.maxEmployees || 5 });
+
+      setEmpCap({ current: d?.currentEmployeeCount || 0, max: d?.plan?.maxEmployees ?? null });
     }
     setLoading(false);
   }, []);
@@ -401,7 +403,8 @@ export default function UsersPage() {
             <span className="text-xs font-medium text-emerald-700">{success}</span>
           </div>
         )}
-        {empCap && empCap.current >= empCap.max && (
+
+        {empCap && empCap.max !== null && empCap.current >= empCap.max && (
           <div className="flex items-center gap-2.5 p-3.5 bg-amber-50 rounded-lg border border-amber-200">
             <span className="text-xs font-medium text-amber-700">{isNp ? `कर्मचारी सीमा (${empCap.max}) पुगेको छ। थप कर्मचारी थप्न अपग्रेड गर्नुहोस्।` : `Employee limit (${empCap.max}) reached. Upgrade your plan to add more.`}</span>
             <a href="/admin/billing" className="ml-auto text-xs font-semibold text-amber-800 hover:underline whitespace-nowrap">{isNp ? "अपग्रेड" : "Upgrade"}</a>
@@ -438,10 +441,15 @@ export default function UsersPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              {empCap && <span className={"text-xs font-medium " + (empCap.current >= empCap.max ? "text-red-600" : empCap.current >= empCap.max - 1 ? "text-amber-600" : "text-slate-500")}>{empCap.current}/{empCap.max} {isNp ? "कर्मचारी" : "employees"}</span>}
+
+              {empCap && (empCap.max === null
+                ? <span className="text-xs font-medium text-slate-500">{empCap.current} / {isNp ? "असीमित" : "Unlimited"} {isNp ? "कर्मचारी" : "employees"}</span>
+                : <span className={"text-xs font-medium " + (empCap.current >= empCap.max ? "text-red-600" : empCap.current >= empCap.max - 1 ? "text-amber-600" : "text-slate-500")}>{empCap.current}/{empCap.max} {isNp ? "कर्मचारी" : "employees"}</span>
+              )}
               <button
                 onClick={openCreate}
-                disabled={empCap !== null && empCap.current >= empCap.max}
+
+                disabled={empCap !== null && empCap.max !== null && empCap.current >= empCap.max}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <UserPlus className="w-3.5 h-3.5" />
@@ -521,8 +529,8 @@ export default function UsersPage() {
                           u.role === 'ORG_ADMIN'
                             ? 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-900'
                             : u.role === 'ORG_ACCOUNTANT'
-                            ? 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700'
-                            : 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700'
+                              ? 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700'
+                              : 'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700'
                         }>
                           {u.role === 'ORG_ADMIN' ? (isNp ? 'प्रशासक' : 'Admin') : u.role === 'ORG_ACCOUNTANT' ? (isNp ? 'लेखापाल' : 'Accountant') : (isNp ? 'कर्मचारी' : 'Employee')}
                         </span>
@@ -647,22 +655,20 @@ export default function UsersPage() {
                 <div className="flex bg-slate-100 rounded-lg p-1">
                   <button
                     onClick={() => { setModalMode('create'); setError(''); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${
-                      modalMode === 'create'
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${modalMode === 'create'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                      }`}
                   >
                     <UserPlus className="w-3.5 h-3.5" />
                     {isNp ? 'नयाँ सिर्जना' : 'Create new'}
                   </button>
                   <button
                     onClick={() => { setModalMode('existing'); setError(''); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${
-                      modalMode === 'existing'
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${modalMode === 'existing'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                      }`}
                   >
                     <Link className="w-3.5 h-3.5" />
                     {isNp ? 'प्लेटफर्म ID बाट' : 'Add existing'}
