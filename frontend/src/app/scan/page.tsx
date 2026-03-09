@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Shield,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
 import { BS_MONTHS_EN, BS_MONTHS_NP, toNepaliDigits } from '@/components/BSDatePicker';
+import { t } from '@/lib/i18n';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -35,13 +36,13 @@ function ScanPageContent() {
     action: string;
     message: string;
     user: { firstName: string; lastName: string; employeeId: string };
-    // AFTER
-
     record: { checkInTime: string; checkOutTime?: string; duration?: number; bsYear: number; bsMonth: number; bsDay: number };
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   // FIX 4: Track submitting state to prevent double submit
   const [submitting, setSubmitting] = useState(false);
+  // FIX: Track timeout so it can be cleared on manual reset
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isNp = lang === 'NEPALI';
   const isValidQR = token && signature;
@@ -85,7 +86,12 @@ function ScanPageContent() {
 
       if (!response.ok) {
         setStep('error');
-        setErrorMsg(data.error?.message || (isNp ? 'त्रुटि भयो' : 'Something went wrong'));
+        // FIX: Use error code for i18n translation, fallback to raw message
+        const code = data.error?.code;
+        const errorMessage = code
+          ? t(`scan.error.${code}`, lang)
+          : (data.error?.message || (isNp ? 'त्रुटि भयो' : 'Something went wrong'));
+        setErrorMsg(errorMessage);
         setSubmitting(false);
         return;
       }
@@ -95,7 +101,8 @@ function ScanPageContent() {
       // FIX 2 + 3: Clear PIN on success
       setPin('');
 
-      setTimeout(() => {
+      // FIX: Store timeout ref so it can be cancelled if user resets manually
+      timeoutRef.current = setTimeout(() => {
         setStep('input');
         setEmployeeId('');
         setPin('');
@@ -111,6 +118,11 @@ function ScanPageContent() {
 
   // FIX 2: Clear PIN on reset
   const handleReset = () => {
+    // FIX: Cancel any pending auto-reset timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     setStep('input');
     setEmployeeId('');
     setPin('');
@@ -254,10 +266,11 @@ function ScanPageContent() {
           {/* SUCCESS */}
           {step === 'success' && result && (
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className={`p-8 text-center ${result.action === 'CLOCK_IN'
-                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                : 'bg-gradient-to-br from-orange-500 to-red-500'
-                }`}>
+              <div className={`p-8 text-center ${
+                result.action === 'CLOCK_IN'
+                  ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                  : 'bg-gradient-to-br from-orange-500 to-red-500'
+              }`}>
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 rounded-full mb-4">
                   {result.action === 'CLOCK_IN'
                     ? <LogIn className="w-10 h-10 text-white" />
@@ -296,8 +309,8 @@ function ScanPageContent() {
                   <span className="text-sm text-gray-500">{isNp ? 'मिति' : 'Date'}</span>
                   <span className="text-sm font-semibold text-gray-900">
                     {isNp
-                      ? `${toNepaliDigits(result.record.bsDay)} ${BS_MONTHS_NP[(result.record.bsMonth ?? 1) - 1]} ${toNepaliDigits(result.record.bsYear)}`
-                      : `${result.record.bsDay} ${BS_MONTHS_EN[(result.record.bsMonth ?? 1) - 1]} ${result.record.bsYear}`
+                      ? `${toNepaliDigits(result.record.bsDay)} ${BS_MONTHS_NP[result.record.bsMonth - 1]} ${toNepaliDigits(result.record.bsYear)}`
+                      : `${result.record.bsDay} ${BS_MONTHS_EN[result.record.bsMonth - 1]} ${result.record.bsYear}`
                     }
                   </span>
                 </div>

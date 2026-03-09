@@ -300,6 +300,17 @@ const translations: Record<string, Record<Language, string>> = {
   'date.selectDate': { NEPALI: 'मिति छान्नुहोस्', ENGLISH: 'Select date' },
   'date.confirm': { NEPALI: 'छान्नुहोस्', ENGLISH: 'Confirm' },
 
+  // ===== Scan Error Codes =====
+  'scan.error.ATTENDANCE_COMPLETE': { NEPALI: 'तपाईंले आजको उपस्थिति पूरा गर्नुभयो। भोलि भेटौंला!', ENGLISH: 'You have already completed your attendance for today. See you tomorrow!' },
+  'scan.error.DAILY_LIMIT_REACHED': { NEPALI: 'आजको उपस्थिति सीमा पुग्यो। प्रतिदिन एकपटक मात्र चेक इन/आउट गर्न सकिन्छ।', ENGLISH: 'Daily attendance limit reached. You can only clock in and out once per day.' },
+  'scan.error.COOLDOWN_ACTIVE': { NEPALI: 'कृपया फेरि स्क्यान गर्नु अघि केही मिनेट पर्खनुहोस्।', ENGLISH: 'Please wait a few minutes before scanning again.' },
+  'scan.error.CLOCKIN_CLOSED': { NEPALI: 'आजको चेक इन बन्द भयो। भोलि भेटौंला!', ENGLISH: 'Clock-in is closed for today. See you tomorrow!' },
+  'scan.error.INVALID_SCAN': { NEPALI: 'अमान्य कर्मचारी आईडी वा QR कोड', ENGLISH: 'Invalid employee ID or QR code.' },
+  'scan.error.PIN_NOT_SET': { NEPALI: 'उपस्थिति PIN सेट गरिएको छैन। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।', ENGLISH: 'Attendance PIN not set. Please contact your administrator.' },
+  'scan.error.OUTSIDE_GEOFENCE': { NEPALI: 'तपाईं कार्यालय क्षेत्र बाहिर हुनुहुन्छ।', ENGLISH: 'You are outside the office area.' },
+  'scan.error.QR_REVOKED': { NEPALI: 'यो QR कोड रद्द गरिएको छ।', ENGLISH: 'This QR code has been revoked.' },
+  'scan.error.QR_EXPIRED': { NEPALI: 'यो QR कोड म्याद सकिएको छ।', ENGLISH: 'This QR code has expired.' },
+  
   // ===== Footer =====
   'footer.copyright': { NEPALI: '© सर्वाधिकार सुरक्षित', ENGLISH: '© All rights reserved' },
   'footer.version': { NEPALI: 'संस्करण', ENGLISH: 'Version' },
