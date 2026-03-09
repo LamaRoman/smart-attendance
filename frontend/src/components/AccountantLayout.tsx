@@ -19,7 +19,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { path: '/accountant',            labelKey: 'nav.dashboard',  icon: BarChart3    },
   { path: '/accountant/attendance', labelKey: 'nav.attendance', icon: Clock        },
-  { path: '/accountant/leaves',     labelKey: 'nav.leaves',     icon: CalendarDays },
+  { path: '/leaves',     labelKey: 'nav.leaves',     icon: CalendarDays },
   { path: '/payroll',               labelKey: 'nav.payroll',    icon: CreditCard   },
   { path: '/accountant/reports',    labelKey: 'nav.reports',    icon: FileText     },
 ];
