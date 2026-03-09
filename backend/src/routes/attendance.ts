@@ -174,11 +174,9 @@ router.get(
   validate(attendanceListQuerySchema, 'query'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { limit, offset, userId, status } = req.query as any;
-      const result = await attendanceService.listAttendance(req.user!, limit, offset, {
-        userId,
-        status,
-      });
+      
+const { limit, offset, userId, status, date } = req.query as any;
+const result = await attendanceService.listAttendance(req.user!, limit, offset, { userId, status, date });
       res.json({ data: result });
     } catch (error) {
       next(error);

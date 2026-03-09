@@ -808,7 +808,7 @@ export class AttendanceService {
     };
   }
 
- // ONLY THIS METHOD CHANGES — everything else in attendance.service.ts is untouched
+  // ONLY THIS METHOD CHANGES — everything else in attendance.service.ts is untouched
 
   async listAttendance(
     currentUser: JWTPayload,
@@ -842,10 +842,9 @@ export class AttendanceService {
 
     // Date filter — scope to a single calendar day
     if (filters.date) {
-      const startOfDay = new Date(filters.date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(filters.date);
-      endOfDay.setHours(23, 59, 59, 999);
+      const [y, m, d] = filters.date.split('-').map(Number);
+      const startOfDay = new Date(y, m - 1, d, 0, 0, 0, 0);
+      const endOfDay = new Date(y, m - 1, d, 23, 59, 59, 999);
       where.checkInTime = { gte: startOfDay, lte: endOfDay };
     }
 
