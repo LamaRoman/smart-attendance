@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
 import EmployeeDetailModal from "@/components/EmployeeDetailModal";
+import BSDatePicker from '@/components/BSDatePicker';
 import {
   FileText,
   Users, UserPlus, Search, Edit, UserMinus, Shield, UserCheck,
@@ -716,16 +717,11 @@ export default function UsersPage() {
                     <label className="block text-xs font-medium text-slate-500 mb-1">
                       {isNp ? 'जन्म मिति (ऐच्छिक)' : 'Date of birth (optional)'}
                     </label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                      <input
-                        type="date"
-                        value={formData.dateOfBirth}
-                        onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                        max={new Date().toISOString().split('T')[0]}
-                        className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
-                      />
-                    </div>
+                    <BSDatePicker
+                      value={formData.dateOfBirth}
+                      onChange={(val) => setFormData({ ...formData, dateOfBirth: val })}
+                      placeholder={isNp ? 'मिति छान्नुहोस्' : 'Select date'}
+                    />
                   </div>
 
                   <div>

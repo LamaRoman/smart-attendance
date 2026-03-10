@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
 import DocumentManager from '@/components/DocumentManager';
+import { adToBS, BS_MONTHS_NP, BS_MONTHS_EN, toNepaliDigits } from '@/components/BSDatePicker';
 import {
   ArrowLeft,
   Mail,
@@ -45,40 +46,25 @@ const ROLE_LABELS: Record<string, { en: string; np: string; color: string }> = {
   SUPER_ADMIN: { en: 'Super Admin', np: 'सुपर प्रशासक', color: 'bg-rose-50 text-rose-700' },
 };
 
+// AD datetime string → "March 10, 2026" (EN) or "फाल्गुन २५, २०८२" (NP/BS)
 function formatDate(dateStr: string, isNp: boolean): string {
   const d = new Date(dateStr);
   if (isNp) {
-    return d.toLocaleDateString('ne-NP-u-ca-nepali', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const bs = adToBS(d);
+    return `${BS_MONTHS_NP[bs.month - 1]} ${toNepaliDigits(bs.day)}, ${toNepaliDigits(bs.year)}`;
   }
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-// DOB is stored as @db.Date — use UTC to avoid off-by-one from timezone conversion
-// When isNp, display in Bikram Sambat using ne-NP-u-ca-nepali
+// DOB stored as @db.Date (UTC midnight) — parse parts directly to avoid timezone shift
 function formatDOB(dateStr: string, isNp: boolean): string {
-  const d = new Date(dateStr);
+  const [y, m, day] = dateStr.split('T')[0].split('-').map(Number);
+  const d = new Date(y, m - 1, day);
   if (isNp) {
-    return d.toLocaleDateString('ne-NP-u-ca-nepali', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'UTC',
-    });
+    const bs = adToBS(d);
+    return `${BS_MONTHS_NP[bs.month - 1]} ${toNepaliDigits(bs.day)}, ${toNepaliDigits(bs.year)}`;
   }
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export default function UserDetailPage() {
