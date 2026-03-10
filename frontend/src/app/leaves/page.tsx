@@ -207,10 +207,10 @@ export default function LeavePage() {
   };
 
   const formatADDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    new Date(dateStr).toLocaleDateString(isNepali ? 'ne-NP' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   const formatDateDisplay = (leave: LeaveRequest) => {
-    if (isNepali) {
+    if (isNepaliCalendar) {
       const start = formatBSDate(leave.bsStartYear, leave.bsStartMonth, leave.bsStartDay);
       const end   = formatBSDate(leave.bsEndYear,   leave.bsEndMonth,   leave.bsEndDay);
       return { primary: `${start} → ${end}`, secondary: `${formatADDate(leave.startDate)} → ${formatADDate(leave.endDate)}` };
