@@ -1,97 +1,55 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import NepaliDate from 'nepali-date-converter';
 
-const BS_CALENDAR_DATA: Record<number, number[]> = {
-  2079: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
-  2080: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2081: [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
-  2082: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-  2083: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
-  2084: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2085: [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
-  2086: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-  2087: [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30],
-  2088: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2089: [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
-  2090: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-};
-
-const MIN_SUPPORTED_YEAR = Math.min(...Object.keys(BS_CALENDAR_DATA).map(Number));
-const MAX_SUPPORTED_YEAR = Math.max(...Object.keys(BS_CALENDAR_DATA).map(Number));
+// ─── Constants ────────────────────────────────────────────────────────────────
+// nepali-date-converter supports ~2000–2090 BS reliably.
+// Expanded from the old 2079–2090 so DOB pickers work for all employees.
+const MIN_BS_YEAR = 2000;
+const MAX_BS_YEAR = 2090;
 
 const BS_MONTHS_NP = ['बैशाख', 'जेठ', 'असार', 'श्रावण', 'भाद्र', 'आश्विन', 'कार्तिक', 'मंसिर', 'पौष', 'माघ', 'फाल्गुन', 'चैत्र'];
 const BS_MONTHS_EN = ['Baishakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'];
 
-const BS_REF = { year: 2079, month: 1, day: 1 };
-const AD_REF = new Date(2022, 3, 14);
+// ─── Conversion helpers ───────────────────────────────────────────────────────
 
-// Bug fix #6: Validate year is in supported range before conversion
-function isYearSupported(year: number): boolean {
-  return !!BS_CALENDAR_DATA[year];
+/** Convert a JS Date (AD) to Bikram Sambat { year, month, day } (month is 1-indexed) */
+function adToBS(date: Date): { year: number; month: number; day: number } {
+  const nd = new NepaliDate(date);
+  return { year: nd.getYear(), month: nd.getMonth() + 1, day: nd.getDate() };
 }
 
+/** Convert a BS date (month is 1-indexed) to a JS Date (AD) */
+function bsToAD(bsYear: number, bsMonth: number, bsDay: number): Date {
+  const nd = new NepaliDate(bsYear, bsMonth - 1, bsDay); // NepaliDate uses 0-indexed month
+  return nd.toJsDate();
+}
+
+/**
+ * Return the number of days in a given BS month.
+ * Strategy: find 1st of next BS month in AD, step back 1 day, read the BS day number.
+ */
+function getDaysInBSMonth(year: number, month1: number): number {
+  const nextMonth = month1 === 12 ? 1 : month1 + 1;
+  const nextYear  = month1 === 12 ? year + 1 : year;
+  const firstOfNextMonthAD = bsToAD(nextYear, nextMonth, 1);
+  // Step back 1 calendar day (use noon to avoid any DST edge cases)
+  const lastDayAD = new Date(
+    firstOfNextMonthAD.getFullYear(),
+    firstOfNextMonthAD.getMonth(),
+    firstOfNextMonthAD.getDate() - 1,
+    12, 0, 0
+  );
+  return adToBS(lastDayAD).day;
+}
+
+/** Format a JS Date as a local YYYY-MM-DD string (avoids UTC off-by-one in Nepal UTC+5:45) */
 function toLocalDateString(date: Date): string {
-  // Bug fix #1 & #3: Use local date parts instead of toISOString() which outputs UTC
-  // and causes off-by-one errors in Nepal (UTC+5:45) and other non-UTC timezones
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
-}
-
-function bsToAD(bsYear: number, bsMonth: number, bsDay: number): Date {
-  // Bug fix #6: Guard against unsupported years
-  if (!isYearSupported(bsYear)) {
-    throw new Error(`BS year ${bsYear} is not supported. Supported range: ${MIN_SUPPORTED_YEAR}–${MAX_SUPPORTED_YEAR}`);
-  }
-
-  let totalDays = 0;
-  for (let y = BS_REF.year; y < bsYear; y++) {
-    // Bug fix #8: Guard against missing intermediate years to prevent infinite loops
-    if (!BS_CALENDAR_DATA[y]) {
-      throw new Error(`BS year ${y} is missing from calendar data.`);
-    }
-    for (let m = 0; m < 12; m++) totalDays += BS_CALENDAR_DATA[y][m];
-  }
-  for (let m = 0; m < bsMonth - 1; m++) {
-    totalDays += (BS_CALENDAR_DATA[bsYear] || [])[m] || 30;
-  }
-  totalDays += bsDay - 1;
-  const result = new Date(AD_REF);
-  result.setDate(result.getDate() + totalDays);
-  return result;
-}
-
-function adToBS(date: Date): { year: number; month: number; day: number } {
-  const utcDate = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12);
-  const utcRef = Date.UTC(AD_REF.getFullYear(), AD_REF.getMonth(), AD_REF.getDate(), 12);
-  let totalDays = Math.round((utcDate - utcRef) / (1000 * 60 * 60 * 24));
-  if (totalDays < 0) return { year: BS_REF.year, month: 1, day: 1 };
-  let bsYear = BS_REF.year;
-  let bsMonth = 1;
-  let bsDay = 1;
-  while (totalDays > 0) {
-    // Bug fix #8: Guard against missing intermediate years
-    if (!BS_CALENDAR_DATA[bsYear]) {
-      throw new Error(`BS year ${bsYear} is missing from calendar data.`);
-    }
-    const daysInMonth = BS_CALENDAR_DATA[bsYear][bsMonth - 1];
-    const remaining = daysInMonth - bsDay;
-    if (totalDays <= remaining) {
-      bsDay += totalDays;
-      totalDays = 0;
-    } else {
-      totalDays -= remaining + 1;
-      bsMonth++;
-      bsDay = 1;
-      if (bsMonth > 12) {
-        bsMonth = 1;
-        bsYear++;
-      }
-    }
-  }
-  return { year: bsYear, month: bsMonth, day: bsDay };
 }
 
 const NEPALI_DIGITS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
@@ -99,23 +57,25 @@ function toNepaliDigits(num: number): string {
   return String(num).split('').map(ch => NEPALI_DIGITS[parseInt(ch)] || ch).join('');
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 interface BSDatePickerProps {
   value: string;
   onChange: (adDateStr: string) => void;
   label?: string;
-  min?: string;       // AD date string e.g. "2025-01-01"
+  min?: string;        // AD date string e.g. "2025-01-01"
   placeholder?: string;
 }
 
 export default function BSDatePicker({ value, onChange, label, min, placeholder }: BSDatePickerProps) {
   const today = adToBS(new Date());
 
-  const [bsYear, setBsYear] = useState(today.year);
+  const [bsYear,  setBsYear]  = useState(today.year);
   const [bsMonth, setBsMonth] = useState(today.month);
-  const [bsDay, setBsDay] = useState(today.day);
-  const [isOpen, setIsOpen] = useState(false);
+  const [bsDay,   setBsDay]   = useState(today.day);
+  const [isOpen,  setIsOpen]  = useState(false);
 
-  // Bug fix #4: Click-outside to close
+  // Click-outside to close
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!isOpen) return;
@@ -128,9 +88,9 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen]);
 
+  // Sync picker state when value prop changes
   useEffect(() => {
     if (value) {
-      // Parse as local date by splitting manually to avoid UTC midnight issues
       const [y, m, d] = value.split('-').map(Number);
       const bs = adToBS(new Date(y, m - 1, d));
       setBsYear(bs.year);
@@ -139,19 +99,21 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
     }
   }, [value]);
 
-  const daysInMonth = (BS_CALENDAR_DATA[bsYear] || [])[bsMonth - 1] || 30;
-  const availableYears = Object.keys(BS_CALENDAR_DATA).map(Number);
+  const daysInMonth   = getDaysInBSMonth(bsYear, bsMonth);
+  const availableYears = Array.from(
+    { length: MAX_BS_YEAR - MIN_BS_YEAR + 1 },
+    (_, i) => MIN_BS_YEAR + i
+  );
 
-  // Bug fix #1: Compute the minimum BS date from the min prop
+  // Minimum BS date derived from the `min` AD prop
   const minBS = min ? (() => {
     const [y, m, d] = min.split('-').map(Number);
     return adToBS(new Date(y, m - 1, d));
   })() : null;
 
-  // Bug fix #1: Check whether a given BS date is before the min
   const isBeforeMin = (year: number, month: number, day: number): boolean => {
     if (!minBS) return false;
-    if (year !== minBS.year) return year < minBS.year;
+    if (year  !== minBS.year)  return year  < minBS.year;
     if (month !== minBS.month) return month < minBS.month;
     return day < minBS.day;
   };
@@ -159,32 +121,26 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
   const handleConfirm = () => {
     const clampedDay = Math.min(bsDay, daysInMonth);
     const adDate = bsToAD(bsYear, bsMonth, clampedDay);
-    // Bug fix #1 & #3: Use local date string, not toISOString()
     onChange(toLocalDateString(adDate));
     setIsOpen(false);
   };
 
-  // Bug fix #7: Accept explicit year+month together to avoid stale closure issues
-  const clampDay = (day: number, year: number, month: number): number => {
-    const days = (BS_CALENDAR_DATA[year] || [])[month - 1] || 30;
-    return Math.min(day, days);
-  };
+  const clampDay = (day: number, year: number, month: number): number =>
+    Math.min(day, getDaysInBSMonth(year, month));
 
   const handleMonthChange = (newMonth: number) => {
     setBsMonth(newMonth);
-    // Bug fix #5: Clamp non-destructively — keep intended day, only cap if needed
     setBsDay(prev => clampDay(prev, bsYear, newMonth));
   };
 
   const handleYearChange = (newYear: number) => {
     setBsYear(newYear);
-    // Bug fix #7: Use newYear and current bsMonth (fresh values) to avoid stale state
     setBsDay(prev => clampDay(prev, newYear, bsMonth));
   };
 
-  // Bug fix #2: Guard against navigating outside supported year range
-  const canGoPrev = !(bsMonth === 1 && bsYear <= MIN_SUPPORTED_YEAR);
-  const canGoNext = !(bsMonth === 12 && bsYear >= MAX_SUPPORTED_YEAR);
+  // Boundary guards for prev/next buttons
+  const canGoPrev = !(bsMonth === 1  && bsYear <= MIN_BS_YEAR);
+  const canGoNext = !(bsMonth === 12 && bsYear >= MAX_BS_YEAR);
 
   const prevMonth = () => {
     if (!canGoPrev) return;
@@ -210,7 +166,7 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
     }
   };
 
-  // Bug fix #3: Parse value as local date to avoid UTC off-by-one in display
+  // Display the AD date in the trigger button
   const adDate = value ? (() => {
     const [y, m, d] = value.split('-').map(Number);
     return new Date(y, m - 1, d);
@@ -245,19 +201,17 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
           )}
         </div>
         {isOpen
-          ? <ChevronUp className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+          ? <ChevronUp   className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
           : <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
         }
       </button>
 
       {/* Dropdown panel */}
       {isOpen && (
-
         <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-md overflow-hidden">
 
           {/* Month / Year navigation */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-            {/* Bug fix #2: Disable prev/next at boundaries */}
             <button
               type="button"
               onClick={prevMonth}
@@ -309,9 +263,8 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
             <div className="grid grid-cols-8 gap-0.5">
               {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                 const isSelected = bsDay === day;
-                const isToday = bsYear === today.year && bsMonth === today.month && day === today.day;
-                // Bug fix #1: Disable days before min
-                const disabled = isBeforeMin(bsYear, bsMonth, day);
+                const isToday    = bsYear === today.year && bsMonth === today.month && day === today.day;
+                const disabled   = isBeforeMin(bsYear, bsMonth, day);
                 return (
                   <button
                     key={day}
