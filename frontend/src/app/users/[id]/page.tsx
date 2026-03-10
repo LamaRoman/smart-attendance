@@ -46,25 +46,31 @@ const ROLE_LABELS: Record<string, { en: string; np: string; color: string }> = {
   SUPER_ADMIN: { en: 'Super Admin', np: 'सुपर प्रशासक', color: 'bg-rose-50 text-rose-700' },
 };
 
-// AD datetime string → "March 10, 2026" (EN) or "फाल्गुन २५, २०८२" (NP/BS)
-function formatDate(dateStr: string, isNp: boolean): string {
+// AD datetime string → formatted date based on calendar (isBs) and script (isNp)
+function formatDate(dateStr: string, isBs: boolean, isNp: boolean): string {
   const d = new Date(dateStr);
-  if (isNp) {
+  if (isBs) {
     const bs = adToBS(d);
-    return `${BS_MONTHS_NP[bs.month - 1]} ${toNepaliDigits(bs.day)}, ${toNepaliDigits(bs.year)}`;
+    const months = isNp ? BS_MONTHS_NP : BS_MONTHS_EN;
+    return isNp
+      ? `${months[bs.month - 1]} ${toNepaliDigits(bs.day)}, ${toNepaliDigits(bs.year)}`
+      : `${months[bs.month - 1]} ${bs.day}, ${bs.year}`;
   }
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString(isNp ? 'ne-NP' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 // DOB stored as @db.Date (UTC midnight) — parse parts directly to avoid timezone shift
-function formatDOB(dateStr: string, isNp: boolean): string {
+function formatDOB(dateStr: string, isBs: boolean, isNp: boolean): string {
   const [y, m, day] = dateStr.split('T')[0].split('-').map(Number);
   const d = new Date(y, m - 1, day);
-  if (isNp) {
+  if (isBs) {
     const bs = adToBS(d);
-    return `${BS_MONTHS_NP[bs.month - 1]} ${toNepaliDigits(bs.day)}, ${toNepaliDigits(bs.year)}`;
+    const months = isNp ? BS_MONTHS_NP : BS_MONTHS_EN;
+    return isNp
+      ? `${months[bs.month - 1]} ${toNepaliDigits(bs.day)}, ${toNepaliDigits(bs.year)}`
+      : `${months[bs.month - 1]} ${bs.day}, ${bs.year}`;
   }
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString(isNp ? 'ne-NP' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export default function UserDetailPage() {
@@ -237,7 +243,7 @@ export default function UserDetailPage() {
                 label={isNp ? 'जन्म मिति' : 'Date of birth'}
                 value={
                   userData.dateOfBirth
-                    ? formatDOB(userData.dateOfBirth, isBs)
+                    ? formatDOB(userData.dateOfBirth, isBs, isNp)
                     : (isNp ? 'उपलब्ध छैन' : 'Not provided')
                 }
               />
@@ -253,7 +259,7 @@ export default function UserDetailPage() {
               <InfoItem
                 icon={<Calendar className="w-4 h-4" />}
                 label={isNp ? 'सिर्जना मिति' : 'Joined'}
-                value={formatDate(userData.createdAt, isBs)}
+                value={formatDate(userData.createdAt, isBs, isNp)}
               />
             </div>
           </div>

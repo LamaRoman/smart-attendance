@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
-import BSDatePicker from '@/components/BSDatePicker';
+import BSDatePicker, { adToBS, BS_MONTHS_NP, BS_MONTHS_EN, toNepaliDigits } from '@/components/BSDatePicker';
 import { Clock, Calendar, RefreshCw, Edit, UserPlus, X, AlertCircle, CheckCircle, Save, Pencil, Lock } from 'lucide-react';
 
 interface AttendanceRecord {
@@ -83,8 +83,16 @@ export default function AdminAttendancePage() {
   const formatTime = (dateStr: string) =>
     new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString(isNp ? 'ne-NP' : 'en-US', { month: 'short', day: 'numeric' });
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (isBs) {
+      const bs = adToBS(d);
+      return isNp
+        ? `${BS_MONTHS_NP[bs.month - 1]} ${toNepaliDigits(bs.day)}`
+        : `${BS_MONTHS_EN[bs.month - 1]} ${bs.day}`;
+    }
+    return d.toLocaleDateString(isNp ? 'ne-NP' : 'en-US', { month: 'short', day: 'numeric' });
+  };
 
   const formatDuration = (mins: number) => {
     const h = Math.floor(mins / 60); const m = mins % 60;
