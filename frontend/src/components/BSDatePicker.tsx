@@ -63,11 +63,12 @@ interface BSDatePickerProps {
   value: string;
   onChange: (adDateStr: string) => void;
   label?: string;
-  min?: string;        // AD date string e.g. "2025-01-01"
+  min?: string;        // AD date string e.g. "2000-01-01"
+  max?: string;        // AD date string e.g. "2025-12-31"
   placeholder?: string;
 }
 
-export default function BSDatePicker({ value, onChange, label, min, placeholder }: BSDatePickerProps) {
+export default function BSDatePicker({ value, onChange, label, min, max, placeholder }: BSDatePickerProps) {
   const today = adToBS(new Date());
 
   const [bsYear,  setBsYear]  = useState(today.year);
@@ -117,6 +118,22 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
     if (month !== minBS.month) return month < minBS.month;
     return day < minBS.day;
   };
+
+  // Maximum BS date derived from the `max` AD prop
+  const maxBS = max ? (() => {
+    const [y, m, d] = max.split('-').map(Number);
+    return adToBS(new Date(y, m - 1, d));
+  })() : null;
+
+  const isAfterMax = (year: number, month: number, day: number): boolean => {
+    if (!maxBS) return false;
+    if (year  !== maxBS.year)  return year  > maxBS.year;
+    if (month !== maxBS.month) return month > maxBS.month;
+    return day > maxBS.day;
+  };
+
+  const isDisabled = (year: number, month: number, day: number): boolean =>
+    isBeforeMin(year, month, day) || isAfterMax(year, month, day);
 
   const handleConfirm = () => {
     const clampedDay = Math.min(bsDay, daysInMonth);
@@ -264,7 +281,7 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
               {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                 const isSelected = bsDay === day;
                 const isToday    = bsYear === today.year && bsMonth === today.month && day === today.day;
-                const disabled   = isBeforeMin(bsYear, bsMonth, day);
+                const disabled   = isDisabled(bsYear, bsMonth, day);
                 return (
                   <button
                     key={day}
@@ -312,7 +329,7 @@ export default function BSDatePicker({ value, onChange, label, min, placeholder 
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={isBeforeMin(bsYear, bsMonth, bsDay)}
+                disabled={isDisabled(bsYear, bsMonth, bsDay)}
                 className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Confirm

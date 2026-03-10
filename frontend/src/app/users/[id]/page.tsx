@@ -71,8 +71,9 @@ export default function UserDetailPage() {
   const router = useRouter();
   const params = useParams();
   const userId = params.id as string;
-  const { user: currentUser, isLoading: authLoading, language } = useAuth();
+  const { user: currentUser, isLoading: authLoading, language, calendarMode } = useAuth();
   const isNp = language === 'NEPALI';
+  const isBs = calendarMode === 'NEPALI';
 
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -236,7 +237,7 @@ export default function UserDetailPage() {
                 label={isNp ? 'जन्म मिति' : 'Date of birth'}
                 value={
                   userData.dateOfBirth
-                    ? formatDOB(userData.dateOfBirth, isNp)
+                    ? formatDOB(userData.dateOfBirth, isBs)
                     : (isNp ? 'उपलब्ध छैन' : 'Not provided')
                 }
               />
@@ -252,7 +253,7 @@ export default function UserDetailPage() {
               <InfoItem
                 icon={<Calendar className="w-4 h-4" />}
                 label={isNp ? 'सिर्जना मिति' : 'Joined'}
-                value={formatDate(userData.createdAt, isNp)}
+                value={formatDate(userData.createdAt, isBs)}
               />
             </div>
           </div>

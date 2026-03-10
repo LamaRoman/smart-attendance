@@ -720,6 +720,7 @@ export default function UsersPage() {
                     <BSDatePicker
                       value={formData.dateOfBirth}
                       onChange={(val) => setFormData({ ...formData, dateOfBirth: val })}
+                      max={new Date().toISOString().split('T')[0]}
                       placeholder={isNp ? 'मिति छान्नुहोस्' : 'Select date'}
                     />
                   </div>
