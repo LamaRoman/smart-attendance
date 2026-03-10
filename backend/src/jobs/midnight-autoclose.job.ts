@@ -1,6 +1,7 @@
 // src/jobs/midnight-autoclose.job.ts
 // ============================================================
-// Runs daily at midnight Nepal time (UTC+5:45 = 18:15 UTC).
+// Runs daily at midnight Nepal time.
+// Requires TZ=Asia/Kathmandu set in the environment (Railway).
 // Finds all open CHECKED_IN attendance records and auto-closes
 // them. This handles employees who forgot to clock out.
 // ============================================================
@@ -62,13 +63,14 @@ export async function runMidnightAutoCloseJob(): Promise<void> {
 }
 
 export function startMidnightAutoCloseJob(): void {
-  // 18:15 UTC = 00:00 NPT (UTC+5:45)
-  cron.schedule('15 18 * * *', async () => {
+  // '0 0 * * *' = midnight in server local time.
+  // Requires TZ=Asia/Kathmandu in Railway environment variables.
+  cron.schedule('0 0 * * *', async () => {
     try {
       await runMidnightAutoCloseJob();
     } catch (err) {
       log.error({ err }, 'Midnight auto-close job failed');
     }
   });
-  log.info('Midnight auto-close job scheduled — runs daily at 00:00 NPT');
+  log.info('Midnight auto-close job scheduled — runs daily at 00:00 NPT (requires TZ=Asia/Kathmandu)');
 }
