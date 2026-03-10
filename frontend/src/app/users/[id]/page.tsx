@@ -21,6 +21,7 @@ import {
   User,
   Loader2,
   AlertCircle,
+  Cake,
 } from 'lucide-react';
 
 interface UserData {
@@ -35,6 +36,7 @@ interface UserData {
   createdAt: string;
   shiftStartTime?: string | null;
   shiftEndTime?: string | null;
+  dateOfBirth?: string | null;
 }
 
 const ROLE_LABELS: Record<string, { en: string; np: string; color: string }> = {
@@ -48,6 +50,17 @@ function formatDate(dateStr: string): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+  });
+}
+
+// DOB is stored as @db.Date — use UTC to avoid off-by-one from timezone conversion
+function formatDOB(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
@@ -66,7 +79,6 @@ export default function UserDetailPage() {
   const fetchUser = useCallback(async () => {
     try {
       setLoading(true);
-      // Fetch all users and find the one we need
       const res = await api.get('/api/users');
       if (res.error) throw new Error(res.error.message);
       const users = (res.data as UserData[]) || [];
@@ -141,12 +153,9 @@ export default function UserDetailPage() {
         {/* User Header Card */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="flex items-center gap-5">
-            {/* Avatar */}
             <div className="w-16 h-16 rounded-xl bg-slate-900 flex items-center justify-center shrink-0">
               <span className="text-white font-bold text-lg">{initials}</span>
             </div>
-
-            {/* Name & badges */}
             <div className="flex-1">
               <h1 className="text-xl font-semibold text-slate-900">
                 {userData.firstName} {userData.lastName}
@@ -195,7 +204,7 @@ export default function UserDetailPage() {
           ))}
         </div>
 
-        {/* Tab Content */}
+        {/* Profile Tab */}
         {activeTab === 'profile' && (
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -220,6 +229,15 @@ export default function UserDetailPage() {
                 value={isNp ? roleInfo.np : roleInfo.en}
               />
               <InfoItem
+                icon={<Cake className="w-4 h-4" />}
+                label={isNp ? 'जन्म मिति' : 'Date of birth'}
+                value={
+                  userData.dateOfBirth
+                    ? formatDOB(userData.dateOfBirth)
+                    : (isNp ? 'उपलब्ध छैन' : 'Not provided')
+                }
+              />
+              <InfoItem
                 icon={<Clock className="w-4 h-4" />}
                 label={isNp ? 'शिफ्ट समय' : 'Shift Time'}
                 value={
@@ -237,6 +255,7 @@ export default function UserDetailPage() {
           </div>
         )}
 
+        {/* Documents Tab */}
         {activeTab === 'documents' && (
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <DocumentManager userId={userId} language={language} />

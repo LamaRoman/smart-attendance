@@ -23,6 +23,7 @@ function flattenMembershipResponse(membership: any) {
     firstName: user.firstName,
     lastName: user.lastName,
     phone: user.phone,
+    dateOfBirth: user.dateOfBirth,
     platformId: user.platformId,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -60,6 +61,7 @@ const MEMBERSHIP_WITH_USER_SELECT = {
       firstName: true,
       lastName: true,
       phone: true,
+      dateOfBirth: true,
       platformId: true,
       createdAt: true,
       updatedAt: true,
@@ -195,6 +197,7 @@ export class UserService {
           firstName: input.firstName,
           lastName: input.lastName,
           phone: input.phone,
+          dateOfBirth: (input as any).dateOfBirth ? new Date((input as any).dateOfBirth) : null,
           platformId,
           role: 'EMPLOYEE', // Platform-level default; effective role is on membership
         },
@@ -203,6 +206,7 @@ export class UserService {
           email: true,
           firstName: true,
           lastName: true,
+          dateOfBirth: true,
           phone: true,
           platformId: true,
           createdAt: true,
@@ -509,6 +513,11 @@ export class UserService {
     if (input.firstName) userUpdateData.firstName = input.firstName;
     if (input.lastName) userUpdateData.lastName = input.lastName;
     if (input.phone !== undefined) userUpdateData.phone = input.phone;
+    if ((input as any).dateOfBirth !== undefined) {
+      userUpdateData.dateOfBirth = (input as any).dateOfBirth
+        ? new Date((input as any).dateOfBirth)
+        : null;
+    }
     if (input.password) {
       userUpdateData.password = await hashPassword(input.password);
     }

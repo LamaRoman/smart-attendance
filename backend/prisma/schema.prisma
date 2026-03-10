@@ -157,6 +157,7 @@ model User {
   firstName  String
   lastName   String
   phone      String?
+  dateOfBirth DateTime? @db.Date
   platformId String? @unique
 
   // Role on User is only meaningful for SUPER_ADMIN.

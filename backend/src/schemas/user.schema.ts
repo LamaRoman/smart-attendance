@@ -9,6 +9,15 @@ const timeField = z
   .nullable()
   .optional();
 
+const dobField = z
+  .string()
+  .transform((v) => (v === '' ? undefined : v))
+  .pipe(
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be YYYY-MM-DD format').optional()
+  )
+  .nullable()
+  .optional();
+
 export const createUserSchema = z.object({
   email: z.string().email('Invalid email format').transform((v) => v.toLowerCase().trim()),
   password: z
@@ -22,6 +31,7 @@ export const createUserSchema = z.object({
   lastName: z.string().min(1, 'Last name is required').trim(),
   phone: z.string().optional(),
   panNumber: z.string().optional(),
+  dateOfBirth: dobField,
   shiftStartTime: timeField,
   shiftEndTime: timeField,
   role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE'], { errorMap: () => ({ message: 'Role must be ORG_ADMIN, ORG_ACCOUNTANT, or EMPLOYEE' }) }).default('EMPLOYEE'),
@@ -51,6 +61,7 @@ export const updateUserSchema = z.object({
   lastName: z.string().min(1).trim().optional(),
   phone: z.string().optional(),
   panNumber: z.string().optional(),
+  dateOfBirth: dobField,
   shiftStartTime: timeField,
   shiftEndTime: timeField,
   role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE']).optional(),

@@ -8,9 +8,9 @@ import AdminLayout from '@/components/AdminLayout';
 import EmployeeDetailModal from "@/components/EmployeeDetailModal";
 import {
   FileText,
-  Users, UserPlus, Search, Edit, Trash2, UserMinus, Shield, UserCheck,
+  Users, UserPlus, Search, Edit, UserMinus, Shield, UserCheck,
   CheckCircle, XCircle, Save, Key, Mail, User, X, AlertCircle,
-  RefreshCw, Copy, Eye, EyeOff, Link,
+  RefreshCw, Copy, Eye, EyeOff, Link, Calendar,
 } from 'lucide-react';
 
 interface UserData {
@@ -19,21 +19,14 @@ interface UserData {
   createdAt: string;
   shiftStartTime?: string | null;
   shiftEndTime?: string | null;
+  dateOfBirth?: string | null;
 }
 
 // ── PIN Reveal Modal ──────────────────────────────────────────
 function PinRevealModal({
-  pin,
-  employeeName,
-  employeeId,
-  isNp,
-  onClose,
+  pin, employeeName, employeeId, isNp, onClose,
 }: {
-  pin: string;
-  employeeName: string;
-  employeeId: string;
-  isNp: boolean;
-  onClose: () => void;
+  pin: string; employeeName: string; employeeId: string; isNp: boolean; onClose: () => void;
 }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -45,12 +38,9 @@ function PinRevealModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
-        {/* Header */}
         <div className="bg-amber-50 border-b border-amber-100 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-amber-100">
@@ -60,15 +50,11 @@ function PinRevealModal({
               <h2 className="text-sm font-semibold text-slate-900">
                 {isNp ? 'उपस्थिति PIN' : 'Attendance PIN'}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {employeeName} · {employeeId}
-              </p>
+              <p className="text-xs text-slate-500 mt-0.5">{employeeName} · {employeeId}</p>
             </div>
           </div>
         </div>
-
         <div className="p-6 space-y-5">
-          {/* Warning */}
           <div className="flex items-start gap-2.5 p-3 bg-rose-50 rounded-xl border border-rose-200">
             <AlertCircle className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-rose-700 leading-relaxed">
@@ -77,12 +63,8 @@ function PinRevealModal({
                 : 'This PIN will not be shown again. Note it down or give it to the employee now.'}
             </p>
           </div>
-
-          {/* PIN Display */}
           <div className="text-center">
-            <p className="text-xs text-slate-500 mb-3">
-              {isNp ? 'हाजिरी PIN' : 'Attendance PIN'}
-            </p>
+            <p className="text-xs text-slate-500 mb-3">{isNp ? 'हाजिरी PIN' : 'Attendance PIN'}</p>
             <div className="relative inline-flex items-center justify-center">
               <div className="text-5xl font-mono font-bold tracking-[0.4em] text-slate-900 px-6 py-4 bg-slate-50 rounded-2xl border-2 border-slate-200 select-all">
                 {revealed ? pin : '••••'}
@@ -105,8 +87,6 @@ function PinRevealModal({
               </button>
             </div>
           </div>
-
-          {/* Acknowledgement checkbox */}
           <label className="flex items-start gap-2.5 cursor-pointer">
             <input
               type="checkbox"
@@ -120,7 +100,6 @@ function PinRevealModal({
                 : 'I have noted this PIN and will give it to the employee.'}
             </span>
           </label>
-
           <button
             onClick={onClose}
             disabled={!acknowledged}
@@ -157,26 +136,20 @@ export default function UsersPage() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [empCap, setEmpCap] = useState<{ current: number; max: number | null } | null>(null);
   const [resettingPinId, setResettingPinId] = useState<string | null>(null);
-
-  // Modal mode: 'create' = new user, 'existing' = add by platform ID
   const [modalMode, setModalMode] = useState<'create' | 'existing'>('create');
-
-  // PIN reveal state
   const [pinModal, setPinModal] = useState<{
-    pin: string;
-    employeeName: string;
-    employeeId: string;
+    pin: string; employeeName: string; employeeId: string;
   } | null>(null);
 
   const [formData, setFormData] = useState({
     email: '', password: '', firstName: '', lastName: '',
     panNumber: '',
+    dateOfBirth: '',
     role: 'EMPLOYEE' as 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE',
     shiftStartTime: '',
     shiftEndTime: '',
   });
 
-  // Add existing user form data
   const [existingFormData, setExistingFormData] = useState({
     platformId: '',
     role: 'EMPLOYEE' as 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE',
@@ -199,7 +172,6 @@ export default function UsersPage() {
     const subRes = await api.get("/api/org-settings/subscription");
     if (subRes.data) {
       const d = subRes.data as any;
-
       setEmpCap({ current: d?.currentEmployeeCount || 0, max: d?.plan?.maxEmployees ?? null });
     }
     setLoading(false);
@@ -225,7 +197,7 @@ export default function UsersPage() {
   const openCreate = () => {
     setEditingUser(null);
     setModalMode('create');
-    setFormData({ email: '', password: '', firstName: '', lastName: '', role: 'EMPLOYEE', panNumber: '', shiftStartTime: '', shiftEndTime: '' });
+    setFormData({ email: '', password: '', firstName: '', lastName: '', role: 'EMPLOYEE', panNumber: '', dateOfBirth: '', shiftStartTime: '', shiftEndTime: '' });
     setExistingFormData({ platformId: '', role: 'EMPLOYEE', panNumber: '', shiftStartTime: '', shiftEndTime: '' });
     setShowModal(true);
     setError('');
@@ -234,7 +206,17 @@ export default function UsersPage() {
   const openEdit = (u: UserData) => {
     setEditingUser(u);
     setModalMode('create');
-    setFormData({ email: u.email, password: '', firstName: u.firstName, lastName: u.lastName, role: u.role as any, panNumber: (u as any).panNumber || '', shiftStartTime: u.shiftStartTime || '', shiftEndTime: u.shiftEndTime || '' });
+    setFormData({
+      email: u.email,
+      password: '',
+      firstName: u.firstName,
+      lastName: u.lastName,
+      role: u.role as any,
+      panNumber: (u as any).panNumber || '',
+      dateOfBirth: u.dateOfBirth ? new Date(u.dateOfBirth).toISOString().split('T')[0] : '',
+      shiftStartTime: u.shiftStartTime || '',
+      shiftEndTime: u.shiftEndTime || '',
+    });
     setShowModal(true);
     setError('');
   };
@@ -242,7 +224,15 @@ export default function UsersPage() {
   const handleSubmit = async () => {
     setSaving(true); setError('');
     if (editingUser) {
-      const updateData: any = { firstName: formData.firstName, lastName: formData.lastName, role: formData.role, panNumber: formData.panNumber || null, shiftStartTime: formData.shiftStartTime || null, shiftEndTime: formData.shiftEndTime || null };
+      const updateData: any = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        role: formData.role,
+        panNumber: formData.panNumber || null,
+        dateOfBirth: formData.dateOfBirth || null,
+        shiftStartTime: formData.shiftStartTime || null,
+        shiftEndTime: formData.shiftEndTime || null,
+      };
       if (formData.password) updateData.password = formData.password;
       const res = await api.put('/api/users/' + editingUser.id, updateData);
       if (res.error) { setError(res.error.message); }
@@ -439,16 +429,10 @@ export default function UsersPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">
-                {isNp ? 'प्रयोगकर्ता सूची' : 'User list'}
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {isNp ? 'सबै प्रयोगकर्ताहरूको सूची' : 'All users in your organization'}
-              </p>
+              <h2 className="text-sm font-semibold text-slate-900">{isNp ? 'प्रयोगकर्ता सूची' : 'User list'}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">{isNp ? 'सबै प्रयोगकर्ताहरूको सूची' : 'All users in your organization'}</p>
             </div>
             <div className="flex items-center gap-3">
-
-
               {empCap && empCap.max !== null && (
                 <span className={"text-xs font-medium " + (empCap.current >= empCap.max ? "text-red-600" : empCap.current >= empCap.max - 1 ? "text-amber-600" : "text-slate-500")}>
                   {empCap.current}/{empCap.max} {isNp ? "कर्मचारी" : "employees"}
@@ -456,7 +440,6 @@ export default function UsersPage() {
               )}
               <button
                 onClick={openCreate}
-
                 disabled={empCap !== null && empCap.max !== null && empCap.current >= empCap.max}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -465,14 +448,12 @@ export default function UsersPage() {
               </button>
             </div>
           </div>
-
           <div className="flex flex-col md:flex-row gap-3 mt-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
                 value={searchTerm}
-
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                 placeholder={isNp ? 'नाम, इमेल, ID खोज्नुहोस्...' : 'Search name, email, ID...'}
                 className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 placeholder:text-slate-400"
@@ -480,9 +461,7 @@ export default function UsersPage() {
             </div>
             <select
               value={roleFilter}
-
               onChange={(e) => { setRoleFilter(e.target.value as any); setCurrentPage(1); }}
-
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
               <option value="ALL">{isNp ? 'सबै भूमिका' : 'All roles'}</option>
@@ -492,7 +471,6 @@ export default function UsersPage() {
             </select>
             <select
               value={statusFilter}
-
               onChange={(e) => { setStatusFilter(e.target.value as any); setCurrentPage(1); }}
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white"
             >
@@ -525,9 +503,7 @@ export default function UsersPage() {
                       <td className="py-3 px-5">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center">
-                            <span className="text-xs font-medium text-slate-700">
-                              {u.firstName[0]}{u.lastName[0]}
-                            </span>
+                            <span className="text-xs font-medium text-slate-700">{u.firstName[0]}{u.lastName[0]}</span>
                           </div>
                           <div>
                             <div className="text-sm font-medium text-slate-900 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => router.push(`/users/${u.id}`)}>{u.firstName} {u.lastName}</div>
@@ -566,33 +542,16 @@ export default function UsersPage() {
                       </td>
                       <td className="py-3 px-5 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => openEdit(u)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                            title={isNp ? 'सम्पादन' : 'Edit'}
-                          >
+                          <button onClick={() => openEdit(u)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title={isNp ? 'सम्पादन' : 'Edit'}>
                             <Edit className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            onClick={() => handleResetPin(u)}
-                            disabled={resettingPinId === u.id}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
-                            title={isNp ? 'PIN रिसेट' : 'Reset PIN'}
-                          >
+                          <button onClick={() => handleResetPin(u)} disabled={resettingPinId === u.id} className="p-1.5 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50" title={isNp ? 'PIN रिसेट' : 'Reset PIN'}>
                             <Key className={`w-3.5 h-3.5 ${resettingPinId === u.id ? 'animate-pulse' : ''}`} />
                           </button>
-                          <button
-                            onClick={() => router.push(`/users/${u.id}`)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                            title={isNp ? 'कागजात' : 'Documents'}
-                          >
+                          <button onClick={() => router.push(`/users/${u.id}`)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title={isNp ? 'कागजात' : 'Documents'}>
                             <FileText className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            onClick={() => removeUser(u)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title={isNp ? 'संगठनबाट हटाउनुहोस्' : 'Remove'}
-                          >
+                          <button onClick={() => removeUser(u)} className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title={isNp ? 'संगठनबाट हटाउनुहोस्' : 'Remove'}>
                             <UserMinus className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -606,12 +565,8 @@ export default function UsersPage() {
                       <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                         <Users className="w-6 h-6 text-slate-400" />
                       </div>
-                      <p className="text-sm font-medium text-slate-900 mb-1">
-                        {isNp ? 'कुनै प्रयोगकर्ता भेटिएन' : 'No users found'}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {isNp ? 'नयाँ प्रयोगकर्ता थप्न माथिको बटन प्रयोग गर्नुहोस्' : 'Add a new user to get started'}
-                      </p>
+                      <p className="text-sm font-medium text-slate-900 mb-1">{isNp ? 'कुनै प्रयोगकर्ता भेटिएन' : 'No users found'}</p>
+                      <p className="text-xs text-slate-500">{isNp ? 'नयाँ प्रयोगकर्ता थप्न माथिको बटन प्रयोग गर्नुहोस्' : 'Add a new user to get started'}</p>
                     </td>
                   </tr>
                 )}
@@ -625,21 +580,13 @@ export default function UsersPage() {
                     : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} of ${filteredUsers.length}`}
                 </p>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
+                  <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                     {isNp ? 'अघिल्लो' : 'Previous'}
                   </button>
                   <span className="px-3 py-1.5 text-xs text-slate-500">
                     {isNp ? `${currentPage} / ${totalPages}` : `${currentPage} of ${totalPages}`}
                   </span>
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
+                  <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                     {isNp ? 'अर्को' : 'Next'}
                   </button>
                 </div>
@@ -662,7 +609,7 @@ export default function UsersPage() {
         />
       )}
 
-      {/* Create / Add Existing Modal */}
+      {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/20 flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden border border-slate-200 mb-10">
@@ -673,9 +620,7 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-slate-900">
-                    {editingUser
-                      ? (isNp ? 'प्रयोगकर्ता सम्पादन' : 'Edit user')
-                      : (isNp ? 'प्रयोगकर्ता थप्नुहोस्' : 'Add user')}
+                    {editingUser ? (isNp ? 'प्रयोगकर्ता सम्पादन' : 'Edit user') : (isNp ? 'प्रयोगकर्ता थप्नुहोस्' : 'Add user')}
                   </h2>
                   {!editingUser && (
                     <p className="text-xs text-slate-400 mt-0.5">
@@ -689,26 +634,19 @@ export default function UsersPage() {
               </button>
             </div>
 
-            {/* Mode Toggle — only show for new user (not editing) */}
             {!editingUser && (
               <div className="px-5 pt-4">
                 <div className="flex bg-slate-100 rounded-lg p-1">
                   <button
                     onClick={() => { setModalMode('create'); setError(''); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${modalMode === 'create'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                      }`}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${modalMode === 'create' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     <UserPlus className="w-3.5 h-3.5" />
                     {isNp ? 'नयाँ सिर्जना' : 'Create new'}
                   </button>
                   <button
                     onClick={() => { setModalMode('existing'); setError(''); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${modalMode === 'existing'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                      }`}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${modalMode === 'existing' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     <Link className="w-3.5 h-3.5" />
                     {isNp ? 'प्लेटफर्म ID बाट' : 'Add existing'}
@@ -725,7 +663,7 @@ export default function UsersPage() {
                 </div>
               )}
 
-              {/* ── CREATE NEW USER FORM ── */}
+              {/* CREATE / EDIT FORM */}
               {(modalMode === 'create' || editingUser) && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
@@ -771,6 +709,23 @@ export default function UsersPage() {
                       {isNp ? 'PAN नम्बर (ऐच्छिक)' : 'PAN number (optional)'}
                     </label>
                     <input type="text" value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} placeholder={isNp ? 'PAN नम्बर...' : 'PAN number...'} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                  </div>
+
+                  {/* DATE OF BIRTH */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      {isNp ? 'जन्म मिति (ऐच्छिक)' : 'Date of birth (optional)'}
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                      <input
+                        type="date"
+                        value={formData.dateOfBirth}
+                        onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -819,17 +774,16 @@ export default function UsersPage() {
                 </>
               )}
 
-              {/* ── ADD EXISTING USER FORM ── */}
+              {/* ADD EXISTING FORM */}
               {modalMode === 'existing' && !editingUser && (
                 <>
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <p className="text-xs text-blue-700 leading-relaxed">
                       {isNp
                         ? 'कर्मचारीको ८ अंकको प्लेटफर्म ID प्रविष्ट गर्नुहोस्। उनीहरूको अवस्थित खाता तपाईंको संगठनमा लिंक हुनेछ।'
-                        : 'Enter the employee\'s 8-digit Platform ID. Their existing account will be linked to your organization.'}
+                        : "Enter the employee's 8-digit Platform ID. Their existing account will be linked to your organization."}
                     </p>
                   </div>
-
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
                       {isNp ? 'प्लेटफर्म ID' : 'Platform ID'} <span className="text-rose-500">*</span>
@@ -840,7 +794,6 @@ export default function UsersPage() {
                         type="text"
                         value={existingFormData.platformId}
                         onChange={(e) => {
-                          // Only allow digits, max 8
                           const val = e.target.value.replace(/\D/g, '').slice(0, 8);
                           setExistingFormData({ ...existingFormData, platformId: val });
                         }}
@@ -850,12 +803,9 @@ export default function UsersPage() {
                       />
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
-                      {isNp
-                        ? 'कर्मचारीले आफ्नो प्रोफाइलमा प्लेटफर्म ID पाउन सक्छन्'
-                        : 'Employee can find their Platform ID in their profile'}
+                      {isNp ? 'कर्मचारीले आफ्नो प्रोफाइलमा प्लेटफर्म ID पाउन सक्छन्' : 'Employee can find their Platform ID in their profile'}
                     </p>
                   </div>
-
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">{isNp ? 'भूमिका' : 'Role'}</label>
                     <select value={existingFormData.role} onChange={(e) => setExistingFormData({ ...existingFormData, role: e.target.value as any })} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white">
@@ -864,14 +814,12 @@ export default function UsersPage() {
                       <option value="ORG_ADMIN">{isNp ? 'प्रशासक' : 'Admin'}</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
                       {isNp ? 'PAN नम्बर (ऐच्छिक)' : 'PAN number (optional)'}
                     </label>
                     <input type="text" value={existingFormData.panNumber} onChange={(e) => setExistingFormData({ ...existingFormData, panNumber: e.target.value })} placeholder={isNp ? 'PAN नम्बर...' : 'PAN number...'} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                   </div>
-
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
                       {isNp ? 'कार्य समय (ऐच्छिक)' : 'Work shift (optional)'}
@@ -890,7 +838,6 @@ export default function UsersPage() {
                       </div>
                     </div>
                   </div>
-
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                       {isNp ? 'रद्द' : 'Cancel'}
