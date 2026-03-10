@@ -45,8 +45,16 @@ const ROLE_LABELS: Record<string, { en: string; np: string; color: string }> = {
   SUPER_ADMIN: { en: 'Super Admin', np: 'सुपर प्रशासक', color: 'bg-rose-50 text-rose-700' },
 };
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
+function formatDate(dateStr: string, isNp: boolean): string {
+  const d = new Date(dateStr);
+  if (isNp) {
+    return d.toLocaleDateString('ne-NP-u-ca-nepali', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+  return d.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -54,8 +62,17 @@ function formatDate(dateStr: string): string {
 }
 
 // DOB is stored as @db.Date — use UTC to avoid off-by-one from timezone conversion
-function formatDOB(dateStr: string): string {
+// When isNp, display in Bikram Sambat using ne-NP-u-ca-nepali
+function formatDOB(dateStr: string, isNp: boolean): string {
   const d = new Date(dateStr);
+  if (isNp) {
+    return d.toLocaleDateString('ne-NP-u-ca-nepali', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    });
+  }
   return d.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -233,7 +250,7 @@ export default function UserDetailPage() {
                 label={isNp ? 'जन्म मिति' : 'Date of birth'}
                 value={
                   userData.dateOfBirth
-                    ? formatDOB(userData.dateOfBirth)
+                    ? formatDOB(userData.dateOfBirth, isNp)
                     : (isNp ? 'उपलब्ध छैन' : 'Not provided')
                 }
               />
@@ -249,7 +266,7 @@ export default function UserDetailPage() {
               <InfoItem
                 icon={<Calendar className="w-4 h-4" />}
                 label={isNp ? 'सिर्जना मिति' : 'Joined'}
-                value={formatDate(userData.createdAt)}
+                value={formatDate(userData.createdAt, isNp)}
               />
             </div>
           </div>
