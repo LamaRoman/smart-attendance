@@ -33,12 +33,22 @@ function validateTDSConfig(config: any): boolean {
   return true;
 }
 
-function calculateNepalTDS(annualIncome: number, isMarried: boolean = false, tdsConfig: any): number {
+function calculateNepalTDS(
+  annualIncome: number,
+  isMarried: boolean = false,
+  tdsConfig: any,
+  ssfEnabled: boolean = false,
+): number {
   const config = validateTDSConfig(tdsConfig) ? tdsConfig : null;
-  const firstSlabRate = (config?.firstSlabRate ?? 1) / 100;
+
+  // SSF contributors are exempt from 1% Social Security Tax
+  // per Section 21(4) of Nepal's Financial Act
+  const firstSlabRate = ssfEnabled ? 0 : (config?.firstSlabRate ?? 1) / 100;
+
   const firstSlab = isMarried
     ? (config?.marriedFirstSlab ?? 600000)
     : (config?.unmarriedFirstSlab ?? 500000);
+
   const dbSlabs = config?.slabs ?? [
     { limit: 200000, rate: 10 },
     { limit: 300000, rate: 20 },
@@ -46,6 +56,7 @@ function calculateNepalTDS(annualIncome: number, isMarried: boolean = false, tds
     { limit: 3000000, rate: 36 },
     { limit: 0, rate: 39 },
   ];
+
   const slabs = [
     { limit: firstSlab, rate: firstSlabRate },
     ...dbSlabs.map((s: any) => ({
@@ -53,14 +64,17 @@ function calculateNepalTDS(annualIncome: number, isMarried: boolean = false, tds
       rate: s.rate / 100,
     })),
   ];
+
   let tax = 0;
   let remaining = annualIncome;
+
   for (const slab of slabs) {
     if (remaining <= 0) break;
     const taxable = Math.min(remaining, slab.limit);
     tax += taxable * slab.rate;
     remaining -= taxable;
   }
+
   return Math.round(tax / 12);
 }
 
@@ -172,16 +186,20 @@ export class PayrollService {
       password: undefined,
       paySettings: m.paySettings
         ? {
-            ...m.paySettings,
-            basicSalary: toNum(m.paySettings.basicSalary),
-            dearnessAllowance: toNum(m.paySettings.dearnessAllowance),
-            transportAllowance: toNum(m.paySettings.transportAllowance),
-            medicalAllowance: toNum(m.paySettings.medicalAllowance),
-            otherAllowances: toNum(m.paySettings.otherAllowances),
-            overtimeRatePerHour: toNum(m.paySettings.overtimeRatePerHour),
-            employeeSsfRate: toNum(m.paySettings.employeeSsfRate),
-            employerSsfRate: toNum(m.paySettings.employerSsfRate),
-          }
+          ...m.paySettings,
+          basicSalary: toNum(m.paySettings.basicSalary),
+          dearnessAllowance: toNum(m.paySettings.dearnessAllowance),
+          transportAllowance: toNum(m.paySettings.transportAllowance),
+          medicalAllowance: toNum(m.paySettings.medicalAllowance),
+          otherAllowances: toNum(m.paySettings.otherAllowances),
+          overtimeRatePerHour: toNum(m.paySettings.overtimeRatePerHour),
+          employeeSsfRate: toNum(m.paySettings.employeeSsfRate),
+          employerSsfRate: toNum(m.paySettings.employerSsfRate),
+          employeePfRate: toNum(m.paySettings.employeePfRate),
+          employerPfRate: toNum(m.paySettings.employerPfRate),
+          citAmount: toNum(m.paySettings.citAmount),
+          advanceDeduction: toNum(m.paySettings.advanceDeduction),
+        }
         : null,
     }));
   }
@@ -362,7 +380,7 @@ export class PayrollService {
     let tds = 0;
     if (s.tdsEnabled && hasEffectiveEarnings) {
       const annualTaxable = (grossSalary + dashainBonus - employeeSsf - employeePf - citDeduction) * 12;
-      tds = calculateNepalTDS(annualTaxable, s.isMarried, tdsConfig);
+      tds = calculateNepalTDS(annualTaxable, s.isMarried, tdsConfig, s.ssfEnabled);
     }
 
     // Total deductions capped so net salary never goes negative

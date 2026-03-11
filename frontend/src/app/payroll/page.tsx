@@ -104,7 +104,7 @@ export default function PayrollPage() {
     const citDeduction = form.citEnabled ? form.citAmount : 0;
 
     const tds = form.tdsEnabled
-      ? calculateTDS(gross * 12, form.isMarried, employeeSsf, employeePf, citDeduction)
+      ? calculateTDS(gross * 12, form.isMarried, employeeSsf, employeePf, citDeduction,form.ssfEnabled)
       : 0;
 
     const totalDeductions = employeeSsf + employeePf + citDeduction + tds + form.advanceDeduction;
