@@ -33,6 +33,36 @@ export default function PayslipModal({ record, language, isStarter, onClose, onE
     URL.revokeObjectURL(url);
   };
 
+  // Earnings breakdown
+  const earningsRows: [string, number][] = [
+    [isNp ? 'आधारभूत तलब'    : 'Basic salary',         record.basicSalary],
+    [isNp ? 'महँगी भत्ता'      : 'Dearness allowance',  record.dearnessAllowance],
+    [isNp ? 'यातायात भत्ता'   : 'Transport allowance',  record.transportAllowance],
+    [isNp ? 'चिकित्सा भत्ता'  : 'Medical allowance',    record.medicalAllowance],
+    [isNp ? 'अन्य भत्ता'      : 'Other allowances',     record.otherAllowances],
+    [isNp ? 'ओभरटाइम'         : 'Overtime pay',         record.overtimePay],
+    ...(record.dashainBonus > 0
+      ? [[isNp ? 'दशैं बोनस' : 'Dashain bonus', record.dashainBonus] as [string, number]]
+      : []),
+  ];
+
+  // Absence deduction shown in earnings as a negative (already baked into grossSalary)
+  // This makes the earnings section self-consistent:
+  // Basic + Allowances + Overtime + Dashain - AbsenceDeduction = Gross
+  const absenceRow: [string, number] | null =
+    record.absenceDeduction > 0
+      ? [isNp ? 'अनुपस्थिति कटौती' : 'Absence deduction', record.absenceDeduction]
+      : null;
+
+  // Deductions — absenceDeduction NOT included because it is already in grossSalary
+  const deductionRows: [string, number][] = [
+    [`SSF (${isNp ? 'कर्मचारी' : 'Employee'})`,  record.employeeSsf],
+    [`PF (${isNp ? 'कर्मचारी' : 'Employee'})`,   record.employeePf],
+    ['CIT',                                        record.citDeduction],
+    ['TDS',                                        record.tds],
+    [isNp ? 'पेशगी कटौती' : 'Advance deduction',  record.advanceDeduction],
+  ];
+
   return (
     <div
       className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4"
@@ -84,14 +114,15 @@ export default function PayslipModal({ record, language, isStarter, onClose, onE
         </div>
 
         <div className="p-5 space-y-4">
+
           {/* Attendance */}
           <Section label={isNp ? 'उपस्थिति' : 'Attendance'}>
             <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-              <StatBox label={isNp ? 'कार्य दिन' : 'Working'} value={record.workingDaysInMonth} />
-              <StatBox label={isNp ? 'उपस्थित' : 'Present'} value={record.daysPresent} className="bg-emerald-50" valueClass="text-emerald-700" />
-              <StatBox label={isNp ? 'अनुपस्थित' : 'Absent'} value={record.daysAbsent} className="bg-rose-50" valueClass="text-rose-700" />
+              <StatBox label={isNp ? 'कार्य दिन'    : 'Working'}      value={record.workingDaysInMonth} />
+              <StatBox label={isNp ? 'उपस्थित'      : 'Present'}      value={record.daysPresent}        className="bg-emerald-50" valueClass="text-emerald-700" />
+              <StatBox label={isNp ? 'अनुपस्थित'    : 'Absent'}       value={record.daysAbsent}         className="bg-rose-50"    valueClass="text-rose-700" />
               {(record as any).paidLeaveDays > 0 && (
-                <StatBox label={isNp ? 'सशुल्क बिदा' : 'Paid leave'} value={(record as any).paidLeaveDays} className="bg-blue-50" valueClass="text-blue-700" />
+                <StatBox label={isNp ? 'सशुल्क बिदा'  : 'Paid leave'}  value={(record as any).paidLeaveDays}   className="bg-blue-50"  valueClass="text-blue-700" />
               )}
               {(record as any).unpaidLeaveDays > 0 && (
                 <StatBox label={isNp ? 'बिना तलब बिदा' : 'Unpaid leave'} value={(record as any).unpaidLeaveDays} className="bg-amber-50" valueClass="text-amber-700" />
@@ -102,21 +133,19 @@ export default function PayslipModal({ record, language, isStarter, onClose, onE
           {/* Earnings */}
           <Section label={isNp ? 'आमदानी' : 'Earnings'}>
             <div className="space-y-1 text-xs">
-              {([
-                [isNp ? 'आधारभूत तलब' : 'Basic salary',     record.basicSalary],
-                [isNp ? 'महँगी भत्ता'  : 'DA',              record.dearnessAllowance],
-                [isNp ? 'यातायात भत्ता': 'Transport',        record.transportAllowance],
-                [isNp ? 'चिकित्सा भत्ता': 'Medical',        record.medicalAllowance],
-                [isNp ? 'अन्य भत्ता'   : 'Other',           record.otherAllowances],
-                [isNp ? 'ओभरटाइम'      : 'Overtime',        record.overtimePay],
-                ...(record.dashainBonus > 0
-                  ? [[isNp ? 'दशैं बोनस' : 'Dashain bonus', record.dashainBonus]]
-                  : []),
-              ] as [string, number][])
+              {earningsRows
                 .filter(([, v]) => v > 0)
                 .map(([label, val]) => (
                   <LineItem key={label} label={label} value={`Rs. ${fmt(val)}`} />
                 ))}
+              {/* Absence deduction shown as negative in earnings — explains why gross < basic */}
+              {absenceRow && (
+                <LineItem
+                  label={absenceRow[0]}
+                  value={`- Rs. ${fmt(absenceRow[1])}`}
+                  valueClass="text-rose-600"
+                />
+              )}
               <LineItem
                 label={isNp ? 'कुल आमदानी' : 'Gross salary'}
                 value={`Rs. ${fmt(record.grossSalary + (record.dashainBonus || 0))}`}
@@ -129,14 +158,7 @@ export default function PayslipModal({ record, language, isStarter, onClose, onE
           {/* Deductions */}
           <Section label={isNp ? 'कटौती' : 'Deductions'}>
             <div className="space-y-1 text-xs">
-              {([
-                [isNp ? 'अनुपस्थिति कटौती' : 'Absence deduction', record.absenceDeduction],
-                [`SSF (${isNp ? 'कर्मचारी' : 'Employee'})`,        record.employeeSsf],
-                [`PF (${isNp ? 'कर्मचारी' : 'Employee'})`,         record.employeePf],
-                ['CIT',                                             record.citDeduction],
-                ['TDS',                                             record.tds],
-                [isNp ? 'पेशगी कटौती' : 'Advance',                record.advanceDeduction],
-              ] as [string, number][])
+              {deductionRows
                 .filter(([, v]) => v > 0)
                 .map(([label, val]) => (
                   <LineItem key={label} label={label} value={`Rs. ${fmt(val)}`} valueClass="text-rose-600" />
@@ -173,7 +195,7 @@ export default function PayslipModal({ record, language, isStarter, onClose, onE
             </Section>
           )}
 
-          {/* Net */}
+          {/* Net salary */}
           <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
             <div className="flex justify-between items-center">
               <span className="text-sm font-semibold text-slate-900">
@@ -189,6 +211,72 @@ export default function PayslipModal({ record, language, isStarter, onClose, onE
               </p>
             )}
           </div>
+
+          {/* Full calculation breakdown */}
+          <Section label={isNp ? 'पूर्ण विवरण' : 'Full breakdown'}>
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs">
+
+              {/* Earnings block */}
+              <div className="px-4 py-2 bg-slate-100 border-b border-slate-200">
+                <span className="font-semibold text-slate-700 uppercase tracking-wide text-[10px]">
+                  {isNp ? 'आमदानी' : 'Earnings'}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {earningsRows.filter(([, v]) => v > 0).map(([label, val]) => (
+                  <BreakdownRow key={label} label={label} value={`Rs. ${fmt(val)}`} />
+                ))}
+                {absenceRow && (
+                  <BreakdownRow label={absenceRow[0]} value={`- Rs. ${fmt(absenceRow[1])}`} valueClass="text-rose-600" />
+                )}
+                <BreakdownRow label={isNp ? 'कुल आमदानी' : 'Gross salary'} value={`Rs. ${fmt(record.grossSalary + (record.dashainBonus || 0))}`} bold />
+              </div>
+
+              {/* Deductions block */}
+              <div className="px-4 py-2 bg-slate-100 border-y border-slate-200">
+                <span className="font-semibold text-slate-700 uppercase tracking-wide text-[10px]">
+                  {isNp ? 'कटौती' : 'Deductions'}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {deductionRows.filter(([, v]) => v > 0).map(([label, val]) => (
+                  <BreakdownRow key={label} label={label} value={`Rs. ${fmt(val)}`} valueClass="text-rose-600" />
+                ))}
+                <BreakdownRow label={isNp ? 'जम्मा कटौती' : 'Total deductions'} value={`Rs. ${fmt(record.totalDeductions)}`} bold valueClass="text-rose-700" />
+              </div>
+
+              {/* Employer contribution block */}
+              {(record.employerSsf > 0 || record.employerPf > 0) && (
+                <>
+                  <div className="px-4 py-2 bg-slate-100 border-y border-slate-200">
+                    <span className="font-semibold text-slate-700 uppercase tracking-wide text-[10px]">
+                      {isNp ? 'नियोक्ता योगदान' : 'Employer contribution'}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {record.employerSsf > 0 && (
+                      <BreakdownRow label={`SSF (${isNp ? 'नियोक्ता' : 'Employer'})`} value={`Rs. ${fmt(record.employerSsf)}`} valueClass="text-blue-600" />
+                    )}
+                    {record.employerPf > 0 && (
+                      <BreakdownRow label={`PF (${isNp ? 'नियोक्ता' : 'Employer'})`} value={`Rs. ${fmt(record.employerPf)}`} valueClass="text-blue-600" />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Net salary block */}
+              <div className="px-4 py-3 bg-emerald-50 border-t border-emerald-200 flex justify-between items-center">
+                <span className="font-bold text-emerald-900 text-sm">
+                  {isNp ? 'खुद तलब' : 'Net salary'}
+                </span>
+                <span className="font-bold text-emerald-700 text-sm">
+                  Rs. {fmt(record.netSalary)}
+                </span>
+              </div>
+
+            </div>
+          </Section>
+
         </div>
       </div>
     </div>
@@ -228,11 +316,22 @@ function LineItem({
   bold?: boolean; separator?: boolean; valueClass?: string;
 }) {
   return (
-    <div
-      className={`flex justify-between py-0.5 ${separator ? 'border-t border-slate-200 mt-1 pt-1.5' : ''}`}
-    >
-      <span className={`${bold ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>{label}</span>
-      <span className={`font-medium ${bold ? valueClass : valueClass}`}>{value}</span>
+    <div className={`flex justify-between py-0.5 ${separator ? 'border-t border-slate-200 mt-1 pt-1.5' : ''}`}>
+      <span className={bold ? 'font-semibold text-slate-900' : 'text-slate-600'}>{label}</span>
+      <span className={`font-medium ${valueClass}`}>{value}</span>
+    </div>
+  );
+}
+
+function BreakdownRow({
+  label, value, bold, valueClass = 'text-slate-700',
+}: {
+  label: string; value: string; bold?: boolean; valueClass?: string;
+}) {
+  return (
+    <div className={`flex justify-between px-4 py-2 ${bold ? 'bg-slate-50' : ''}`}>
+      <span className={bold ? 'font-semibold text-slate-900' : 'text-slate-600'}>{label}</span>
+      <span className={`font-medium ${bold ? 'text-slate-900' : valueClass}`}>{value}</span>
     </div>
   );
 }
