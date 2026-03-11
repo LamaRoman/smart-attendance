@@ -383,11 +383,12 @@ export class PayrollService {
       tds = calculateNepalTDS(annualTaxable, s.isMarried, tdsConfig, s.ssfEnabled);
     }
 
-    // Total deductions capped so net salary never goes negative
-    const rawTotalDeductions = Math.round((absenceDeduction + employeeSsf + employeePf + citDeduction + advanceDeduct + tds) * 100) / 100;
-    const totalDeductions = Math.min(rawTotalDeductions, grossSalary + dashainBonus);
-    const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDeductions) * 100) / 100);
-    return {
+   // absenceDeduction is already factored into grossSalary (basic - absenceDeduction)
+// so it must NOT be included in totalDeductions — that would double-count it.
+// totalDeductions only covers statutory and voluntary deductions from earned gross.
+const rawTotalDeductions = Math.round((employeeSsf + employeePf + citDeduction + advanceDeduct + tds) * 100) / 100;
+const totalDeductions = Math.min(rawTotalDeductions, grossSalary + dashainBonus);
+const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDeductions) * 100) / 100);return {
       membershipId: membership.id,
       organizationId,
       year: adYear,
