@@ -151,7 +151,6 @@ export class HolidayService {
       bsYear,
       bsMonth,
       isActive: true,
-      type: 'PUBLIC_HOLIDAY',
     };
 
     if (organizationId) {
