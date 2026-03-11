@@ -226,20 +226,27 @@ export class PayrollService {
     }
 
     const data = {
-      basicSalary: input.basicSalary,
-      dearnessAllowance: input.dearnessAllowance,
-      transportAllowance: input.transportAllowance,
-      medicalAllowance: input.medicalAllowance,
-      otherAllowances: input.otherAllowances,
-      overtimeRatePerHour: input.overtimeRatePerHour,
-      ssfEnabled: input.ssfEnabled,
-      employeeSsfRate: input.employeeSsfRate,
-      employerSsfRate: input.employerSsfRate,
-      tdsEnabled: input.tdsEnabled,
-      bankName: input.bankName,
-      bankAccountName: input.bankAccountName,
-      bankAccountNumber: input.bankAccountNumber,
-    };
+  basicSalary: input.basicSalary,
+  dearnessAllowance: input.dearnessAllowance,
+  transportAllowance: input.transportAllowance,
+  medicalAllowance: input.medicalAllowance,
+  otherAllowances: input.otherAllowances,
+  overtimeRatePerHour: input.overtimeRatePerHour,
+  ssfEnabled: input.ssfEnabled,
+  employeeSsfRate: input.employeeSsfRate,
+  employerSsfRate: input.employerSsfRate,
+  tdsEnabled: input.tdsEnabled,
+  pfEnabled: input.pfEnabled,
+  employeePfRate: input.employeePfRate,
+  employerPfRate: input.employerPfRate,
+  citEnabled: input.citEnabled,
+  citAmount: input.citAmount,
+  isMarried: input.isMarried,
+  advanceDeduction: input.advanceDeduction,
+  bankName: input.bankName,
+  bankAccountName: input.bankAccountName,
+  bankAccountNumber: input.bankAccountNumber,
+};
 
     const paySettings = await prisma.employeePaySettings.upsert({
       where: { membershipId: membership.id },
