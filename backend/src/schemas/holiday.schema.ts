@@ -7,7 +7,12 @@ export const createHolidaySchema = z.object({
   bsMonth: z.coerce.number().int().min(1).max(12),
   bsDay: z.coerce.number().int().min(1).max(32),
   date: z.string().transform((v) => new Date(v)), // AD date as ISO string
-  type: z.enum(['PUBLIC_HOLIDAY', 'RESTRICTED_HOLIDAY', 'ORGANIZATION_HOLIDAY']).default('PUBLIC_HOLIDAY'),
+  type: z.enum([
+    'PUBLIC_HOLIDAY',
+    'RESTRICTED_HOLIDAY',
+    'ORGANIZATION_HOLIDAY',
+    'WORKING_DAY_OVERRIDE',
+  ]).default('PUBLIC_HOLIDAY'),
   isRecurring: z.boolean().default(false),
   description: z.string().optional(),
 });

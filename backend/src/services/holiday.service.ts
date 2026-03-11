@@ -20,6 +20,8 @@ interface CalendarificHoliday {
 export class HolidayService {
   /**
    * List holidays — org-scoped (includes national + org-specific)
+   * WORKING_DAY_OVERRIDE records are excluded from the main list
+   * and returned separately so the frontend can show them with a special badge.
    */
   async listHolidays(currentUser: JWTPayload, filters: { bsYear?: number; bsMonth?: number }) {
     const where: Record<string, unknown> = {};
@@ -37,10 +39,27 @@ export class HolidayService {
 
     where.isActive = true;
 
-    return prisma.holiday.findMany({
+    const all = await prisma.holiday.findMany({
       where,
       orderBy: [{ bsYear: 'desc' }, { bsMonth: 'asc' }, { bsDay: 'asc' }],
     });
+
+    // Separate overrides so frontend can render them differently
+    const holidays = all.filter((h) => h.type !== 'WORKING_DAY_OVERRIDE');
+    const overrides = all.filter((h) => h.type === 'WORKING_DAY_OVERRIDE');
+
+    // Mark holidays that have been overridden for this org
+    const overrideDateSet = new Set(
+      overrides.map((o) => o.date.toISOString().split('T')[0])
+    );
+
+    return holidays.map((h) => ({
+      ...h,
+      isOverridden: overrideDateSet.has(h.date.toISOString().split('T')[0]),
+      overrideId: overrides.find(
+        (o) => o.date.toISOString().split('T')[0] === h.date.toISOString().split('T')[0]
+      )?.id ?? null,
+    }));
   }
 
   /**
@@ -144,24 +163,62 @@ export class HolidayService {
   }
 
   /**
-   * Get holiday dates for a BS month (used by payroll)
+   * Get holiday dates for a BS month (used by payroll).
+   *
+   * Returns AD dates that count as non-working days for the given org.
+   *
+   * Logic:
+   * 1. Fetch PUBLIC_HOLIDAY and ORGANIZATION_HOLIDAY records for the month
+   *    (national holidays have organizationId = null; org holidays are org-scoped)
+   * 2. Fetch WORKING_DAY_OVERRIDE records for this org
+   *    (org admin has declared they will work on a normally-off holiday)
+   * 3. Subtract override dates from holiday dates
+   *
+   * RESTRICTED_HOLIDAY is intentionally excluded — it is optional/employee-choice
+   * and does not affect payroll working day count.
    */
-  async getHolidayDatesForMonth(bsYear: number, bsMonth: number, organizationId?: string): Promise<Date[]> {
-    const where: Record<string, unknown> = {
+  async getHolidayDatesForMonth(
+    bsYear: number,
+    bsMonth: number,
+    organizationId?: string
+  ): Promise<Date[]> {
+    const baseWhere: Record<string, unknown> = {
       bsYear,
       bsMonth,
       isActive: true,
+      type: { in: ['PUBLIC_HOLIDAY', 'ORGANIZATION_HOLIDAY'] },
     };
 
     if (organizationId) {
-      where.OR = [
+      baseWhere.OR = [
         { organizationId: null },
         { organizationId },
       ];
     }
 
-    const holidays = await prisma.holiday.findMany({ where });
-    return holidays.map((h) => h.date);
+    const holidays = await prisma.holiday.findMany({ where: baseWhere });
+
+    // Fetch working day overrides for this specific org only
+    const overrides = organizationId
+      ? await prisma.holiday.findMany({
+          where: {
+            bsYear,
+            bsMonth,
+            isActive: true,
+            type: 'WORKING_DAY_OVERRIDE',
+            organizationId,
+          },
+        })
+      : [];
+
+    // Remove dates the org has declared as working days
+    const overrideDates = new Set(
+      overrides.map((o) => o.date.toISOString().split('T')[0])
+    );
+
+    return holidays
+      .filter((h) => !overrideDates.has(h.date.toISOString().split('T')[0]))
+      .map((h) => h.date);
   }
 
   // ======== Private helpers ========
@@ -185,9 +242,9 @@ export class HolidayService {
       throw new Error(`Calendarific API error: ${data.meta.error_detail || 'Unknown'}`);
     }
 
-    const holidays: CalendarificHoliday[] = data.response.holidays.filter(
-      (h: any) => h.type.includes('National holiday') || h.type.includes('Public holiday')
-    );
+    // Accept all holiday types Calendarific returns for Nepal
+    // (previously filtered to National/Public only, which missed many valid holidays)
+    const holidays: CalendarificHoliday[] = data.response.holidays;
 
     cache.set(cacheKey, holidays);
     return holidays;
