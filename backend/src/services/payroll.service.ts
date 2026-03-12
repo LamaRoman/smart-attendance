@@ -224,7 +224,11 @@ export class PayrollService {
     if (currentUser.role !== 'SUPER_ADMIN' && membership.organizationId !== currentUser.organizationId) {
       throw new NotFoundError('User not found');
     }
-
+console.log('[upsertPaySettings] input:', JSON.stringify({ 
+  citEnabled: input.citEnabled, 
+  citAmount: input.citAmount,
+  pfEnabled: input.pfEnabled 
+}));
     const data = {
   basicSalary: input.basicSalary,
   dearnessAllowance: input.dearnessAllowance,
