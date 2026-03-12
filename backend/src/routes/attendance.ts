@@ -165,7 +165,7 @@ router.get(
   }
 );
 
-// GET /api/attendance -- Admin list (org-scoped)
+// GET /api/attendance -- Admin/Accountant list (org-scoped)
 router.get(
   '/',
   authenticate,
@@ -174,9 +174,12 @@ router.get(
   validate(attendanceListQuerySchema, 'query'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      
-const { limit, offset, userId, status, date } = req.query as any;
-const result = await attendanceService.listAttendance(req.user!, limit, offset, { userId, status, date });
+      const { limit, offset, userId, status, date } = req.query as any;
+      const result = await attendanceService.listAttendance(req.user!, limit, offset, {
+        userId,
+        status,
+        date,
+      });
       res.json({ data: result });
     } catch (error) {
       next(error);
@@ -184,7 +187,7 @@ const result = await attendanceService.listAttendance(req.user!, limit, offset, 
   }
 );
 
-// POST /api/attendance/manual -- Admin manual clock in/out
+// POST /api/attendance/manual -- Admin manual clock in/out (ORG_ADMIN only)
 router.post(
   '/manual',
   authenticate,
@@ -201,11 +204,14 @@ router.post(
   }
 );
 
-// PUT /api/attendance/:id/edit -- Admin edits attendance record
+// PUT /api/attendance/:id/edit
+// ORG_ADMIN: can edit any field on any record
+// ORG_ACCOUNTANT: can edit checkOutTime on AUTO_CLOSED records only
+//   (role restriction is enforced in attendanceService.editAttendance)
 router.put(
   '/:id/edit',
   authenticate,
-  requireOrgAdmin,
+  requireOrgAdminOrAccountant,
   enforceOrgIsolation,
   validate(editAttendanceSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -222,7 +228,7 @@ router.put(
   }
 );
 
-// POST /api/attendance/mark-present -- Admin marks absent employee as present
+// POST /api/attendance/mark-present -- Admin marks absent employee as present (ORG_ADMIN only)
 router.post(
   '/mark-present',
   authenticate,
