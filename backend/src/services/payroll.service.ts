@@ -41,8 +41,6 @@ function calculateNepalTDS(
 ): number {
   const config = validateTDSConfig(tdsConfig) ? tdsConfig : null;
 
-  // SSF contributors are exempt from 1% Social Security Tax
-  // per Section 21(4) of Nepal's Financial Act
   const firstSlabRate = ssfEnabled ? 0 : (config?.firstSlabRate ?? 1) / 100;
 
   const firstSlab = isMarried
@@ -78,11 +76,6 @@ function calculateNepalTDS(
   return Math.round(tax / 12);
 }
 
-/**
- * Helper: flatten membership.user into a flat user-like object for response compatibility.
- * PayrollRecord includes { membership: { employeeId, user: { firstName, lastName, email } } }
- * We flatten to { user: { firstName, lastName, employeeId, email } } for backward compat.
- */
 function flattenRecordUser(record: any) {
   if (!record.membership) return record;
   const { membership, ...rest } = record;
@@ -98,7 +91,6 @@ function flattenRecordUser(record: any) {
   };
 }
 
-// Standard include for payroll record queries
 const PAYROLL_RECORD_INCLUDE = {
   membership: {
     select: {
@@ -171,7 +163,6 @@ export class PayrollService {
     });
 
     return memberships.map((m) => ({
-      // Flatten to match old response shape
       id: m.user.id,
       email: m.user.email,
       firstName: m.user.firstName,
@@ -205,7 +196,6 @@ export class PayrollService {
   }
 
   async upsertPaySettings(userId: string, input: PaySettingsInput, currentUser: JWTPayload) {
-    // Find membership by userId + org
     const organizationId = currentUser.organizationId;
     if (!organizationId && currentUser.role !== 'SUPER_ADMIN') {
       throw new ValidationError('No organization context');
@@ -224,33 +214,35 @@ export class PayrollService {
     if (currentUser.role !== 'SUPER_ADMIN' && membership.organizationId !== currentUser.organizationId) {
       throw new NotFoundError('User not found');
     }
-console.log('[upsertPaySettings] input:', JSON.stringify({ 
-  citEnabled: input.citEnabled, 
-  citAmount: input.citAmount,
-  pfEnabled: input.pfEnabled 
-}));
+
+    console.log('[upsertPaySettings] input:', JSON.stringify({
+      citEnabled: input.citEnabled,
+      citAmount: input.citAmount,
+      pfEnabled: input.pfEnabled
+    }));
+
     const data = {
-  basicSalary: input.basicSalary,
-  dearnessAllowance: input.dearnessAllowance,
-  transportAllowance: input.transportAllowance,
-  medicalAllowance: input.medicalAllowance,
-  otherAllowances: input.otherAllowances,
-  overtimeRatePerHour: input.overtimeRatePerHour,
-  ssfEnabled: input.ssfEnabled,
-  employeeSsfRate: input.employeeSsfRate,
-  employerSsfRate: input.employerSsfRate,
-  tdsEnabled: input.tdsEnabled,
-  pfEnabled: input.pfEnabled,
-  employeePfRate: input.employeePfRate,
-  employerPfRate: input.employerPfRate,
-  citEnabled: input.citEnabled,
-  citAmount: input.citAmount,
-  isMarried: input.isMarried,
-  advanceDeduction: input.advanceDeduction,
-  bankName: input.bankName,
-  bankAccountName: input.bankAccountName,
-  bankAccountNumber: input.bankAccountNumber,
-};
+      basicSalary: input.basicSalary,
+      dearnessAllowance: input.dearnessAllowance,
+      transportAllowance: input.transportAllowance,
+      medicalAllowance: input.medicalAllowance,
+      otherAllowances: input.otherAllowances,
+      overtimeRatePerHour: input.overtimeRatePerHour,
+      ssfEnabled: input.ssfEnabled,
+      employeeSsfRate: input.employeeSsfRate,
+      employerSsfRate: input.employerSsfRate,
+      tdsEnabled: input.tdsEnabled,
+      pfEnabled: input.pfEnabled,
+      employeePfRate: input.employeePfRate,
+      employerPfRate: input.employerPfRate,
+      citEnabled: input.citEnabled,
+      citAmount: input.citAmount,
+      isMarried: input.isMarried,
+      advanceDeduction: input.advanceDeduction,
+      bankName: input.bankName,
+      bankAccountName: input.bankAccountName,
+      bankAccountNumber: input.bankAccountNumber,
+    };
 
     const paySettings = await prisma.employeePaySettings.upsert({
       where: { membershipId: membership.id },
@@ -273,6 +265,12 @@ console.log('[upsertPaySettings] input:', JSON.stringify({
 
   // ======== Core payroll calculation ========
 
+  /**
+   * Point 3: accepts optional overtimeOverrideHours.
+   * When provided, it replaces the calculated overtime hours from attendance.
+   * This allows admin/accountant to correct overtime at payroll generation time
+   * without modifying attendance records.
+   */
   private async calculateEmployeePayroll(
     membership: any,
     organizationId: string,
@@ -282,7 +280,8 @@ console.log('[upsertPaySettings] input:', JSON.stringify({
     adEnd: Date,
     workingDaysInMonth: number,
     holidaysInMonth: number,
-    tdsConfig: any
+    tdsConfig: any,
+    overtimeOverrideHours?: number
   ) {
     const adYear = adStart.getFullYear();
     const adMonth = adStart.getMonth() + 1;
@@ -296,11 +295,15 @@ console.log('[upsertPaySettings] input:', JSON.stringify({
     const employeeSsfRate = toNum(s.employeeSsfRate);
     const employerSsfRate = toNum(s.employerSsfRate);
 
-    const { daysPresent, overtimeHours } = await this.getDaysPresent(membership.id, adStart, adEnd);
+    const { daysPresent, overtimeHours: calculatedOvertimeHours } = await this.getDaysPresent(membership.id, adStart, adEnd);
+
+    // Use override if provided (Point 3), otherwise use calculated value
+    const overtimeHours =
+      overtimeOverrideHours !== undefined ? overtimeOverrideHours : calculatedOvertimeHours;
+
     const { paidDays: paidLeaveDays, unpaidDays: unpaidLeaveDays } = await this.getApprovedLeaves(membership.id, adStart, adEnd);
     const effectivePresent = Math.min(workingDaysInMonth, daysPresent + paidLeaveDays);
 
-    // Zero attendance = no salary
     if (effectivePresent === 0) {
       return {
         membershipId: membership.id,
@@ -339,18 +342,9 @@ console.log('[upsertPaySettings] input:', JSON.stringify({
       };
     }
 
-    // ─────────────────────────────────────────────────────────
-    // REPLACE lines 313–348 in payroll.service.ts with this block
-    // (everything from "const daysAbsent =" through "const netSalary =")
-    // The "return {" block after this stays unchanged.
-    // ─────────────────────────────────────────────────────────
-
     const daysAbsent = Math.max(0, workingDaysInMonth - effectivePresent);
     const totalAllowances = dearnessAllowance + transportAllowance + medicalAllowance + otherAllowances;
 
-    // Nepal payroll standard: fixed 30-day divisor for monthly salaried employees.
-    // This keeps deductions consistent across months (28–31 days) and aligns with
-    // Nepal Labour Act practice and SSF guidelines from the Ministry of Labour.
     const MONTHLY_DIVISOR = 30;
     const dailyRate = Math.round((basicSalary / MONTHLY_DIVISOR) * 100) / 100;
     const absenceDeduction = Math.round(dailyRate * daysAbsent * 100) / 100;
@@ -358,12 +352,7 @@ console.log('[upsertPaySettings] input:', JSON.stringify({
     const overtimePay = Math.round(overtimeHours * overtimeRatePerHour * 100) / 100;
     const grossSalary = Math.round((basicSalary + totalAllowances + overtimePay - absenceDeduction) * 100) / 100;
 
-    // Effective basic = basic salary actually paid after absence deduction.
-    // Per Nepal's SSF Act, contribution is on "the basic wage the worker receives".
-    // SSF is calculated on the adjusted basic, not the contractual/paper salary.
     const effectiveBasic = Math.max(0, Math.round((basicSalary - absenceDeduction) * 100) / 100);
-
-    // If effective earnings are zero or negative, no SSF/PF/TDS/CIT applies
     const hasEffectiveEarnings = grossSalary > 0;
 
     let employeeSsf = 0;
@@ -382,7 +371,6 @@ console.log('[upsertPaySettings] input:', JSON.stringify({
       employerPf = Math.round(effectiveBasic * (pfEmployerRate / 100) * 100) / 100;
     }
 
-    // CIT and advance: only apply when there are actual earnings
     const citDeduction = (s.citEnabled && hasEffectiveEarnings) ? toNum(s.citAmount) : 0;
     const advanceDeduct = hasEffectiveEarnings ? toNum(s.advanceDeduction) : 0;
 
@@ -394,12 +382,11 @@ console.log('[upsertPaySettings] input:', JSON.stringify({
       tds = calculateNepalTDS(annualTaxable, s.isMarried, tdsConfig, s.ssfEnabled);
     }
 
-   // absenceDeduction is already factored into grossSalary (basic - absenceDeduction)
-// so it must NOT be included in totalDeductions — that would double-count it.
-// totalDeductions only covers statutory and voluntary deductions from earned gross.
-const rawTotalDeductions = Math.round((employeeSsf + employeePf + citDeduction + advanceDeduct + tds) * 100) / 100;
-const totalDeductions = Math.min(rawTotalDeductions, grossSalary + dashainBonus);
-const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDeductions) * 100) / 100);return {
+    const rawTotalDeductions = Math.round((employeeSsf + employeePf + citDeduction + advanceDeduct + tds) * 100) / 100;
+    const totalDeductions = Math.min(rawTotalDeductions, grossSalary + dashainBonus);
+    const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDeductions) * 100) / 100);
+
+    return {
       membershipId: membership.id,
       organizationId,
       year: adYear,
@@ -468,7 +455,6 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
       if (dbConfig) tdsConfig = JSON.parse(dbConfig.value);
     } catch (e) { /* fall back to defaults */ }
 
-    // Query active memberships with pay settings
     const memberships = await prisma.orgMembership.findMany({
       where: {
         isActive: true,
@@ -490,12 +476,15 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
     const payrollRecords = [];
 
     for (const membership of memberships) {
+      // Point 3: look up per-employee overtime override by membershipId
+      const overtimeOverride = input.overtimeOverrides?.[membership.id];
+
       const payrollData = await this.calculateEmployeePayroll(
         membership, organizationId, bsYear, bsMonth,
-        adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig
+        adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig,
+        overtimeOverride
       );
 
-      // Skip zero attendance
       if (payrollData.daysPresent === 0 && payrollData.overtimeHours === 0) {
         log.info({ membershipId: membership.id, bsYear, bsMonth }, 'Skipping payroll — zero attendance');
         continue;
@@ -517,7 +506,6 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
         return { result, previousStatus: existing?.status };
       });
 
-      // Audit log (employeeUserId stays as userId for auditability)
       this.logPayrollAudit({
         organizationId,
         payrollRecordId: record.result.id,
@@ -528,6 +516,9 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
         triggeredBy: currentUser.userId,
         bsYear,
         bsMonth,
+        reason: overtimeOverride !== undefined
+          ? `Overtime override applied: ${overtimeOverride}h (calculated was ${payrollData.overtimeHours}h)`
+          : undefined,
       });
 
       payrollRecords.push(this.mapPayrollRecord(flattenRecordUser(record.result)));
@@ -561,7 +552,6 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
       throw new ValidationError('Organization context required');
     }
 
-    // Resolve userId to membership
     const membership = await prisma.orgMembership.findFirst({
       where: { userId, organizationId, isActive: true, role: 'EMPLOYEE' },
       include: { paySettings: true, user: { select: { id: true } } },
@@ -602,6 +592,7 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
     const payrollData = await this.calculateEmployeePayroll(
       membership, organizationId, bsYear, bsMonth,
       adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig
+      // No override for single-employee regeneration — uses fresh attendance data
     );
 
     const record = await prisma.$transaction(async (tx) => {
@@ -786,7 +777,6 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
       );
     }
 
-    // Fetch records with membership for audit + email
     const records = await prisma.payrollRecord.findMany({
       where,
       select: {
@@ -805,7 +795,6 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
 
     await prisma.payrollRecord.updateMany({ where, data: updateData });
 
-    // Audit log (non-blocking)
     Promise.all(records.map(r =>
       this.logPayrollAudit({
         organizationId: r.organizationId,
@@ -1064,7 +1053,34 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
     return { paidDays, unpaidDays };
   }
 
+  /**
+   * Point 1 — Grace period: fetches org's earlyClockInGraceMinutes and
+   * lateClockOutGraceMinutes, subtracts total grace from overtime calculation.
+   *
+   * Logic: per worked day, up to (early + late) grace minutes are not counted
+   * as overtime. This handles minor time variations (clocked in 10 min early,
+   * clocked out 20 min late) that would otherwise inflate overtime.
+   */
   private async getDaysPresent(membershipId: string, adStart: Date, adEnd: Date) {
+    // Fetch grace settings from org
+    let graceMinutesPerDay = 0;
+    const membership = await prisma.orgMembership.findUnique({
+      where: { id: membershipId },
+      select: {
+        organization: {
+          select: {
+            earlyClockInGraceMinutes: true,
+            lateClockOutGraceMinutes: true,
+          },
+        },
+      },
+    });
+    if (membership?.organization) {
+      const early = membership.organization.earlyClockInGraceMinutes ?? 0;
+      const late = membership.organization.lateClockOutGraceMinutes ?? 0;
+      graceMinutesPerDay = early + late;
+    }
+
     const records = await prisma.attendanceRecord.findMany({
       where: {
         membershipId,
@@ -1072,12 +1088,14 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
         status: { in: ['CHECKED_OUT', 'AUTO_CLOSED'] },
       },
     });
+
     const uniqueDays = new Set<string>();
     let totalMinutes = 0;
     for (const r of records) {
       uniqueDays.add(r.checkInTime.toISOString().split('T')[0]);
       if (r.duration) totalMinutes += r.duration;
     }
+
     const openRecords = await prisma.attendanceRecord.findMany({
       where: { membershipId, checkInTime: { gte: adStart, lte: adEnd }, status: 'CHECKED_IN' },
     });
@@ -1085,8 +1103,17 @@ const netSalary = Math.max(0, Math.round((grossSalary + dashainBonus - totalDedu
       uniqueDays.add(r.checkInTime.toISOString().split('T')[0]);
       totalMinutes += Math.floor((Date.now() - r.checkInTime.getTime()) / 60000);
     }
+
     const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
-    const overtimeHours = Math.max(0, Math.round((totalHours - uniqueDays.size * 8) * 100) / 100);
+
+    // Standard hours for this period: 8h per day
+    const standardMinutes = uniqueDays.size * 8 * 60;
+    // Total grace budget: graceMinutesPerDay * days worked
+    const totalGraceMinutes = graceMinutesPerDay * uniqueDays.size;
+    // Overtime = total worked - standard - grace, floored at 0
+    const overtimeMinutes = Math.max(0, totalMinutes - standardMinutes - totalGraceMinutes);
+    const overtimeHours = Math.round((overtimeMinutes / 60) * 100) / 100;
+
     return { daysPresent: uniqueDays.size, totalHours, overtimeHours };
   }
 

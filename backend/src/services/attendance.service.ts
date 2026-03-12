@@ -73,9 +73,6 @@ function validateTimestamp(raw: string, fieldName: string): Date {
 export class AttendanceService {
   // ======== QR / mobile scans ========
 
-  /**
-   * Public QR scan — unauthenticated, uses employeeId + PIN.
-   */
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
     checkScanLockout(input.employeeId);
 
@@ -218,9 +215,6 @@ export class AttendanceService {
     };
   }
 
-  /**
-   * Mobile check-in — unauthenticated, GPS-based, requires PIN.
-   */
   async mobileCheckin(input: MobileCheckinInput, ipAddress?: string, userAgent?: string) {
     checkScanLockout(input.employeeId);
 
@@ -576,6 +570,24 @@ export class AttendanceService {
 
     if (!record) throw new NotFoundError('Attendance record not found');
 
+    // ── Role-based field restrictions ──────────────────────────────────────
+    // ORG_ACCOUNTANT: can only edit checkOutTime on AUTO_CLOSED records.
+    // ORG_ADMIN / SUPER_ADMIN: can edit any field on any record.
+    if (currentUser.role === 'ORG_ACCOUNTANT') {
+      if (record.status !== 'AUTO_CLOSED') {
+        throw new ValidationError(
+          'Accountants can only edit AUTO_CLOSED attendance records.',
+          'INSUFFICIENT_PERMISSION'
+        );
+      }
+      if (input.checkInTime) {
+        throw new ValidationError(
+          'Accountants can only modify check-out time, not check-in time.',
+          'INSUFFICIENT_PERMISSION'
+        );
+      }
+    }
+
     const updateData: Record<string, unknown> = {
       modifiedBy: currentUser.userId,
       modifiedAt: new Date(),
@@ -617,8 +629,8 @@ export class AttendanceService {
     });
 
     log.info(
-      { recordId, adminId: currentUser.userId, note: input.note },
-      'Attendance record edited by admin'
+      { recordId, adminId: currentUser.userId, role: currentUser.role, note: input.note },
+      'Attendance record edited'
     );
 
     const bs = adToBS(resolvedCheckIn);
@@ -629,7 +641,7 @@ export class AttendanceService {
       bs.month,
       currentUser.userId,
       recordId,
-      `Admin edited attendance record ${recordId}: ${input.note}`
+      `Attendance record ${recordId} edited by ${currentUser.role}: ${input.note}`
     );
 
     return {
@@ -808,8 +820,6 @@ export class AttendanceService {
     };
   }
 
-  // ONLY THIS METHOD CHANGES — everything else in attendance.service.ts is untouched
-
   async listAttendance(
     currentUser: JWTPayload,
     limit: number,
@@ -840,7 +850,6 @@ export class AttendanceService {
 
     if (filters.status) where.status = filters.status;
 
-    // Date filter — scope to a single calendar day
     if (filters.date) {
       const [y, m, d] = filters.date.split('-').map(Number);
       const startOfDay = new Date(y, m - 1, d, 0, 0, 0, 0);
@@ -897,6 +906,7 @@ export class AttendanceService {
       pagination: { total, limit, offset, hasMore: offset + records.length < total },
     };
   }
+
   // ======== Private helpers ========
 
   private async validateQRPayloadAndGetOrg(qrPayload: string): Promise<string> {
@@ -1008,11 +1018,12 @@ export class AttendanceService {
   /**
    * Core clock-in/out logic in a Serializable transaction.
    *
-   * - Uses getTodayRangeNPT() for Nepal timezone-aware day boundaries.
-   * - MAX_DAILY_SCANS = 2 (once in, once out).
-   * - Auto-closes previous day's open record (forgot to clock out) at 23:59:59 of that day.
-   * - Blocks clock-in after shift end time (fallback to org workEndTime).
-   * - Clock-out is always allowed until midnight.
+   * Changes (Point 2 — Auto-Close Cap):
+   * - Auto-close of previous day's open record now caps checkOutTime at shift end
+   *   time (membershipData.shiftEndTime || org.workEndTime) instead of midnight.
+   *   This prevents false overtime when an employee forgets to clock out.
+   * - membershipData is now fetched BEFORE the auto-close so the same query result
+   *   is reused for both the cap logic and the clock-in restriction check.
    */
   private async performClockActionSafe(
     membershipId: string,
@@ -1024,7 +1035,6 @@ export class AttendanceService {
         const { todayStart, todayEnd } = getTodayRangeNPT();
 
         // ── Once-in/once-out guard ───────────────────────────────────────────
-        // Block any action if employee already has a completed record today
         const completedToday = await tx.attendanceRecord.findFirst({
           where: {
             membershipId,
@@ -1080,8 +1090,6 @@ export class AttendanceService {
         }
 
         // ── Auto-close previous day's open record ────────────────────────────
-        // If employee has an open record from a previous calendar day (NPT),
-        // auto-close it at 23:59:59.999 of that day so they can clock in fresh today.
         const openRecord = await tx.attendanceRecord.findFirst({
           where: { membershipId, status: 'CHECKED_IN' },
         });
@@ -1090,8 +1098,32 @@ export class AttendanceService {
           const isFromPreviousDay = openRecord.checkInTime < todayStart;
 
           if (isFromPreviousDay) {
-            // Close at 23:59:59.999 of the day they clocked in
-            const autoCloseTime = new Date(todayStart.getTime() - 1);
+            // Fetch membership + org once — used for both auto-close cap and clock-in guard
+            const membershipData = await tx.orgMembership.findUnique({
+              where: { id: membershipId },
+              include: { organization: { select: { workEndTime: true } } },
+            });
+            const endTimeStr =
+              membershipData?.shiftEndTime || membershipData?.organization.workEndTime;
+
+            // Default: close at 23:59:59.999 of the day they clocked in
+            let autoCloseTime = new Date(todayStart.getTime() - 1);
+
+            // Cap at shift end time to prevent false overtime (Point 2)
+            if (endTimeStr) {
+              const [endHour, endMinute] = endTimeStr.split(':').map(Number);
+              const shiftEndOnCheckInDay = new Date(openRecord.checkInTime);
+              shiftEndOnCheckInDay.setHours(endHour, endMinute, 0, 0);
+
+              // Only cap if shift end is after clock-in and before midnight
+              if (
+                shiftEndOnCheckInDay > openRecord.checkInTime &&
+                shiftEndOnCheckInDay < new Date(todayStart.getTime())
+              ) {
+                autoCloseTime = shiftEndOnCheckInDay;
+              }
+            }
+
             const duration = Math.floor(
               (autoCloseTime.getTime() - openRecord.checkInTime.getTime()) / 60000
             );
@@ -1103,27 +1135,28 @@ export class AttendanceService {
                 checkOutMethod: 'MANUAL',
                 duration,
                 status: 'AUTO_CLOSED',
-                notes: 'Auto-closed at midnight: employee did not clock out',
+                notes:
+                  'Auto-closed: employee did not clock out. ' +
+                  `Check-out capped at shift end (${autoCloseTime.toTimeString().slice(0, 5)}).`,
               },
             });
 
             log.warn(
-              { membershipId, recordId: openRecord.id },
-              'Previous day record auto-closed before new clock-in'
+              {
+                membershipId,
+                recordId: openRecord.id,
+                autoCloseTime: autoCloseTime.toISOString(),
+                durationMinutes: duration,
+              },
+              'Previous day record auto-closed (capped at shift end)'
             );
 
-            // Check clock-in restriction before allowing new clock-in
-            const membershipData = await tx.orgMembership.findUnique({
-              where: { id: membershipId },
-              include: { organization: { select: { workEndTime: true } } },
-            });
-            const endTime =
-              membershipData?.shiftEndTime || membershipData?.organization.workEndTime;
-            if (endTime) {
-              const [endHour, endMinute] = endTime.split(':').map(Number);
-              const shiftEnd = new Date();
-              shiftEnd.setHours(endHour, endMinute, 0, 0);
-              if (new Date() > shiftEnd) {
+            // Check clock-in restriction using the already-fetched endTimeStr
+            if (endTimeStr) {
+              const [endHour, endMinute] = endTimeStr.split(':').map(Number);
+              const shiftEndToday = new Date();
+              shiftEndToday.setHours(endHour, endMinute, 0, 0);
+              if (new Date() > shiftEndToday) {
                 throw new ValidationError(
                   'Clock-in is closed for today. See you tomorrow!',
                   'CLOCKIN_CLOSED'
@@ -1165,7 +1198,6 @@ export class AttendanceService {
           }
 
           // ── Clock OUT (open record is from today) ────────────────────────
-          // Clock-out is always allowed — no shift end restriction
           const checkOutTime = new Date();
           const durationMinutes = Math.floor(
             (checkOutTime.getTime() - openRecord.checkInTime.getTime()) / 60000
@@ -1199,7 +1231,6 @@ export class AttendanceService {
         }
 
         // ── Clock IN (no open record) ────────────────────────────────────────
-        // Block clock-in after shift end time (fallback to org workEndTime)
         const membershipData = await tx.orgMembership.findUnique({
           where: { id: membershipId },
           include: { organization: { select: { workEndTime: true } } },

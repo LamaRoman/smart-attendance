@@ -124,6 +124,26 @@ model Organization {
   lateThresholdMinutes Int    @default(10)
   workingDays          String @default("0,1,2,3,4,5") // 0=Sun,1=Mon,...6=Sat
 
+  // ── Overtime grace periods (Point 1) ────────────────────────────────────
+  // Minutes near shift start/end that are NOT counted as overtime.
+  // Prevents minor time variations (early arrival, slightly late departure)
+  // from inflating overtime pay.
+  //
+  // earlyClockInGraceMinutes:  clocking in up to this many minutes BEFORE
+  //   workStartTime is treated as on-time, not early overtime.
+  //   Default: 15 min — clocking in at 9:45 when shift starts at 10:00
+  //   does not generate 15 minutes of overtime.
+  //
+  // lateClockOutGraceMinutes:  clocking out up to this many minutes AFTER
+  //   workEndTime is treated as on-time, not late overtime.
+  //   Default: 30 min — clocking out at 18:30 when shift ends at 18:00
+  //   does not generate 30 minutes of overtime.
+  //
+  // Both defaults are generous enough to cover typical admin variance
+  // without masking genuine overtime (e.g. staying 2 extra hours).
+  earlyClockInGraceMinutes Int @default(15)
+  lateClockOutGraceMinutes Int @default(30)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime? // Soft delete timestamp

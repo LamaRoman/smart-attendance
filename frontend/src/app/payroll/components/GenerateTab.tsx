@@ -1,8 +1,17 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Play } from 'lucide-react';
 import { BS_MONTHS_NP, BS_MONTHS_EN, fmt } from '../utils';
 import { STATUS_COLORS } from '../types';
+import { api } from '@/lib/api';
+
+interface Employee {
+  membershipId: string;
+  firstName: string;
+  lastName: string;
+  employeeId: string | null;
+}
 
 interface Props {
   isNp: boolean;
@@ -12,7 +21,8 @@ interface Props {
   genResult: any;
   onSetYear: (y: number) => void;
   onSetMonth: (m: number) => void;
-  onGenerate: () => void;
+  // overrides: Record<membershipId, hours> — empty object means use calculated values
+  onGenerate: (overrides: Record<string, number>) => void;
 }
 
 const YEARS = [2081, 2082, 2083];
@@ -21,6 +31,41 @@ export default function GenerateTab({
   isNp, genYear, genMonth, generating, genResult,
   onSetYear, onSetMonth, onGenerate,
 }: Props) {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  // overtimeOverrides: key = membershipId, value = override hours string (empty = use calculated)
+  const [overtimeOverrides, setOvertimeOverrides] = useState<Record<string, string>>({});
+
+  // Fetch employees with pay settings on mount so we can show override fields
+  useEffect(() => {
+    api.get('/api/payroll/settings').then((res) => {
+      if (res.data && Array.isArray(res.data)) {
+        const list: Employee[] = (res.data as any[]).map((e) => ({
+          membershipId: e.membershipId,
+          firstName: e.firstName,
+          lastName: e.lastName,
+          employeeId: e.employeeId,
+        }));
+        setEmployees(list);
+      }
+    });
+  }, []);
+
+  const handleGenerate = () => {
+    // Build override map: only include employees where admin entered a number
+    const overrides: Record<string, number> = {};
+    for (const [membershipId, val] of Object.entries(overtimeOverrides)) {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && val.trim() !== '') {
+        overrides[membershipId] = Math.max(0, parsed);
+      }
+    }
+    onGenerate(overrides);
+  };
+
+  const setOverride = (membershipId: string, val: string) => {
+    setOvertimeOverrides((prev) => ({ ...prev, [membershipId]: val }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -52,7 +97,7 @@ export default function GenerateTab({
           </div>
           <div className="pt-4">
             <button
-              onClick={onGenerate}
+              onClick={handleGenerate}
               disabled={generating}
               className="flex items-center gap-2 px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
@@ -64,13 +109,58 @@ export default function GenerateTab({
           </div>
         </div>
 
-        {/* Dashain bonus notice — month 6 = Ashwin */}
+        {/* Dashain bonus notice */}
         {genMonth === 6 && (
           <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-700 flex items-center gap-2">
             <span>🎉</span>
             {isNp
               ? 'आश्विन महिना — दशैं बोनस (१ महिनाको आधारभूत तलब) स्वचालित रूपमा थपिन्छ'
               : 'Ashwin month — Dashain bonus (1 month basic salary) will be added automatically'}
+          </div>
+        )}
+
+        {/* Overtime override section — shown when there are employees with pay settings */}
+        {employees.length > 0 && (
+          <div className="mt-5 pt-5 border-t border-slate-100">
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-slate-700">
+                {isNp ? 'ओभरटाइम ओभरराइड (ऐच्छिक)' : 'Overtime override (optional)'}
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {isNp
+                  ? 'खाली छोड्नुहोस् = स्वचालित गणना। संख्या भर्नुहोस् = त्यही घण्टा प्रयोग हुनेछ।'
+                  : 'Leave blank to use calculated hours. Enter a number to override for that employee.'}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {employees.map((emp) => (
+                <div
+                  key={emp.membershipId}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg border border-slate-100 bg-slate-50/50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-slate-800 truncate">
+                      {emp.firstName} {emp.lastName}
+                    </p>
+                    {emp.employeeId && (
+                      <p className="text-[10px] text-slate-400">{emp.employeeId}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      placeholder={isNp ? 'स्वतः' : 'Auto'}
+                      value={overtimeOverrides[emp.membershipId] ?? ''}
+                      onChange={(e) => setOverride(emp.membershipId, e.target.value)}
+                      className="w-20 px-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-300 bg-white text-right"
+                    />
+                    <span className="text-[10px] text-slate-400">{isNp ? 'घण्टा' : 'hrs'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -119,6 +209,11 @@ export default function GenerateTab({
                         {r.user?.firstName} {r.user?.lastName}
                       </div>
                       <div className="text-xs text-slate-400">{r.user?.employeeId}</div>
+                      {r.overtimeHours > 0 && (
+                        <div className="text-[10px] text-amber-600">
+                          {r.overtimeHours}h OT
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-right text-sm text-slate-600">{fmt(r.basicSalary)}</td>
                     <td className="py-3 px-4 text-right text-sm font-medium text-slate-900">{fmt(r.grossSalary)}</td>

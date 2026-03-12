@@ -3,7 +3,8 @@
 // Runs daily at midnight Nepal time.
 // Requires TZ=Asia/Kathmandu set in the environment (Railway).
 // Finds all open CHECKED_IN attendance records and auto-closes
-// them. This handles employees who forgot to clock out.
+// them at the org/employee shift end time (not midnight) to
+// prevent false overtime from forgotten clock-outs.
 // ============================================================
 import cron from 'node-cron';
 import prisma from '../lib/prisma';
@@ -18,7 +19,19 @@ export async function runMidnightAutoCloseJob(): Promise<void> {
 
   const openRecords = await prisma.attendanceRecord.findMany({
     where: { status: 'CHECKED_IN' },
-    select: { id: true, membershipId: true, checkInTime: true },
+    select: {
+      id: true,
+      membershipId: true,
+      checkInTime: true,
+      membership: {
+        select: {
+          shiftEndTime: true,
+          organization: {
+            select: { workEndTime: true },
+          },
+        },
+      },
+    },
   });
 
   if (openRecords.length === 0) {
@@ -33,25 +46,54 @@ export async function runMidnightAutoCloseJob(): Promise<void> {
 
   for (const record of openRecords) {
     try {
+      // Determine shift end time string: individual override > org default
+      const endTimeStr =
+        record.membership.shiftEndTime || record.membership.organization.workEndTime;
+
+      // Default: close at the current time (midnight when job runs)
+      let checkOutTime = now;
+
+      if (endTimeStr) {
+        const [endHour, endMinute] = endTimeStr.split(':').map(Number);
+
+        // Compute shift end on the same calendar day as clock-in
+        const shiftEndOnCheckInDay = new Date(record.checkInTime);
+        shiftEndOnCheckInDay.setHours(endHour, endMinute, 0, 0);
+
+        // Only cap if shift end is:
+        //   - after the clock-in (prevents negative duration)
+        //   - before midnight of that same day (i.e. before now, since job runs at midnight)
+        if (shiftEndOnCheckInDay > record.checkInTime && shiftEndOnCheckInDay < now) {
+          checkOutTime = shiftEndOnCheckInDay;
+        }
+      }
+
       const duration = Math.floor(
-        (now.getTime() - record.checkInTime.getTime()) / 60000
+        (checkOutTime.getTime() - record.checkInTime.getTime()) / 60000
       );
 
       await prisma.attendanceRecord.update({
         where: { id: record.id },
         data: {
-          checkOutTime: now,
+          checkOutTime,
           checkOutMethod: 'MANUAL',
           duration,
           status: 'AUTO_CLOSED',
-          notes: 'Auto-closed at midnight by system — employee did not clock out',
+          notes:
+            'Auto-closed at midnight by system — employee did not clock out. ' +
+            `Check-out capped at shift end (${checkOutTime.toTimeString().slice(0, 5)}).`,
         },
       });
 
       closed++;
       log.info(
-        { recordId: record.id, membershipId: record.membershipId },
-        'Record auto-closed at midnight'
+        {
+          recordId: record.id,
+          membershipId: record.membershipId,
+          cappedCheckOut: checkOutTime.toISOString(),
+          durationMinutes: duration,
+        },
+        'Record auto-closed (capped at shift end)'
       );
     } catch (err) {
       failed++;
@@ -72,5 +114,7 @@ export function startMidnightAutoCloseJob(): void {
       log.error({ err }, 'Midnight auto-close job failed');
     }
   });
-  log.info('Midnight auto-close job scheduled — runs daily at 00:00 NPT (requires TZ=Asia/Kathmandu)');
+  log.info(
+    'Midnight auto-close job scheduled — runs daily at 00:00 NPT (requires TZ=Asia/Kathmandu)'
+  );
 }

@@ -19,7 +19,7 @@ export class OrgSettingsService {
       select: {
         id: true,
         name: true,
-        slug:true,
+        slug: true,
         email: true,
         phone: true,
         address: true,
@@ -33,6 +33,8 @@ export class OrgSettingsService {
         workStartTime: true,
         workEndTime: true,
         lateThresholdMinutes: true,
+        earlyClockInGraceMinutes: true,
+        lateClockOutGraceMinutes: true,
         workingDays: true,
       },
     });
@@ -43,12 +45,12 @@ export class OrgSettingsService {
   }
 
   /**
-   * Update org settings (language, calendarMode, basic info)
+   * Update org settings
    */
   async updateSettings(
     currentUser: JWTPayload,
     input: {
-      slug?:string;
+      slug?: string;
       language?: 'NEPALI' | 'ENGLISH';
       calendarMode?: 'NEPALI' | 'ENGLISH';
       name?: string;
@@ -62,6 +64,9 @@ export class OrgSettingsService {
       workStartTime?: string;
       workEndTime?: string;
       lateThresholdMinutes?: number;
+      earlyClockInGraceMinutes?: number;
+      lateClockOutGraceMinutes?: number;
+      attendanceMode?: 'QR_ONLY' | 'MOBILE_ONLY' | 'BOTH';
     }
   ) {
     if (!currentUser.organizationId) {
@@ -73,23 +78,37 @@ export class OrgSettingsService {
     if (input.calendarMode) data.calendarMode = input.calendarMode;
     if (input.name) data.name = input.name;
     if (input.slug !== undefined) {
-  const cleaned = input.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  if (cleaned.length < 3) throw new AuthorizationError('Slug must be at least 3 characters');
-  if (cleaned.length > 50) throw new AuthorizationError('Slug must be less than 50 characters');
-  const existing = await prisma.organization.findUnique({ where: { slug: cleaned } });
-  if (existing && existing.id !== currentUser.organizationId) throw new AuthorizationError('This URL is already taken');
-  data.slug = cleaned;
-}
+      const cleaned = input.slug
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      if (cleaned.length < 3) throw new AuthorizationError('Slug must be at least 3 characters');
+      if (cleaned.length > 50) throw new AuthorizationError('Slug must be less than 50 characters');
+      const existing = await prisma.organization.findUnique({ where: { slug: cleaned } });
+      if (existing && existing.id !== currentUser.organizationId)
+        throw new AuthorizationError('This URL is already taken');
+      data.slug = cleaned;
+    }
     if (input.email !== undefined) data.email = input.email;
     if (input.phone !== undefined) data.phone = input.phone;
     if (input.address !== undefined) data.address = input.address;
     if (input.geofenceEnabled !== undefined) data.geofenceEnabled = input.geofenceEnabled;
-    if (input.officeLat !== undefined) data.officeLat = input.officeLat ? Number(input.officeLat) : null;
-    if (input.officeLng !== undefined) data.officeLng = input.officeLng ? Number(input.officeLng) : null;
+    if (input.officeLat !== undefined)
+      data.officeLat = input.officeLat ? Number(input.officeLat) : null;
+    if (input.officeLng !== undefined)
+      data.officeLng = input.officeLng ? Number(input.officeLng) : null;
     if (input.geofenceRadius !== undefined) data.geofenceRadius = Number(input.geofenceRadius);
+    if (input.attendanceMode !== undefined) data.attendanceMode = input.attendanceMode;
     if (input.workStartTime !== undefined) data.workStartTime = input.workStartTime;
     if (input.workEndTime !== undefined) data.workEndTime = input.workEndTime;
-    if (input.lateThresholdMinutes !== undefined) data.lateThresholdMinutes = Number(input.lateThresholdMinutes);
+    if (input.lateThresholdMinutes !== undefined)
+      data.lateThresholdMinutes = Number(input.lateThresholdMinutes);
+    // Grace period fields (Point 1)
+    if (input.earlyClockInGraceMinutes !== undefined)
+      data.earlyClockInGraceMinutes = Number(input.earlyClockInGraceMinutes);
+    if (input.lateClockOutGraceMinutes !== undefined)
+      data.lateClockOutGraceMinutes = Number(input.lateClockOutGraceMinutes);
 
     const org = await prisma.organization.update({
       where: { id: currentUser.organizationId },
@@ -97,7 +116,7 @@ export class OrgSettingsService {
       select: {
         id: true,
         name: true,
-        slug:true,
+        slug: true,
         email: true,
         phone: true,
         address: true,
@@ -111,6 +130,8 @@ export class OrgSettingsService {
         workStartTime: true,
         workEndTime: true,
         lateThresholdMinutes: true,
+        earlyClockInGraceMinutes: true,
+        lateClockOutGraceMinutes: true,
         workingDays: true,
       },
     });
@@ -122,4 +143,3 @@ export class OrgSettingsService {
 }
 
 export const orgSettingsService = new OrgSettingsService();
-

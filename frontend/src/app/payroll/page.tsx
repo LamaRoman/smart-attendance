@@ -14,12 +14,12 @@ import { adToBS } from '@/components/BSDatePicker';
 
 import { PaySettings, PayrollRecord, Tab } from './types';
 import { defaultSettings, calculateTDS, paySettingsFromApi } from './utils';
-import SettingsTab    from './components/SettingsTab';
-import GenerateTab    from './components/GenerateTab';
-import RecordsTab     from './components/RecordsTab';
-import AnnualTab      from './components/AnnualTab';
-import MultiMonthTab  from './components/MultiMonthTab';
-import PayslipModal   from './components/PayslipModal';
+import SettingsTab from './components/SettingsTab';
+import GenerateTab from './components/GenerateTab';
+import RecordsTab from './components/RecordsTab';
+import AnnualTab from './components/AnnualTab';
+import MultiMonthTab from './components/MultiMonthTab';
+import PayslipModal from './components/PayslipModal';
 
 export default function PayrollPage() {
   const { user, isLoading, language } = useAuth();
@@ -27,8 +27,8 @@ export default function PayrollPage() {
   const isNp = language === 'NEPALI';
 
   // ── Subscription / tier ──
-  const [featureChecked, setFeatureChecked]             = useState(false);
-  const [orgTier, setOrgTier]                           = useState<string | null>(null);
+  const [featureChecked, setFeatureChecked] = useState(false);
+  const [orgTier, setOrgTier] = useState<string | null>(null);
   /**
    * FIX (HIGH): featurePayrollWorkflow is fetched explicitly from the
    * subscription API rather than being derived ad-hoc from `isStarter`.
@@ -39,50 +39,50 @@ export default function PayrollPage() {
 
   // ── UI state ──
   const [tab, setTab] = useState<Tab>('settings');
- 
 
-  const [error, setError]             = useState('');
-  const [success, setSuccess]         = useState('');
+
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   // ── Settings tab ──
-  const [users, setUsers]                     = useState<any[]>([]);
-  const [allPaySettings, setAllPaySettings]   = useState<Record<string, any>>({});
-  const [selectedUser, setSelectedUser]       = useState('');
-  const [form, setForm]                       = useState<PaySettings>({ ...defaultSettings });
-  const [originalForm, setOriginalForm]       = useState<PaySettings>({ ...defaultSettings });
-  const [saving, setSaving]                   = useState(false);
-  const [tdsSlabs, setTdsSlabs]               = useState<any>(null);
-  const [showTdsInfo, setShowTdsInfo]         = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [allPaySettings, setAllPaySettings] = useState<Record<string, any>>({});
+  const [selectedUser, setSelectedUser] = useState('');
+  const [form, setForm] = useState<PaySettings>({ ...defaultSettings });
+  const [originalForm, setOriginalForm] = useState<PaySettings>({ ...defaultSettings });
+  const [saving, setSaving] = useState(false);
+  const [tdsSlabs, setTdsSlabs] = useState<any>(null);
+  const [showTdsInfo, setShowTdsInfo] = useState(false);
   const [showCopyDropdown, setShowCopyDropdown] = useState(false);
 
   // ── Generate tab ──
-  const todayBS =adToBS(new Date());
-  const [genYear, setGenYear]     = useState(todayBS.year);
-  const [genMonth, setGenMonth]   = useState(todayBS.month);
+  const todayBS = adToBS(new Date());
+  const [genYear, setGenYear] = useState(todayBS.year);
+  const [genMonth, setGenMonth] = useState(todayBS.month);
   const [generating, setGenerating] = useState(false);
-  const [genResult, setGenResult]   = useState<any>(null);
+  const [genResult, setGenResult] = useState<any>(null);
 
   // ── Records tab ──
-  const [recYear, setRecYear]         = useState(todayBS.year);
-  const [recMonth, setRecMonth]       = useState(todayBS.month);
-  const [records, setRecords]         = useState<PayrollRecord[]>([]);
+  const [recYear, setRecYear] = useState(todayBS.year);
+  const [recMonth, setRecMonth] = useState(todayBS.month);
+  const [records, setRecords] = useState<PayrollRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState<PayrollRecord | null>(null);
 
   // ── Annual tab ──
-  const [annualYear, setAnnualYear]       = useState(todayBS.year);
-  const [annualData, setAnnualData]       = useState<any>(null);
+  const [annualYear, setAnnualYear] = useState(todayBS.year);
+  const [annualData, setAnnualData] = useState<any>(null);
   const [loadingAnnual, setLoadingAnnual] = useState(false);
 
   // ── Multi-month tab ──
-  const [multiFromYear, setMultiFromYear]   = useState(todayBS.year);
+  const [multiFromYear, setMultiFromYear] = useState(todayBS.year);
   const [multiFromMonth, setMultiFromMonth] = useState(1);
-  const [multiToYear, setMultiToYear]       = useState(todayBS.year);
-  const [multiToMonth, setMultiToMonth]     = useState(3);
+  const [multiToYear, setMultiToYear] = useState(todayBS.year);
+  const [multiToMonth, setMultiToMonth] = useState(3);
   const [multiMonthData, setMultiMonthData] = useState<any>(null);
   const [loadingMultiMonth, setLoadingMultiMonth] = useState(false);
-  const [expandedEmployee, setExpandedEmployee]   = useState<string | null>(null);
+  const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
 
   // ── Derived ──
   const isStarter = orgTier === 'STARTER';
@@ -100,11 +100,11 @@ export default function PayrollPage() {
       form.medicalAllowance + form.otherAllowances;
 
     const employeeSsf = form.ssfEnabled ? (gross * form.employeeSsfRate) / 100 : 0;
-    const employeePf  = form.pfEnabled  ? (gross * form.employeePfRate)  / 100 : 0;
+    const employeePf = form.pfEnabled ? (gross * form.employeePfRate) / 100 : 0;
     const citDeduction = form.citEnabled ? form.citAmount : 0;
 
     const tds = form.tdsEnabled
-      ? calculateTDS(gross * 12, form.isMarried, employeeSsf, employeePf, citDeduction,form.ssfEnabled)
+      ? calculateTDS(gross * 12, form.isMarried, employeeSsf, employeePf, citDeduction, form.ssfEnabled)
       : 0;
 
     const totalDeductions = employeeSsf + employeePf + citDeduction + tds + form.advanceDeduction;
@@ -118,12 +118,12 @@ export default function PayrollPage() {
       totalDeductions,
       net: gross - totalDeductions,
       employerSsf: form.ssfEnabled ? (gross * form.employerSsfRate) / 100 : 0,
-      employerPf:  form.pfEnabled  ? (gross * form.employerPfRate)  / 100 : 0,
+      employerPf: form.pfEnabled ? (gross * form.employerPfRate) / 100 : 0,
     };
   }, [form]);
 
   // ── Auth guard ──
-useEffect(() => {
+  useEffect(() => {
     if (!isLoading && (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT'))) router.push('/login');
   }, [user, isLoading, router]);
 
@@ -254,9 +254,13 @@ useEffect(() => {
     setSaving(false);
   };
 
-  const generatePayroll = async () => {
+  const generatePayroll = async (overtimeOverrides: Record<string, number> = {}) => {
     setGenerating(true); setError('');
-    const res = await api.post('/api/payroll/generate', { bsYear: genYear, bsMonth: genMonth });
+    const res = await api.post('/api/payroll/generate', {
+      bsYear: genYear,
+      bsMonth: genMonth,
+      overtimeOverrides: Object.keys(overtimeOverrides).length > 0 ? overtimeOverrides : undefined,
+    });
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -316,16 +320,16 @@ useEffect(() => {
   }
   if (!user) return null;
 
-const tabDefs: { key: Tab; label: string; icon: React.ElementType; locked?: boolean }[] = [
-    { key: 'settings',   label: isNp ? 'तलब सेटिङ'      : 'Pay settings',    icon: Settings  },
-    { key: 'generate',   label: isNp ? 'तलब गणना'       : 'Generate payroll', icon: Play      },
-    { key: 'records',    label: isNp ? 'तलब रेकर्ड'     : 'Payroll records',  icon: FileText  },
-    { key: 'annual',     label: isNp ? 'वार्षिक विवरण'  : 'Annual report',    icon: CreditCard, locked: isStarter },
-    { key: 'multimonth', label: isNp ? 'बहु-महिना दृश्य': 'Multi-Month',      icon: BarChart3,  locked: isStarter },
+  const tabDefs: { key: Tab; label: string; icon: React.ElementType; locked?: boolean }[] = [
+    { key: 'settings', label: isNp ? 'तलब सेटिङ' : 'Pay settings', icon: Settings },
+    { key: 'generate', label: isNp ? 'तलब गणना' : 'Generate payroll', icon: Play },
+    { key: 'records', label: isNp ? 'तलब रेकर्ड' : 'Payroll records', icon: FileText },
+    { key: 'annual', label: isNp ? 'वार्षिक विवरण' : 'Annual report', icon: CreditCard, locked: isStarter },
+    { key: 'multimonth', label: isNp ? 'बहु-महिना दृश्य' : 'Multi-Month', icon: BarChart3, locked: isStarter },
   ];
   const isBusy = saving || generating || loadingRecords;
 
-const Layout = isAccountant ? AccountantLayout : AdminLayout;
+  const Layout = isAccountant ? AccountantLayout : AdminLayout;
   return (
     <Layout>
       <div className="space-y-6">
@@ -401,13 +405,12 @@ const Layout = isAccountant ? AccountantLayout : AdminLayout;
             <button
               key={t.key}
               onClick={() => handleTabChange(t.key)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative ${
-                t.locked
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative ${t.locked
                   ? 'text-slate-300'
                   : tab === t.key
-                  ? 'text-slate-900'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
+                    ? 'text-slate-900'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
             >
               <t.icon className="w-4 h-4" />
               {t.label}
@@ -430,7 +433,7 @@ const Layout = isAccountant ? AccountantLayout : AdminLayout;
         {tab === 'settings' && (
           <SettingsTab
             isNp={isNp}
-            readOnly = {isAccountant}
+            readOnly={isAccountant}
             users={users}
             allPaySettings={allPaySettings}
             selectedUser={selectedUser}
@@ -469,7 +472,7 @@ const Layout = isAccountant ? AccountantLayout : AdminLayout;
           <RecordsTab
             language={language as any}
             isStarter={isStarter}
-            userRole = {user?.role}
+            userRole={user?.role}
             featurePayrollWorkflow={featurePayrollWorkflow}
             recYear={recYear}
             recMonth={recMonth}
@@ -498,7 +501,7 @@ const Layout = isAccountant ? AccountantLayout : AdminLayout;
 
         {tab === 'multimonth' && (
           <MultiMonthTab
-           language={language as any}
+            language={language as any}
             isStarter={isStarter}
             multiFromYear={multiFromYear}
             multiFromMonth={multiFromMonth}
@@ -522,7 +525,7 @@ const Layout = isAccountant ? AccountantLayout : AdminLayout;
       {selectedPayslip && (
         <PayslipModal
           record={selectedPayslip}
-         language={language as any}
+          language={language as any}
           isStarter={isStarter}
           onClose={() => setSelectedPayslip(null)}
           onError={setError}
