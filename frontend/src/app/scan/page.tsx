@@ -42,27 +42,38 @@ function ScanPageContent() {
   const [submitting, setSubmitting] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // GPS state — for UI display
   const [location, setLocation] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'loading' | 'ready' | 'denied'>('loading');
+
+  // GPS refs — for reading latest values inside async callbacks (avoids stale closure)
+  const locationRef = useRef<{ latitude: number; longitude: number; accuracy: number } | null>(null);
+  const locationStatusRef = useRef<'loading' | 'ready' | 'denied'>('loading');
 
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setLocation({
+          const loc = {
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
             accuracy: pos.coords.accuracy,
-          });
+          };
+          locationRef.current = loc;
+          locationStatusRef.current = 'ready';
+          setLocation(loc);
           setLocationStatus('ready');
         },
         () => {
+          locationRef.current = null;
+          locationStatusRef.current = 'denied';
           setLocation(null);
           setLocationStatus('denied');
         },
         { enableHighAccuracy: true, timeout: 10000 }
       );
     } else {
+      locationStatusRef.current = 'denied';
       setLocationStatus('denied');
     }
   }, []);
@@ -92,6 +103,21 @@ function ScanPageContent() {
     setErrorCode('');
 
     try {
+      // If GPS is still loading, wait up to 10 seconds for it to resolve
+      let resolvedLocation = locationRef.current;
+      if (locationStatusRef.current === 'loading') {
+        resolvedLocation = await new Promise((resolve) => {
+          const timeout = setTimeout(() => resolve(null), 10000);
+          const interval = setInterval(() => {
+            if (locationStatusRef.current !== 'loading') {
+              clearTimeout(timeout);
+              clearInterval(interval);
+              resolve(locationRef.current);
+            }
+          }, 200);
+        });
+      }
+
       const qrPayload = JSON.stringify({ token, signature });
       const response = await fetch(`${API_URL}/api/attendance/scan-public`, {
         method: 'POST',
@@ -100,10 +126,10 @@ function ScanPageContent() {
           qrPayload,
           employeeId: employeeId.trim().toUpperCase(),
           pin,
-          ...(location ? {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            accuracy: location.accuracy,
+          ...(resolvedLocation ? {
+            latitude: resolvedLocation.latitude,
+            longitude: resolvedLocation.longitude,
+            accuracy: resolvedLocation.accuracy,
           } : {}),
         }),
       });
