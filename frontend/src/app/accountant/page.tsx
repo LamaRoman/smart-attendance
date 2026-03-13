@@ -2,127 +2,156 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import AccountantLayout from '@/components/AccountantLayout';
-import { CreditCard, FileText, TrendingUp, AlertCircle } from 'lucide-react';
+import {
+  Clock, FileText, CreditCard, CalendarDays,
+  AlertTriangle, ArrowRight, CheckCircle,
+} from 'lucide-react';
 
 export default function AccountantDashboard() {
   const { user, language } = useAuth();
+  const router = useRouter();
   const isNp = language === 'NEPALI';
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
+  const [autoClosedCount, setAutoClosedCount] = useState<number | null>(null);
 
   useEffect(() => {
-    async function fetchDashboard() {
+    async function fetchPending() {
       try {
-        const now = new Date();
-        const currentBsYear = now.getMonth() >= 3 ? now.getFullYear() + 57 : now.getFullYear() + 56;
-        const currentBsMonth = ((now.getMonth() + 9) % 12) + 1;
-
-        const payrollRes = await api.get(`/api/payroll/records?bsYear=${currentBsYear}&bsMonth=${currentBsMonth}`);
-        const payroll = payrollRes.data as any;
-
-        setStats({
-          totalEmployees: payroll?.summary?.totalEmployees || 0,
-          totalNetSalary: payroll?.summary?.totalNet || 0,
-          totalDeductions: payroll?.summary?.totalDeductions || 0,
-          needsRecalculation: payroll?.summary?.needsRecalculation || 0,
-          records: payroll?.records || [],
-        });
-      } catch (err) {
-        console.error('Dashboard fetch error:', err);
+        const res = await api.get('/api/attendance?status=AUTO_CLOSED&limit=50&offset=0');
+        const records = (res.data as any)?.records || [];
+        setAutoClosedCount(records.length);
+      } catch {
+        setAutoClosedCount(0);
       }
-      setLoading(false);
     }
-    fetchDashboard();
+    fetchPending();
   }, []);
 
-  if (loading) {
-    return (
-      <AccountantLayout>
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-slate-800 animate-spin" />
-        </div>
-      </AccountantLayout>
-    );
-  }
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString(isNp ? 'ne-NP' : 'en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
 
-  const statCards = [
+  const quickLinks = [
     {
-      label: isNp ? 'कर्मचारी संख्या' : 'Total Employees',
-      value: stats?.totalEmployees || 0,
-      icon: CreditCard,
+      label: isNp ? 'उपस्थिति' : 'Attendance',
+      desc: isNp ? 'AUTO_CLOSED रेकर्ड सच्याउनुहोस्' : 'Review and correct AUTO_CLOSED records',
+      icon: Clock,
       color: 'bg-blue-50 text-blue-600',
+      path: '/accountant/attendance',
+      badge: autoClosedCount !== null && autoClosedCount > 0 ? autoClosedCount : null,
     },
     {
-      label: isNp ? 'कुल नेट तलब' : 'Total Net Salary',
-      value: `Rs. ${(stats?.totalNetSalary || 0).toLocaleString()}`,
-      icon: TrendingUp,
-      color: 'bg-green-50 text-green-600',
-    },
-    {
-      label: isNp ? 'कुल कटौती' : 'Total Deductions',
-      value: `Rs. ${(stats?.totalDeductions || 0).toLocaleString()}`,
+      label: isNp ? 'प्रतिवेदन' : 'Reports',
+      desc: isNp ? 'मासिक र वार्षिक तलब प्रतिवेदन' : 'Monthly and annual payroll reports',
       icon: FileText,
-      color: 'bg-orange-50 text-orange-600',
+      color: 'bg-purple-50 text-purple-600',
+      path: '/accountant/reports',
+      badge: null,
     },
     {
-      label: isNp ? 'पुनर्गणना आवश्यक' : 'Needs Recalculation',
-      value: stats?.needsRecalculation || 0,
-      icon: AlertCircle,
-      color: stats?.needsRecalculation > 0 ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-600',
+      label: isNp ? 'तलब' : 'Payroll',
+      desc: isNp ? 'तलब रेकर्ड हेर्नुहोस्' : 'View payroll records',
+      icon: CreditCard,
+      color: 'bg-emerald-50 text-emerald-600',
+      path: '/payroll',
+      badge: null,
+    },
+    {
+      label: isNp ? 'बिदा' : 'Leaves',
+      desc: isNp ? 'कर्मचारी बिदा अनुरोध' : 'Employee leave requests',
+      icon: CalendarDays,
+      color: 'bg-orange-50 text-orange-600',
+      path: '/leaves',
+      badge: null,
     },
   ];
 
   return (
     <AccountantLayout>
-      <div>
-        <div className="mb-6">
-          <h1 className="text-xl font-semibold text-slate-900">
-            {isNp ? 'लेखापाल ड्यासबोर्ड' : 'Accountant Dashboard'}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {isNp ? 'तलब र वित्तीय सारांश' : 'Payroll & financial summary'}
-          </p>
+      <div className="space-y-6">
+
+        {/* Welcome header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-medium text-slate-900">
+              {isNp ? 'नमस्ते,' : 'Hello,'} {user?.firstName} 👋
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">{dateLabel}</p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {statCards.map((card) => (
-            <div key={card.label} className="bg-white rounded-lg border border-slate-200 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-slate-500">{card.label}</span>
-                <div className={`w-8 h-8 rounded-md flex items-center justify-center ${card.color}`}>
-                  <card.icon className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-lg font-semibold text-slate-900">{card.value}</p>
+        {/* AUTO_CLOSED alert */}
+        {autoClosedCount !== null && autoClosedCount > 0 && (
+          <div
+            onClick={() => router.push('/accountant/attendance')}
+            className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors"
+          >
+            <div className="p-2 bg-amber-100 rounded-lg shrink-0">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
             </div>
-          ))}
-        </div>
-
-        {stats?.records?.length > 0 && (
-          <div className="bg-white rounded-lg border border-slate-200 p-5">
-            <h2 className="text-sm font-semibold text-slate-900 mb-4">
-              {isNp ? 'तलब स्थिति' : 'Payroll Status Overview'}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {['DRAFT', 'PROCESSED', 'APPROVED', 'PAID'].map((status) => {
-                const count = stats.records.filter((r: any) => r.status === status).length;
-                const colors: Record<string, string> = {
-                  DRAFT: 'text-slate-600 bg-slate-50',
-                  PROCESSED: 'text-blue-600 bg-blue-50',
-                  APPROVED: 'text-green-600 bg-green-50',
-                  PAID: 'text-emerald-600 bg-emerald-50',
-                };
-                return (
-                  <div key={status} className={`rounded-md p-3 ${colors[status]}`}>
-                    <p className="text-xs font-medium">{status}</p>
-                    <p className="text-lg font-bold mt-1">{count}</p>
-                  </div>
-                );
-              })}
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">
+                {isNp
+                  ? `${autoClosedCount} AUTO_CLOSED रेकर्डहरू सच्याउन बाँकी`
+                  : `${autoClosedCount} AUTO_CLOSED record${autoClosedCount === 1 ? '' : 's'} need checkout correction`}
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {isNp
+                  ? 'क्लिक गर्नुहोस् र चेकआउट समय अपडेट गर्नुहोस्'
+                  : 'Click to review and update checkout times'}
+              </p>
             </div>
+            <ArrowRight className="w-4 h-4 text-amber-500 shrink-0" />
           </div>
         )}
+
+        {autoClosedCount === 0 && (
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+            <div className="p-2 bg-green-100 rounded-lg shrink-0">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <p className="text-sm font-medium text-green-800">
+              {isNp
+                ? 'सबै उपस्थिति रेकर्डहरू ठीक छन्'
+                : 'All attendance records are in order'}
+            </p>
+          </div>
+        )}
+
+        {/* Quick links */}
+        <div>
+          <h2 className="text-sm font-medium text-slate-500 mb-3">
+            {isNp ? 'द्रुत पहुँच' : 'Quick access'}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {quickLinks.map((link) => (
+              <div
+                key={link.path}
+                onClick={() => router.push(link.path)}
+                className="bg-white rounded-xl border border-slate-200 p-5 cursor-pointer hover:border-slate-300 hover:shadow-sm transition-all flex items-center gap-4"
+              >
+                <div className={`p-3 rounded-xl shrink-0 ${link.color}`}>
+                  <link.icon className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-900">{link.label}</p>
+                    {link.badge && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                        {link.badge}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">{link.desc}</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
     </AccountantLayout>
   );
