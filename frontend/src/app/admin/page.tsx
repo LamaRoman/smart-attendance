@@ -53,7 +53,7 @@ export default function AdminDashboard() {
   const [slideOver, setSlideOver] = useState<'present' | 'absent' | null>(null);
   const [search, setSearch] = useState('');
   const [birthdays, setBirthdays] = useState<BirthdayEmployee[]>([]);
-
+const [showBirthdayToast, setShowBirthdayToast] = useState(true);
   useEffect(() => {
     if (user) {
       loadStats();
@@ -176,6 +176,26 @@ export default function AdminDashboard() {
             })}
           </div>
         </div>
+        {/* Birthday Toast — today's birthdays only */}
+{showBirthdayToast && birthdays.filter(b => b.isToday).length > 0 && (
+  <div className="flex items-center gap-3 px-5 py-4 rounded-xl border border-purple-200 bg-purple-50">
+    <span className="text-2xl">🎂</span>
+    <div className="flex-1">
+      <p className="text-sm font-semibold text-purple-900">
+        {isNp ? 'आज जन्मदिन!' : 'Birthday today!'}
+      </p>
+      <p className="text-xs text-purple-700 mt-0.5">
+        {birthdays.filter(b => b.isToday).map(b => `${b.firstName} ${b.lastName}`).join(', ')}
+      </p>
+    </div>
+    <button
+      onClick={() => setShowBirthdayToast(false)}
+      className="p-1.5 hover:bg-purple-100 rounded-lg transition-colors"
+    >
+      <X className="w-4 h-4 text-purple-500" />
+    </button>
+  </div>
+)}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
