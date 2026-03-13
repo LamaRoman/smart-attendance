@@ -599,6 +599,18 @@ export default function OrgSettingsPage() {
                         ? 'नक्सामा क्लिक गर्नुहोस् वा मार्कर तान्नुहोस् स्थान सेट गर्न।'
                         : 'Click on the map or drag the marker to set location. Dashed circle shows geofence area.'}
                     </p>
+                    {formData.officeLat && formData.officeLng && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>
+                          {isNepali ? 'हालको स्थान: ' : 'Current location: '}
+                          <span className="font-mono font-medium">
+                            {Number(formData.officeLat).toFixed(6)}, {Number(formData.officeLng).toFixed(6)}
+                          </span>
+                          {' · '}{formData.geofenceRadius}m {isNepali ? 'दायरा' : 'radius'}
+                        </span>
+                      </div>
+                    )}
                     <GeofenceMap
                       latitude={formData.officeLat ? Number(formData.officeLat) : 27.7172}
                       longitude={formData.officeLng ? Number(formData.officeLng) : 85.3240}

@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, Suspense, useRef, useEffect } from 'react';
+import { useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Shield,
@@ -30,7 +30,7 @@ function ScanPageContent() {
   const [employeeId, setEmployeeId] = useState('');
   const [pin, setPin] = useState('');
   const [lang, setLang] = useState<'NEPALI' | 'ENGLISH'>('ENGLISH');
-  const [step, setStep] = useState<'input' | 'processing' | 'success' | 'error'>('input');
+  const [step, setStep] = useState<'input' | 'locating' | 'processing' | 'success' | 'error'>('input');
   const [result, setResult] = useState<{
     action: string;
     message: string;
@@ -41,42 +41,6 @@ function ScanPageContent() {
   const [errorCode, setErrorCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // GPS state — for UI display
-  const [location, setLocation] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
-  const [locationStatus, setLocationStatus] = useState<'loading' | 'ready' | 'denied'>('loading');
-
-  // GPS refs — for reading latest values inside async callbacks (avoids stale closure)
-  const locationRef = useRef<{ latitude: number; longitude: number; accuracy: number } | null>(null);
-  const locationStatusRef = useRef<'loading' | 'ready' | 'denied'>('loading');
-
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const loc = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-          };
-          locationRef.current = loc;
-          locationStatusRef.current = 'ready';
-          setLocation(loc);
-          setLocationStatus('ready');
-        },
-        () => {
-          locationRef.current = null;
-          locationStatusRef.current = 'denied';
-          setLocation(null);
-          setLocationStatus('denied');
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      locationStatusRef.current = 'denied';
-      setLocationStatus('denied');
-    }
-  }, []);
 
   const isNp = lang === 'NEPALI';
   const isValidQR = token && signature;
@@ -97,69 +61,80 @@ function ScanPageContent() {
       return;
     }
 
+    if (!navigator.geolocation) {
+      setStep('error');
+      setErrorMsg(isNp ? 'तपाईंको ब्राउजरले GPS सपोर्ट गर्दैन' : 'Your browser does not support GPS');
+      return;
+    }
+
     setSubmitting(true);
-    setStep('processing');
+    setStep('locating');
     setErrorMsg('');
     setErrorCode('');
 
-    try {
-      // If GPS is still loading, wait up to 10 seconds for it to resolve
-      let resolvedLocation = locationRef.current;
-      if (locationStatusRef.current === 'loading') {
-        resolvedLocation = await new Promise((resolve) => {
-          const timeout = setTimeout(() => resolve(null), 10000);
-          const interval = setInterval(() => {
-            if (locationStatusRef.current !== 'loading') {
-              clearTimeout(timeout);
-              clearInterval(interval);
-              resolve(locationRef.current);
-            }
-          }, 200);
-        });
-      }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        setStep('processing');
+        try {
+          const qrPayload = JSON.stringify({ token, signature });
+          const response = await fetch(`${API_URL}/api/attendance/scan-public`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              qrPayload,
+              employeeId: employeeId.trim().toUpperCase(),
+              pin,
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            }),
+          });
 
-      const qrPayload = JSON.stringify({ token, signature });
-      const response = await fetch(`${API_URL}/api/attendance/scan-public`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          qrPayload,
-          employeeId: employeeId.trim().toUpperCase(),
-          pin,
-          ...(resolvedLocation ? {
-            latitude: resolvedLocation.latitude,
-            longitude: resolvedLocation.longitude,
-            accuracy: resolvedLocation.accuracy,
-          } : {}),
-        }),
-      });
+          const data = await response.json();
 
-      const data = await response.json();
+          if (!response.ok) {
+            setStep('error');
+            setErrorCode(data.error?.code || '');
+            setErrorMsg(data.error?.message || '');
+            setSubmitting(false);
+            return;
+          }
 
-      if (!response.ok) {
+          setResult(data.data);
+          setStep('success');
+          setPin('');
+
+          timeoutRef.current = setTimeout(() => {
+            setStep('input');
+            setEmployeeId('');
+            setPin('');
+            setResult(null);
+            setSubmitting(false);
+          }, 8000);
+        } catch (err) {
+          setStep('error');
+          setErrorMsg(isNp ? 'सर्भरसँग जडान हुन सकेन' : 'Could not connect to server');
+          setSubmitting(false);
+        }
+      },
+      (err) => {
         setStep('error');
-        setErrorCode(data.error?.code || '');
-        setErrorMsg(data.error?.message || '');
         setSubmitting(false);
-        return;
+        if (err.code === err.PERMISSION_DENIED) {
+          setErrorCode('LOCATION_REQUIRED');
+          setErrorMsg('');
+        } else if (err.code === err.TIMEOUT) {
+          setErrorMsg(isNp ? 'GPS समय सकियो। कृपया खुला ठाउँमा पुनः प्रयास गर्नुहोस्' : 'GPS timed out. Please try again in an open area');
+        } else {
+          setErrorMsg(isNp ? 'स्थान प्राप्त गर्न सकिएन' : 'Could not get your location');
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 10000,
       }
-
-      setResult(data.data);
-      setStep('success');
-      setPin('');
-
-      timeoutRef.current = setTimeout(() => {
-        setStep('input');
-        setEmployeeId('');
-        setPin('');
-        setResult(null);
-        setSubmitting(false);
-      }, 8000);
-    } catch (err) {
-      setStep('error');
-      setErrorMsg(isNp ? 'सर्भरसँग जडान हुन सकेन' : 'Could not connect to server');
-      setSubmitting(false);
-    }
+    );
   };
 
   const handleReset = () => {
@@ -232,31 +207,6 @@ function ScanPageContent() {
                     <span className="text-red-700 text-sm">{errorMsg}</span>
                   </div>
                 )}
-
-                {/* GPS Status Indicator */}
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
-                  locationStatus === 'ready'
-                    ? 'bg-green-50 text-green-700'
-                    : locationStatus === 'denied'
-                    ? 'bg-yellow-50 text-yellow-700'
-                    : 'bg-slate-50 text-slate-500'
-                }`}>
-                  {locationStatus === 'loading' && (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
-                  )}
-                  {locationStatus === 'ready' && (
-                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                  )}
-                  {locationStatus === 'denied' && (
-                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                  )}
-                  <span>
-                    {locationStatus === 'loading' && t('scan.gps.loading', lang)}
-                    {locationStatus === 'ready' && t('scan.gps.ready', lang)}
-                    {locationStatus === 'denied' && t('scan.gps.denied', lang)}
-                  </span>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     {isNp ? 'कर्मचारी आईडी' : 'Employee ID'}
@@ -313,6 +263,21 @@ function ScanPageContent() {
                   {isNp ? 'तपाईंको कर्मचारी आईडी तपाईंको आईडी कार्डमा छ' : 'Your Employee ID is on your ID card'}
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* LOCATING */}
+          {step === 'locating' && (
+            <div className="bg-white rounded-xl shadow-md p-10 text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-50 rounded-full mb-4">
+                <MapPin className="w-10 h-10 text-blue-500 animate-pulse" />
+              </div>
+              <p className="text-lg font-semibold text-gray-700">
+                {isNp ? 'स्थान पत्ता लगाउँदै...' : 'Getting your location...'}
+              </p>
+              <p className="text-sm text-gray-400 mt-1">
+                {isNp ? 'कृपया पर्खनुहोस्' : 'Please wait'}
+              </p>
             </div>
           )}
 
