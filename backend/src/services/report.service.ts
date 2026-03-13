@@ -8,7 +8,7 @@ export class ReportService {
   /**
    * Daily attendance report
    */
-  async getDailyReport(date: Date, currentUser: JWTPayload) {
+ async getDailyReport(date: Date, currentUser: JWTPayload) {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
@@ -24,7 +24,7 @@ export class ReportService {
       attendanceWhere.organizationId = currentUser.organizationId;
     }
 
-    const [allMemberships, attendanceRecords] = await Promise.all([
+    const [allMemberships, attendanceRecords, org] = await Promise.all([
       prisma.orgMembership.findMany({
         where: membershipWhere,
         select: {
@@ -47,6 +47,12 @@ export class ReportService {
         },
         orderBy: { checkInTime: 'asc' },
       }),
+      currentUser.organizationId
+        ? prisma.organization.findUnique({
+            where: { id: currentUser.organizationId },
+            select: { workStartTime: true, lateThresholdMinutes: true },
+          })
+        : Promise.resolve(null),
     ]);
 
     // Track present memberships
@@ -68,7 +74,6 @@ export class ReportService {
       isActive: record.isActive,
     }));
 
-    // Flatten allMemberships to match old response shape
     const allEmployees = allMemberships.map((m) => ({
       id: m.user.id,
       firstName: m.user.firstName,
@@ -91,6 +96,17 @@ export class ReportService {
 
     const avgMinutesWorked = completedShifts > 0 ? Math.round(totalMinutesWorked / completedShifts) : 0;
 
+    let lateArrivals = 0;
+    if (org?.workStartTime) {
+      const [h, m] = org.workStartTime.split(':').map(Number);
+      const threshold = org.lateThresholdMinutes ?? 10;
+      lateArrivals = attendanceRecords.filter((r) => {
+        const workStart = new Date(r.checkInTime);
+        workStart.setHours(h, m, 0, 0);
+        return Math.floor((r.checkInTime.getTime() - workStart.getTime()) / 60000) > threshold;
+      }).length;
+    }
+
     return {
       date: startOfDay.toISOString().split('T')[0],
       summary: {
@@ -102,6 +118,7 @@ export class ReportService {
         totalHoursWorked: Math.round((totalMinutesWorked / 60) * 10) / 10,
         avgHoursWorked: Math.round((avgMinutesWorked / 60) * 10) / 10,
         attendanceRate: totalEmployees > 0 ? Math.round((totalPresent / totalEmployees) * 100) : 0,
+        lateArrivals,
       },
       present,
       absent,

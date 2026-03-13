@@ -69,7 +69,8 @@ export default function AdminDashboard() {
   }, [slideOver]);
 
   const loadStats = async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const res = await api.get('/api/reports/daily?date=' + today);
     if (res.data) {
       const data = res.data as DailyReport;
@@ -182,9 +183,8 @@ export default function AdminDashboard() {
             <div
               key={stat.title}
               onClick={stat.onClick}
-              className={`bg-white rounded-xl border border-slate-200/60 p-5 transition-all ${
-                stat.onClick ? 'cursor-pointer hover:border-slate-300 hover:shadow-sm' : 'hover:border-slate-300'
-              }`}
+              className={`bg-white rounded-xl border border-slate-200/60 p-5 transition-all ${stat.onClick ? 'cursor-pointer hover:border-slate-300 hover:shadow-sm' : 'hover:border-slate-300'
+                }`}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="p-2.5 rounded-lg" style={stat.iconBg}>
@@ -220,9 +220,8 @@ export default function AdminDashboard() {
               {birthdays.map((emp) => (
                 <div
                   key={emp.id}
-                  className={`px-5 py-3 flex items-center gap-3 transition-colors ${
-                    emp.isToday ? 'bg-purple-50/40' : 'hover:bg-slate-50/50'
-                  }`}
+                  className={`px-5 py-3 flex items-center gap-3 transition-colors ${emp.isToday ? 'bg-purple-50/40' : 'hover:bg-slate-50/50'
+                    }`}
                 >
                   <div
                     className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 text-xs font-medium"
