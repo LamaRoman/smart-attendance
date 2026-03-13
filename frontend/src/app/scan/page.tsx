@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, Suspense, useRef } from 'react';
+import { useState, Suspense, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Shield,
@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Globe,
   Lock,
+  MapPin,
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
 import { BS_MONTHS_EN, BS_MONTHS_NP, toNepaliDigits } from '@/components/BSDatePicker';
@@ -28,8 +29,6 @@ function ScanPageContent() {
 
   const [employeeId, setEmployeeId] = useState('');
   const [pin, setPin] = useState('');
-
-  // FIX 1: Default language is ENGLISH
   const [lang, setLang] = useState<'NEPALI' | 'ENGLISH'>('ENGLISH');
   const [step, setStep] = useState<'input' | 'processing' | 'success' | 'error'>('input');
   const [result, setResult] = useState<{
@@ -40,16 +39,38 @@ function ScanPageContent() {
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [errorCode, setErrorCode] = useState('');
-  // FIX 4: Track submitting state to prevent double submit
   const [submitting, setSubmitting] = useState(false);
-  // FIX: Track timeout so it can be cleared on manual reset
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [location, setLocation] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'loading' | 'ready' | 'denied'>('loading');
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLocation({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          });
+          setLocationStatus('ready');
+        },
+        () => {
+          setLocation(null);
+          setLocationStatus('denied');
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      setLocationStatus('denied');
+    }
+  }, []);
 
   const isNp = lang === 'NEPALI';
   const isValidQR = token && signature;
 
   const handleSubmit = async () => {
-    // FIX 4: Prevent double submit
     if (submitting) return;
 
     if (!employeeId.trim()) {
@@ -79,8 +100,11 @@ function ScanPageContent() {
           qrPayload,
           employeeId: employeeId.trim().toUpperCase(),
           pin,
-          // FIX 6: GPS fields are optional for QR scan — omit entirely,
-          // z.coerce.number().optional() rejects explicit null values
+          ...(location ? {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+          } : {}),
         }),
       });
 
@@ -88,7 +112,6 @@ function ScanPageContent() {
 
       if (!response.ok) {
         setStep('error');
-        // FIX: Store code and raw message — translate at render time so language toggle works
         setErrorCode(data.error?.code || '');
         setErrorMsg(data.error?.message || '');
         setSubmitting(false);
@@ -97,10 +120,8 @@ function ScanPageContent() {
 
       setResult(data.data);
       setStep('success');
-      // FIX 2 + 3: Clear PIN on success
       setPin('');
 
-      // FIX: Store timeout ref so it can be cancelled if user resets manually
       timeoutRef.current = setTimeout(() => {
         setStep('input');
         setEmployeeId('');
@@ -115,9 +136,7 @@ function ScanPageContent() {
     }
   };
 
-  // FIX 2: Clear PIN on reset
   const handleReset = () => {
-    // FIX: Cancel any pending auto-reset timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -187,6 +206,31 @@ function ScanPageContent() {
                     <span className="text-red-700 text-sm">{errorMsg}</span>
                   </div>
                 )}
+
+                {/* GPS Status Indicator */}
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
+                  locationStatus === 'ready'
+                    ? 'bg-green-50 text-green-700'
+                    : locationStatus === 'denied'
+                    ? 'bg-yellow-50 text-yellow-700'
+                    : 'bg-slate-50 text-slate-500'
+                }`}>
+                  {locationStatus === 'loading' && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                  )}
+                  {locationStatus === 'ready' && (
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                  )}
+                  {locationStatus === 'denied' && (
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                  )}
+                  <span>
+                    {locationStatus === 'loading' && t('scan.gps.loading', lang)}
+                    {locationStatus === 'ready' && t('scan.gps.ready', lang)}
+                    {locationStatus === 'denied' && t('scan.gps.denied', lang)}
+                  </span>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     {isNp ? 'कर्मचारी आईडी' : 'Employee ID'}
@@ -201,7 +245,6 @@ function ScanPageContent() {
                         setErrorMsg('');
                       }}
                       onKeyDown={(e) => e.key === 'Enter' && document.getElementById('pin-input')?.focus()}
-                      // FIX 5: Updated placeholder to reflect numeric IDs
                       placeholder={isNp ? 'उदा: 10001' : 'e.g., 10001'}
                       className="w-full pl-11 pr-4 py-3.5 border border-gray-300 rounded-xl text-lg font-medium focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-transparent transition-all text-center tracking-wider"
                       autoFocus
@@ -232,7 +275,6 @@ function ScanPageContent() {
                     />
                   </div>
                 </div>
-                {/* FIX 4: Disable button while submitting */}
                 <button
                   onClick={handleSubmit}
                   disabled={submitting || !employeeId.trim() || pin.length !== 4}

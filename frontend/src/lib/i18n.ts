@@ -310,7 +310,14 @@ const translations: Record<string, Record<Language, string>> = {
   'scan.error.OUTSIDE_GEOFENCE': { NEPALI: 'तपाईं कार्यालय क्षेत्र बाहिर हुनुहुन्छ।', ENGLISH: 'You are outside the office area.' },
   'scan.error.QR_REVOKED': { NEPALI: 'यो QR कोड रद्द गरिएको छ।', ENGLISH: 'This QR code has been revoked.' },
   'scan.error.QR_EXPIRED': { NEPALI: 'यो QR कोड म्याद सकिएको छ।', ENGLISH: 'This QR code has expired.' },
-  
+  'scan.error.LOCATION_REQUIRED': { NEPALI: 'स्थान आवश्यक छ। कृपया GPS सक्षम गर्नुहोस्।', ENGLISH: 'Location is required. Please enable GPS on your device.' },
+  'scan.error.GPS_LOW_ACCURACY': { NEPALI: 'GPS संकेत कमजोर छ। खुला ठाउँमा जानुहोस्।', ENGLISH: 'GPS signal is too weak. Please move to an open area and try again.' },
+  'scan.error.GEOFENCE_NOT_CONFIGURED': { NEPALI: 'कार्यालय स्थान सेट गरिएको छैन। प्रशासकलाई सम्पर्क गर्नुहोस्।', ENGLISH: 'Office location is not configured. Please contact your administrator.' },
+
+
+  'scan.gps.loading': { NEPALI: 'स्थान पहिचान हुँदैछ...', ENGLISH: 'Getting your location...' },
+  'scan.gps.ready': { NEPALI: 'स्थान पुष्टि भयो ✓', ENGLISH: 'Location verified ✓' },
+  'scan.gps.denied': { NEPALI: 'स्थान अनुमति चाहिन्छ — कृपया ब्राउजरमा GPS सक्षम गर्नुहोस्', ENGLISH: 'Location access required — please enable GPS in your browser settings' },
   // ===== Footer =====
   'footer.copyright': { NEPALI: '© सर्वाधिकार सुरक्षित', ENGLISH: '© All rights reserved' },
   'footer.version': { NEPALI: 'संस्करण', ENGLISH: 'Version' },
