@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AccountantLayout from '@/components/AccountantLayout';
-import { CreditCard, Clock, FileText, CalendarDays, TrendingUp, AlertCircle } from 'lucide-react';
+import { CreditCard, FileText, TrendingUp, AlertCircle } from 'lucide-react';
 
 export default function AccountantDashboard() {
   const { user, language } = useAuth();
@@ -15,11 +15,11 @@ export default function AccountantDashboard() {
     async function fetchDashboard() {
       try {
         const now = new Date();
-        const bsYear = 2082;
-        const bsMonth = 11;
+        const currentBsYear = now.getMonth() >= 3 ? now.getFullYear() + 57 : now.getFullYear() + 56;
+        const currentBsMonth = ((now.getMonth() + 9) % 12) + 1;
 
-        const payrollRes = await api.get(`/payroll/records?bsYear=${bsYear}&bsMonth=${bsMonth}`);
-        const payroll = (payrollRes.data as any)?.data;
+        const payrollRes = await api.get(`/api/payroll/records?bsYear=${currentBsYear}&bsMonth=${currentBsMonth}`);
+        const payroll = payrollRes.data as any;
 
         setStats({
           totalEmployees: payroll?.summary?.totalEmployees || 0,

@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import AccountantLayout from '@/components/AccountantLayout';
-import { Clock } from 'lucide-react';
 
 export default function AccountantAttendancePage() {
   const { language } = useAuth();
@@ -14,8 +13,8 @@ export default function AccountantAttendancePage() {
   useEffect(() => {
     async function fetchAttendance() {
       try {
-        const res = await api.get('/attendance?limit=50&offset=0');
-        setRecords((res.data as any)?.data?.records || (res.data as any)?.data || []);
+        const res = await api.get('/api/attendance?limit=50&offset=0');
+        setRecords((res.data as any)?.records || []);
       } catch (err) {
         console.error('Attendance fetch error:', err);
       }
