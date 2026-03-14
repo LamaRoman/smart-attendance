@@ -142,8 +142,10 @@ export default function PayrollPage() {
          * API hasn't been updated yet.
          */
         setFeaturePayrollWorkflow(
-          sub?.plan?.features?.payrollWorkflow ?? tier !== 'STARTER',
-        );
+            sub?.overrideFeaturePayrollWorkflow ??
+            sub?.plan?.featurePayrollWorkflow ??
+            false,
+          );
       }
       setFeatureChecked(true);
     })();
