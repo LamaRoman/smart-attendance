@@ -21,6 +21,7 @@ interface Props {
   genResult: any;
   onSetYear: (y: number) => void;
   onSetMonth: (m: number) => void;
+  userRole?: string;
   onGenerate: (overrides: Record<string, number>, reason?: string) => void;
 }
 
@@ -28,7 +29,7 @@ const YEARS = [2081, 2082, 2083];
 
 export default function GenerateTab({
   isNp, genYear, genMonth, generating, genResult,
-  onSetYear, onSetMonth, onGenerate,
+  userRole, onSetYear, onSetMonth, onGenerate,
 }: Props) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [overtimeOverrides, setOvertimeOverrides] = useState<Record<string, string>>({});
@@ -75,7 +76,7 @@ export default function GenerateTab({
   const [overrideReason, setOverrideReason] = useState('');
   const [showOverrideForm, setShowOverrideForm] = useState(false);
 
-  const isAccountant = false; // GenerateTab is only shown to admin/accountant from payroll page
+  const isAccountant = userRole === 'ORG_ACCOUNTANT';
   const isApprovedLock = existingStatus === 'APPROVED';
   const isPaidOverridable = existingStatus === 'PAID';
   const isLocked = isApprovedLock;
@@ -127,7 +128,7 @@ export default function GenerateTab({
             </select>
           </div>
           <div className="pt-4">
-           {isApprovedLock ? (
+            {isApprovedLock || (isPaidOverridable && isAccountant) ? (
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm font-medium cursor-not-allowed">
                 <Lock className="w-4 h-4" />
                 {isNp ? 'स्वीकृत महिना — बन्द' : 'Month already approved — locked'}
@@ -150,8 +151,8 @@ export default function GenerateTab({
                 {generating
                   ? (isNp ? 'गणना हुँदैछ...' : 'Generating...')
                   : checkingExisting
-                  ? (isNp ? 'जाँच गर्दैछ...' : 'Checking...')
-                  : (isNp ? 'तलब गणना' : 'Generate')}
+                    ? (isNp ? 'जाँच गर्दैछ...' : 'Checking...')
+                    : (isNp ? 'तलब गणना' : 'Generate')}
               </button>
             )}
           </div>
@@ -291,9 +292,8 @@ export default function GenerateTab({
                   ].map((h, i) => (
                     <th
                       key={i}
-                      className={`py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider ${
-                        i === 0 ? 'text-left' : i === 5 ? 'text-center' : 'text-right'
-                      }`}
+                      className={`py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider ${i === 0 ? 'text-left' : i === 5 ? 'text-center' : 'text-right'
+                        }`}
                     >
                       {h}
                     </th>

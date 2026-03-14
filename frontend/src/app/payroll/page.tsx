@@ -419,6 +419,7 @@ export default function PayrollPage() {
         {tab === 'generate' && (
           <GenerateTab
             isNp={isNp}
+            userRole={user?.role}
             genYear={genYear}
             genMonth={genMonth}
             generating={generating}
