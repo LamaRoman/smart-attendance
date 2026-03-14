@@ -586,6 +586,12 @@ export class AttendanceService {
           'INSUFFICIENT_PERMISSION'
         );
       }
+       if (record.reviewedByAccountant) {
+          throw new ValidationError(
+            'This record has been acknowledged and can no longer be edited by accountants. Contact the organization admin.',
+            'RECORD_ACKNOWLEDGED'
+          );
+        }
     }
 
     const updateData: Record<string, unknown> = {
@@ -654,7 +660,44 @@ export class AttendanceService {
     };
   }
 
-  async markPresent(
+  async acknowledgeAttendance(recordId: string, currentUser: JWTPayload) {
+      if (!currentUser.organizationId) {
+        throw new ValidationError('Organization context required', 'ORG_REQUIRED');
+      }
+      if (currentUser.role !== 'ORG_ACCOUNTANT') {
+        throw new ValidationError(
+          'Only accountants can acknowledge records.',
+          'INSUFFICIENT_PERMISSION'
+        );
+      }
+      const record = await prisma.attendanceRecord.findFirst({
+        where: { id: recordId, organizationId: currentUser.organizationId },
+      });
+      if (!record) throw new NotFoundError('Attendance record not found');
+      if (record.status !== 'AUTO_CLOSED') {
+        throw new ValidationError(
+          'Only AUTO_CLOSED records can be acknowledged.',
+          'INVALID_STATUS'
+        );
+      }
+      if (record.reviewedByAccountant) {
+        throw new ValidationError('Record already acknowledged.', 'ALREADY_ACKNOWLEDGED');
+      }
+      const updated = await prisma.attendanceRecord.update({
+        where: { id: recordId },
+        data: {
+          reviewedByAccountant: true,
+          reviewedAt: new Date(),
+        },
+      });
+      return {
+        id: updated.id,
+        reviewedByAccountant: true,
+        reviewedAt: updated.reviewedAt,
+      };
+    }
+
+    async markPresent(
     input: {
       userId: string;
       date: string;
@@ -892,6 +935,8 @@ export class AttendanceService {
       modificationNote: r.modificationNote,
       originalCheckIn: r.originalCheckIn,
       originalCheckOut: r.originalCheckOut,
+      reviewedByAccountant: r.reviewedByAccountant,
+        reviewedAt: r.reviewedAt,
       user: {
         id: r.membership.user.id,
         firstName: r.membership.user.firstName,

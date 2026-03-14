@@ -354,6 +354,10 @@ model AttendanceRecord {
   originalCheckIn  DateTime?
   originalCheckOut DateTime?
 
+  // Accountant review tracking
+    reviewedByAccountant Boolean   @default(false)
+    reviewedAt           DateTime?
+
   // Nepali date fields (denormalized for fast queries/reports)
   bsYear  Int?
   bsMonth Int?

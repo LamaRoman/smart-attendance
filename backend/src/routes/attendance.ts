@@ -228,6 +228,25 @@ router.put(
   }
 );
 
+// PUT /api/attendance/:id/acknowledge
+// ORG_ACCOUNTANT only: marks an AUTO_CLOSED record as reviewed and locks it from further accountant edits
+router.put(
+  '/:id/acknowledge',
+  authenticate,
+  requireOrgAdminOrAccountant,
+  enforceOrgIsolation,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await attendanceService.acknowledgeAttendance(
+        req.params.id,
+        req.user!
+      );
+      res.json({ data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 // POST /api/attendance/mark-present -- Admin marks absent employee as present (ORG_ADMIN only)
 router.post(
   '/mark-present',

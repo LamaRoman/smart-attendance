@@ -20,7 +20,8 @@ export default function AccountantDashboard() {
       try {
         const res = await api.get('/api/attendance?status=AUTO_CLOSED&limit=50&offset=0');
         const records = (res.data as any)?.records || [];
-        setAutoClosedCount(records.length);
+        const unreviewed = records.filter((r: any) => !r.reviewedByAccountant);
+        setAutoClosedCount(unreviewed.length);
       } catch {
         setAutoClosedCount(0);
       }

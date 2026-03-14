@@ -6,7 +6,7 @@ import AccountantLayout from '@/components/AccountantLayout';
 import BSDatePicker, { adToBS, BS_MONTHS_NP, BS_MONTHS_EN, toNepaliDigits } from '@/components/BSDatePicker';
 import {
   Clock, RefreshCw, X, AlertCircle, CheckCircle,
-  Save, Lock, Filter,
+  Save, Lock, Filter, CheckSquare,
 } from 'lucide-react';
 
 interface AttendanceRecord {
@@ -18,6 +18,8 @@ interface AttendanceRecord {
   isManualEntry?: boolean;
   modificationNote?: string | null;
   originalCheckOut?: string | null;
+  reviewedByAccountant: boolean;
+  reviewedAt: string | null;
   user: { firstName: string; lastName: string; employeeId: string };
 }
 
@@ -45,6 +47,10 @@ export default function AccountantAttendancePage() {
   const [editForm, setEditForm] = useState({ checkOutTime: '', note: '' });
   const [editSaving, setEditSaving] = useState(false);
 
+  // Acknowledge state
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
+  const [bulkAcknowledging, setBulkAcknowledging] = useState(false);
+
   const loadRecords = useCallback(async (date: string) => {
     setLoading(true);
     const res = await api.get('/api/attendance?date=' + date);
@@ -59,7 +65,6 @@ export default function AccountantAttendancePage() {
     loadRecords(selectedDate);
   }, [selectedDate, loadRecords]);
 
-  // Auto-refresh every 60 seconds
   useEffect(() => {
     const interval = setInterval(() => loadRecords(selectedDate), 60000);
     return () => clearInterval(interval);
@@ -127,11 +132,50 @@ export default function AccountantAttendancePage() {
     }
   };
 
+  const acknowledgeRecord = async (id: string) => {
+    setAcknowledgingId(id);
+    const res = await api.put('/api/attendance/' + id + '/acknowledge', {});
+    setAcknowledgingId(null);
+    if (res.error) {
+      setError(res.error.message);
+    } else {
+      setRecords((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, reviewedByAccountant: true, reviewedAt: new Date().toISOString() } : r
+        )
+      );
+      setSuccess(isNp ? 'रेकर्ड स्वीकृत गरियो' : 'Record acknowledged');
+      setTimeout(() => setSuccess(''), 3000);
+    }
+  };
+
+  const acknowledgeAll = async () => {
+    const unreviewed = records.filter(
+      (r) => r.status === 'AUTO_CLOSED' && !r.reviewedByAccountant
+    );
+    if (unreviewed.length === 0) return;
+    setBulkAcknowledging(true);
+    let successCount = 0;
+    for (const r of unreviewed) {
+      const res = await api.put('/api/attendance/' + r.id + '/acknowledge', {});
+      if (!res.error) successCount++;
+    }
+    setBulkAcknowledging(false);
+    await loadRecords(selectedDate);
+    setSuccess(
+      isNp
+        ? `${successCount} रेकर्डहरू स्वीकृत गरियो`
+        : `${successCount} record${successCount === 1 ? '' : 's'} acknowledged`
+    );
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
   const displayedRecords = filterAutoOnly
     ? records.filter((r) => r.status === 'AUTO_CLOSED')
     : records;
 
   const autoClosedCount = records.filter((r) => r.status === 'AUTO_CLOSED').length;
+  const unreviewedCount = records.filter((r) => r.status === 'AUTO_CLOSED' && !r.reviewedByAccountant).length;
 
   return (
     <AccountantLayout>
@@ -145,8 +189,8 @@ export default function AccountantAttendancePage() {
             </h1>
             <p className="text-sm text-slate-500 mt-1">
               {isNp
-                ? 'AUTO_CLOSED रेकर्डहरूको चेकआउट समय सच्याउनुहोस्'
-                : 'Correct check-out times for AUTO_CLOSED records'}
+                ? 'AUTO_CLOSED रेकर्डहरू समीक्षा र स्वीकृत गर्नुहोस्'
+                : 'Review and acknowledge AUTO_CLOSED records'}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -178,6 +222,18 @@ export default function AccountantAttendancePage() {
                 </span>
               )}
             </button>
+            {unreviewedCount > 0 && (
+              <button
+                onClick={acknowledgeAll}
+                disabled={bulkAcknowledging}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-green-300 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
+              >
+                <CheckSquare className="w-4 h-4" />
+                {bulkAcknowledging
+                  ? (isNp ? 'स्वीकृत गर्दै...' : 'Acknowledging...')
+                  : (isNp ? `सबै स्वीकृत (${unreviewedCount})` : `Acknowledge all (${unreviewedCount})`)}
+              </button>
+            )}
             {lastRefreshed && (
               <span className="text-xs text-slate-400">
                 {isNp ? 'अपडेट:' : 'Updated'}{' '}
@@ -219,8 +275,8 @@ export default function AccountantAttendancePage() {
           <Lock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-700">
             {isNp
-              ? 'लेखापालले AUTO_CLOSED रेकर्डहरूको check-out समय मात्र सम्पादन गर्न सक्छन्। अन्य रेकर्डहरू संगठन प्रशासकद्वारा मात्र सम्पादन गर्न सकिन्छ।'
-              : 'Accountants can only edit the check-out time of AUTO_CLOSED records. Other records can only be edited by the organization admin.'}
+              ? 'लेखापालले AUTO_CLOSED रेकर्डहरूको check-out समय सच्याउन र स्वीकृत गर्न सक्छन्। एकपटक स्वीकृत भएपछि सम्पादन बन्द हुन्छ। प्रशासकले मात्र पुनः सम्पादन गर्न सक्छन्।'
+              : 'Accountants can correct check-out times and acknowledge AUTO_CLOSED records. Once acknowledged, the record is locked for accountants. Only the admin can edit after acknowledgement.'}
           </p>
         </div>
 
@@ -266,7 +322,12 @@ export default function AccountantAttendancePage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {displayedRecords.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr
+                      key={r.id}
+                      className={`hover:bg-slate-50/50 transition-colors ${
+                        r.reviewedByAccountant ? 'opacity-60' : ''
+                      }`}
+                    >
                       <td className="py-3 px-4">
                         <div className="font-medium text-slate-900">
                           {r.user.firstName} {r.user.lastName}
@@ -302,32 +363,56 @@ export default function AccountantAttendancePage() {
                         {r.duration != null ? formatDuration(r.duration) : '—'}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
-                          STATUS_COLORS[r.status] || 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}>
-                          {r.status === 'AUTO_CLOSED'
-                            ? (isNp ? 'स्वतः बन्द' : 'AUTO CLOSED')
-                            : r.status === 'CHECKED_IN'
-                            ? (isNp ? 'भित्र छ' : 'CHECKED IN')
-                            : r.status === 'CHECKED_OUT'
-                            ? (isNp ? 'बाहिर गयो' : 'CHECKED OUT')
-                            : r.status}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
+                            STATUS_COLORS[r.status] || 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                            {r.status === 'AUTO_CLOSED'
+                              ? (isNp ? 'स्वतः बन्द' : 'AUTO CLOSED')
+                              : r.status === 'CHECKED_IN'
+                              ? (isNp ? 'भित्र छ' : 'CHECKED IN')
+                              : r.status === 'CHECKED_OUT'
+                              ? (isNp ? 'बाहिर गयो' : 'CHECKED OUT')
+                              : r.status}
+                          </span>
+                          {r.reviewedByAccountant && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-200">
+                              <CheckCircle className="w-3 h-3" />
+                              {isNp ? 'स्वीकृत' : 'Acknowledged'}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4">
                         {r.status === 'AUTO_CLOSED' ? (
-                          <button
-                            onClick={() => openEdit(r)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
-                          >
-                            <Save className="w-3.5 h-3.5" />
-                            {isNp ? 'सच्याउनुहोस्' : 'Correct'}
-                          </button>
+                          r.reviewedByAccountant ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                              <Lock className="w-3 h-3" />
+                              {isNp ? 'बन्द' : 'Locked'}
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openEdit(r)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                                {isNp ? 'सच्याउनुहोस्' : 'Correct'}
+                              </button>
+                              <button
+                                onClick={() => acknowledgeRecord(r.id)}
+                                disabled={acknowledgingId === r.id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-green-700 border border-green-200 bg-green-50 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
+                              >
+                                <CheckSquare className="w-3.5 h-3.5" />
+                                {acknowledgingId === r.id
+                                  ? '...'
+                                  : (isNp ? 'स्वीकृत' : 'Acknowledge')}
+                              </button>
+                            </div>
+                          )
                         ) : (
-                          <span
-                            className="inline-flex items-center gap-1 text-xs text-slate-300"
-                            title={isNp ? 'सम्पादन अनुमति छैन' : 'No edit permission'}
-                          >
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-300" title={isNp ? 'सम्पादन अनुमति छैन' : 'No edit permission'}>
                             <Lock className="w-3 h-3" />
                           </span>
                         )}
@@ -368,7 +453,9 @@ export default function AccountantAttendancePage() {
 
             {/* Original check-in — read only for context */}
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="text-xs text-slate-500 mb-1">{isNp ? 'चेक इन समय (परिवर्तन हुँदैन)' : 'Check-in time (read only)'}</p>
+              <p className="text-xs text-slate-500 mb-1">
+                {isNp ? 'चेक इन समय (परिवर्तन हुँदैन)' : 'Check-in time (read only)'}
+              </p>
               <p className="text-sm font-medium text-slate-900">{formatTime(editRecord.checkInTime)}</p>
             </div>
 
@@ -376,7 +463,9 @@ export default function AccountantAttendancePage() {
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">
                 {isNp ? 'वास्तविक चेकआउट समय' : 'Actual check-out time'}
-                <span className="ml-1 text-xs text-amber-600">({isNp ? 'सम्पादनयोग्य' : 'editable'})</span>
+                <span className="ml-1 text-xs text-amber-600">
+                  ({isNp ? 'सम्पादनयोग्य' : 'editable'})
+                </span>
               </label>
               <input
                 type="datetime-local"
