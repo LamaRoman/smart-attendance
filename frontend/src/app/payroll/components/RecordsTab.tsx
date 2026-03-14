@@ -29,6 +29,19 @@ export default function RecordsTab({
   onSetYear, onSetMonth, onLoad, onBulkStatus, onViewPayslip,
 }: Props) {
   const lang = language;
+  const isAccountant = userRole === 'ORG_ACCOUNTANT';
+
+  // Derive month-level state from actual record statuses
+  const hasPaid      = records.some((r) => r.status === 'PAID');
+  const allPaid      = records.length > 0 && records.every((r) => r.status === 'PAID');
+  const allApproved  = records.length > 0 && records.every((r) => r.status === 'APPROVED');
+  const allProcessed = records.length > 0 && records.every((r) => r.status === 'PROCESSED');
+  const hasDraft     = records.some((r) => r.status === 'DRAFT' || r.status === 'NEEDS_RECALCULATION');
+
+  // Button visibility — mirrors backend ROLE_TRANSITIONS exactly
+  const showProcess = featurePayrollWorkflow && hasDraft && !hasPaid;
+  const showApprove = featurePayrollWorkflow && !isAccountant && allProcessed;
+  const showPaid    = featurePayrollWorkflow && allApproved;
 
   const handleBankCsv = async () => {
     const res = await fetch(
@@ -72,27 +85,45 @@ export default function RecordsTab({
             </select>
 
             {records.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
-                <WorkflowButton
-                  label={t('payroll.process', lang)}
-                  allowed={featurePayrollWorkflow}
-                  onClick={() => onBulkStatus('PROCESSED')}
-                  className="bg-blue-50 text-blue-700 hover:bg-blue-100"
-                />
-                {userRole !== 'ORG_ACCOUNTANT' && (
+              <div className="flex gap-2 flex-wrap items-center">
+
+                {/* PAID badge — month is fully locked */}
+                {allPaid && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600">
+                    ✓ {lang === 'NEPALI' ? 'भुक्तानी भयो' : 'Month fully paid'}
+                  </span>
+                )}
+
+                {showProcess && (
+                  <WorkflowButton
+                    label={t('payroll.process', lang)}
+                    onClick={() => onBulkStatus('PROCESSED')}
+                    className="bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  />
+                )}
+
+                {showApprove && (
                   <WorkflowButton
                     label={t('leave.approved', lang)}
-                    allowed={featurePayrollWorkflow}
                     onClick={() => onBulkStatus('APPROVED')}
                     className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                   />
                 )}
-                <WorkflowButton
-                  label={t('payroll.paid', lang)}
-                  allowed={featurePayrollWorkflow}
-                  onClick={() => onBulkStatus('PAID')}
-                  className="bg-slate-100 text-slate-900 hover:bg-slate-200"
-                />
+
+                {showPaid && (
+                  <WorkflowButton
+                    label={t('payroll.paid', lang)}
+                    onClick={() => onBulkStatus('PAID')}
+                    className="bg-slate-100 text-slate-900 hover:bg-slate-200"
+                  />
+                )}
+
+                {/* Pending approval notice for accountant */}
+                {isAccountant && allProcessed && (
+                  <span className="text-xs text-amber-600 font-medium px-2">
+                    {lang === 'NEPALI' ? '⏳ प्रशासकको स्वीकृति पर्खिँदैछ' : '⏳ Awaiting admin approval'}
+                  </span>
+                )}
 
                 <button
                   disabled={isStarter}
@@ -196,24 +227,16 @@ export default function RecordsTab({
   );
 }
 
-/* Workflow button with PRO badge when locked */
 function WorkflowButton({
-  label, allowed, onClick, className,
+  label, onClick, className,
 }: {
-  label: string; allowed: boolean; onClick: () => void; className: string;
+  label: string; onClick: () => void; className: string;
 }) {
   return (
     <button
-      disabled={!allowed}
       onClick={onClick}
-      title={!allowed ? 'Requires Operations plan' : undefined}
-      className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${className}`}
     >
-      {!allowed && (
-        <span className="px-1 py-0.5 text-[8px] font-semibold bg-amber-200 text-amber-800 rounded">
-          PRO
-        </span>
-      )}
       {label}
     </button>
   );

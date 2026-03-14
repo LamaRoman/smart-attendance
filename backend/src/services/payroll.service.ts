@@ -788,13 +788,29 @@ export class PayrollService {
       },
     });
 
+  // Transition validation — same rules as individual updateStatus
+    const BULK_FROM_STATES: Record<string, string[]> = {
+      PROCESSED: ['DRAFT', 'NEEDS_RECALCULATION'],
+      APPROVED: ['PROCESSED'],
+      PAID: ['APPROVED'],
+    };
+    const validFromStates = BULK_FROM_STATES[status];
+    if (validFromStates) {
+      const invalidRecords = records.filter((r) => !validFromStates.includes(r.status));
+      if (invalidRecords.length > 0) {
+        const invalidStatuses = [...new Set(invalidRecords.map((r) => r.status))].join(', ');
+        throw new ValidationError(
+          `Cannot bulk update to ${status}: ${invalidRecords.length} record(s) are in invalid states (${invalidStatuses}). All records must be ${validFromStates.join(' or ')} before moving to ${status}.`,
+          'INVALID_TRANSITION'
+        );
+      }
+    }
+
     const updateData: Record<string, unknown> = { status };
     if (status === 'PROCESSED') updateData.processedAt = new Date();
     if (status === 'APPROVED') updateData.approvedAt = new Date();
     if (status === 'PAID') updateData.paidAt = new Date();
-
     await prisma.payrollRecord.updateMany({ where, data: updateData });
-
     Promise.all(records.map(r =>
       this.logPayrollAudit({
         organizationId: r.organizationId,

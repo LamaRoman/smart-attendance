@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Play } from 'lucide-react';
+import { Play, Lock } from 'lucide-react';
 import { BS_MONTHS_NP, BS_MONTHS_EN, fmt } from '../utils';
 import { STATUS_COLORS } from '../types';
 import { api } from '@/lib/api';
@@ -21,7 +21,6 @@ interface Props {
   genResult: any;
   onSetYear: (y: number) => void;
   onSetMonth: (m: number) => void;
-  // overrides: Record<membershipId, hours> — empty object means use calculated values
   onGenerate: (overrides: Record<string, number>) => void;
 }
 
@@ -32,26 +31,50 @@ export default function GenerateTab({
   onSetYear, onSetMonth, onGenerate,
 }: Props) {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  // overtimeOverrides: key = membershipId, value = override hours string (empty = use calculated)
   const [overtimeOverrides, setOvertimeOverrides] = useState<Record<string, string>>({});
+  const [existingStatus, setExistingStatus] = useState<string | null>(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
-  // Fetch employees with pay settings on mount so we can show override fields
+  // Fetch employees with pay settings on mount
   useEffect(() => {
     api.get('/api/payroll/settings').then((res) => {
       if (res.data && Array.isArray(res.data)) {
-        const list: Employee[] = (res.data as any[]).map((e) => ({
+        setEmployees((res.data as any[]).map((e) => ({
           membershipId: e.membershipId,
           firstName: e.firstName,
           lastName: e.lastName,
           employeeId: e.employeeId,
-        }));
-        setEmployees(list);
+        })));
       }
     });
   }, []);
 
+  // Check if records already exist for selected month — disable generate if APPROVED or PAID
+  useEffect(() => {
+    let cancelled = false;
+    setCheckingExisting(true);
+    setExistingStatus(null);
+    api.get(`/api/payroll/records?bsYear=${genYear}&bsMonth=${genMonth}`).then((res) => {
+      if (cancelled) return;
+      const records: any[] = (res.data as any)?.records || [];
+      if (records.length === 0) {
+        setExistingStatus(null);
+      } else if (records.some((r) => r.status === 'PAID')) {
+        setExistingStatus('PAID');
+      } else if (records.some((r) => r.status === 'APPROVED')) {
+        setExistingStatus('APPROVED');
+      } else {
+        // DRAFT or PROCESSED — regeneration allowed (backend handles it)
+        setExistingStatus('REGENERATABLE');
+      }
+      setCheckingExisting(false);
+    });
+    return () => { cancelled = true; };
+  }, [genYear, genMonth]);
+
+  const isLocked = existingStatus === 'PAID' || existingStatus === 'APPROVED';
+
   const handleGenerate = () => {
-    // Build override map: only include employees where admin entered a number
     const overrides: Record<string, number> = {};
     for (const [membershipId, val] of Object.entries(overtimeOverrides)) {
       const parsed = parseFloat(val);
@@ -96,16 +119,27 @@ export default function GenerateTab({
             </select>
           </div>
           <div className="pt-4">
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="flex items-center gap-2 px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50"
-            >
-              <Play className="w-4 h-4" />
-              {generating
-                ? isNp ? 'गणना हुँदैछ...' : 'Generating...'
-                : isNp ? 'तलब गणना' : 'Generate'}
-            </button>
+            {isLocked ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm font-medium cursor-not-allowed">
+                <Lock className="w-4 h-4" />
+                {existingStatus === 'PAID'
+                  ? (isNp ? 'भुक्तानी भइसकेको महिना' : 'Month already paid — locked')
+                  : (isNp ? 'स्वीकृत महिना' : 'Month already approved — locked')}
+              </div>
+            ) : (
+              <button
+                onClick={handleGenerate}
+                disabled={generating || checkingExisting}
+                className="flex items-center gap-2 px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50"
+              >
+                <Play className="w-4 h-4" />
+                {generating
+                  ? (isNp ? 'गणना हुँदैछ...' : 'Generating...')
+                  : checkingExisting
+                  ? (isNp ? 'जाँच गर्दैछ...' : 'Checking...')
+                  : (isNp ? 'तलब गणना' : 'Generate')}
+              </button>
+            )}
           </div>
         </div>
 
@@ -119,8 +153,8 @@ export default function GenerateTab({
           </div>
         )}
 
-        {/* Overtime override section — shown when there are employees with pay settings */}
-        {employees.length > 0 && (
+        {/* Overtime override section */}
+        {!isLocked && employees.length > 0 && (
           <div className="mt-5 pt-5 border-t border-slate-100">
             <div className="mb-3">
               <p className="text-xs font-semibold text-slate-700">
@@ -185,7 +219,7 @@ export default function GenerateTab({
                   {[
                     isNp ? 'कर्मचारी' : 'Employee',
                     isNp ? 'आधारभूत' : 'Basic',
-                    isNp ? 'कुल आम्दानी' : 'Gross',
+                    isNp ? 'कुल आमदानी' : 'Gross',
                     isNp ? 'कटौती' : 'Deductions',
                     isNp ? 'खुद तलब' : 'Net',
                     isNp ? 'स्थिति' : 'Status',
