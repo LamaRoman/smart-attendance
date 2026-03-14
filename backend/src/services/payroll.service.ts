@@ -490,33 +490,60 @@ export class PayrollService {
         continue;
       }
 
-      const record = await prisma.$transaction(async (tx) => {
+const record = await prisma.$transaction(async (tx) => {
         const existing = await tx.payrollRecord.findUnique({
           where: { membershipId_bsYear_bsMonth: { membershipId: membership.id, bsYear, bsMonth } },
-          select: { status: true },
+          select: { status: true, netSalary: true },
         });
+
+        // Guard: PAID records can only be overridden by ORG_ADMIN with a reason
+        if (existing?.status === 'PAID') {
+          if (currentUser.role === 'ORG_ACCOUNTANT') {
+            throw new ValidationError(
+              'Accountants cannot regenerate a payroll month that has already been paid. Contact the organization admin.',
+              'PAYROLL_LOCKED'
+            );
+          }
+          if (!input.reason || input.reason.trim().split(/\s+/).length < 10) {
+            throw new ValidationError(
+              'A reason of at least 10 words is required to regenerate a paid payroll month.',
+              'REASON_REQUIRED'
+            );
+          }
+        }
+
+        const isPaidOverride = existing?.status === 'PAID';
+        const overrideFields = isPaidOverride ? {
+          regeneratedFromPaid: true,
+          regeneratedAt: new Date(),
+          regeneratedBy: currentUser.userId,
+          previousNetSalary: existing.netSalary,
+          overrideReason: input.reason!.trim(),
+        } : {};
 
         const result = await tx.payrollRecord.upsert({
           where: { membershipId_bsYear_bsMonth: { membershipId: membership.id, bsYear, bsMonth } },
-          update: { ...payrollData, status: 'DRAFT' },
+          update: { ...payrollData, status: 'DRAFT', ...overrideFields },
           create: { ...payrollData, status: 'DRAFT' },
           include: PAYROLL_RECORD_INCLUDE,
         });
 
-        return { result, previousStatus: existing?.status };
+        return { result, previousStatus: existing?.status, previousNetSalary: existing?.netSalary };
       });
 
-      this.logPayrollAudit({
+     this.logPayrollAudit({
         organizationId,
         payrollRecordId: record.result.id,
         employeeUserId: membership.user.id,
-        action: 'GENERATED',
+        action: record.previousStatus === 'PAID' ? 'REGENERATED' : 'GENERATED',
         fromStatus: record.previousStatus,
         toStatus: 'DRAFT',
         triggeredBy: currentUser.userId,
         bsYear,
         bsMonth,
-        reason: overtimeOverride !== undefined
+        reason: record.previousStatus === 'PAID'
+          ? `PAID OVERRIDE — Previous net: Rs.${toNum(record.previousNetSalary).toLocaleString()} — Reason: ${input.reason!.trim()}`
+          : overtimeOverride !== undefined
           ? `Overtime override applied: ${overtimeOverride}h (calculated was ${payrollData.overtimeHours}h)`
           : undefined,
       });

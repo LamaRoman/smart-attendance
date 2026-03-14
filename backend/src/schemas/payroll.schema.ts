@@ -30,6 +30,7 @@ export const generatePayrollSchema = z.object({
   // Per-employee overtime overrides: key = membershipId, value = override hours (>= 0)
   // If provided for an employee, replaces the calculated overtime hours.
   overtimeOverrides: z.record(z.string(), z.coerce.number().min(0)).optional(),
+  reason: z.string().optional(),
 });
 
 export const payrollRecordsQuerySchema = z.object({

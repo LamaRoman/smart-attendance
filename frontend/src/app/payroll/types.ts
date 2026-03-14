@@ -52,6 +52,11 @@ export interface PayrollRecord {
   totalDeductions: number;
   netSalary: number;
   status: string;
+  regeneratedFromPaid?: boolean;
+  regeneratedAt?: string | null;
+  regeneratedBy?: string | null;
+  previousNetSalary?: number | null;
+  overrideReason?: string | null;
   monthNameEn: string;
   monthNameNp: string;
   user?: { firstName: string; lastName: string; employeeId: string };

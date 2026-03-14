@@ -214,12 +214,13 @@ export default function PayrollPage() {
     setSaving(false);
   };
 
-  const generatePayroll = async (overtimeOverrides: Record<string, number> = {}) => {
+  const generatePayroll = async (overtimeOverrides: Record<string, number> = {}, reason?: string) => {
     setGenerating(true); setError('');
     const res = await api.post('/api/payroll/generate', {
       bsYear: genYear,
       bsMonth: genMonth,
       overtimeOverrides: Object.keys(overtimeOverrides).length > 0 ? overtimeOverrides : undefined,
+      ...(reason ? { reason } : {}),
     });
     if (res.error) {
       setError(res.error.message);

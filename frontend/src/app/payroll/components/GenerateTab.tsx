@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Play, Lock } from 'lucide-react';
+import { Play, Lock, AlertTriangle } from 'lucide-react';
 import { BS_MONTHS_NP, BS_MONTHS_EN, fmt } from '../utils';
 import { STATUS_COLORS } from '../types';
 import { api } from '@/lib/api';
@@ -21,7 +21,7 @@ interface Props {
   genResult: any;
   onSetYear: (y: number) => void;
   onSetMonth: (m: number) => void;
-  onGenerate: (overrides: Record<string, number>) => void;
+  onGenerate: (overrides: Record<string, number>, reason?: string) => void;
 }
 
 const YEARS = [2081, 2082, 2083];
@@ -72,8 +72,16 @@ export default function GenerateTab({
     return () => { cancelled = true; };
   }, [genYear, genMonth]);
 
-  const isLocked = existingStatus === 'PAID' || existingStatus === 'APPROVED';
+  const [overrideReason, setOverrideReason] = useState('');
+  const [showOverrideForm, setShowOverrideForm] = useState(false);
 
+  const isAccountant = false; // GenerateTab is only shown to admin/accountant from payroll page
+  const isApprovedLock = existingStatus === 'APPROVED';
+  const isPaidOverridable = existingStatus === 'PAID';
+  const isLocked = isApprovedLock;
+
+  const wordCount = overrideReason.trim().split(/\s+/).filter(Boolean).length;
+  const reasonValid = wordCount >= 10;
   const handleGenerate = () => {
     const overrides: Record<string, number> = {};
     for (const [membershipId, val] of Object.entries(overtimeOverrides)) {
@@ -82,7 +90,7 @@ export default function GenerateTab({
         overrides[membershipId] = Math.max(0, parsed);
       }
     }
-    onGenerate(overrides);
+    onGenerate(overrides, isPaidOverridable ? overrideReason : undefined);
   };
 
   const setOverride = (membershipId: string, val: string) => {
@@ -119,13 +127,19 @@ export default function GenerateTab({
             </select>
           </div>
           <div className="pt-4">
-            {isLocked ? (
+           {isApprovedLock ? (
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm font-medium cursor-not-allowed">
                 <Lock className="w-4 h-4" />
-                {existingStatus === 'PAID'
-                  ? (isNp ? 'भुक्तानी भइसकेको महिना' : 'Month already paid — locked')
-                  : (isNp ? 'स्वीकृत महिना' : 'Month already approved — locked')}
+                {isNp ? 'स्वीकृत महिना — बन्द' : 'Month already approved — locked'}
               </div>
+            ) : isPaidOverridable && !showOverrideForm ? (
+              <button
+                onClick={() => setShowOverrideForm(true)}
+                className="flex items-center gap-2 px-5 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 transition-colors"
+              >
+                <Lock className="w-4 h-4" />
+                {isNp ? 'भुक्तानी भएको — ओभरराइड गर्नुहोस्' : 'Month paid — Override'}
+              </button>
             ) : (
               <button
                 onClick={handleGenerate}
@@ -142,6 +156,57 @@ export default function GenerateTab({
             )}
           </div>
         </div>
+        {/* Paid override form */}
+        {isPaidOverridable && showOverrideForm && (
+          <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-lg space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-rose-800">
+                  {isNp ? 'सावधानी: भुक्तानी भएको महिना ओभरराइड' : 'Warning: Overriding a paid month'}
+                </p>
+                <p className="text-xs text-rose-600 mt-0.5">
+                  {isNp
+                    ? 'यो महिनाको तलब पहिले नै भुक्तानी भइसकेको छ। पुनः गणना गर्नाले अघिल्लो रेकर्ड हटाउनेछ र अडिट ट्रेलमा राखिनेछ।'
+                    : 'This month has already been paid. Regenerating will overwrite the existing records and create an audit trail entry.'}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-rose-800">
+                {isNp ? 'कारण (कम्तिमा १० शब्द आवश्यक)' : 'Reason (minimum 10 words required)'}
+              </label>
+              <textarea
+                rows={3}
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder={isNp ? 'ओभरराइडको कारण विस्तारमा लेख्नुहोस्...' : 'Explain in detail why this paid month needs to be regenerated...'}
+                className="w-full px-3 py-2 text-sm border border-rose-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-200 bg-white resize-none"
+              />
+              <p className={`text-xs ${reasonValid ? 'text-emerald-600' : 'text-rose-500'}`}>
+                {wordCount}/10 {isNp ? 'शब्द' : 'words'}{reasonValid ? ' ✓' : ''}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowOverrideForm(false); setOverrideReason(''); }}
+                className="flex-1 px-4 py-2 border border-rose-200 text-rose-700 rounded-lg text-sm font-medium hover:bg-rose-100 transition-colors"
+              >
+                {isNp ? 'रद्द' : 'Cancel'}
+              </button>
+              <button
+                onClick={handleGenerate}
+                disabled={!reasonValid || generating}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 transition-colors disabled:opacity-50"
+              >
+                <Play className="w-4 h-4" />
+                {generating
+                  ? (isNp ? 'गणना हुँदैछ...' : 'Generating...')
+                  : (isNp ? 'ओभरराइड र पुनः गणना' : 'Override & Regenerate')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Dashain bonus notice */}
         {genMonth === 6 && (

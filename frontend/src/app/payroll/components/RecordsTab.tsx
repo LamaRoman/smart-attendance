@@ -30,6 +30,7 @@ export default function RecordsTab({
 }: Props) {
   const lang = language;
   const isAccountant = userRole === 'ORG_ACCOUNTANT';
+  const isNp = language === 'NEPALI';
 
   // Derive month-level state from actual record statuses
   const hasPaid      = records.some((r) => r.status === 'PAID');
@@ -180,7 +181,12 @@ export default function RecordsTab({
                       <div className="text-sm font-medium text-slate-900">
                         {r.user?.firstName} {r.user?.lastName}
                       </div>
-                      <div className="text-xs text-slate-400">{r.user?.employeeId}</div>
+                     <div className="text-xs text-slate-400">{r.user?.employeeId}</div>
+                      {r.regeneratedFromPaid && (
+                        <div className="text-[10px] text-rose-600 font-medium mt-0.5" title={r.overrideReason || ''}>
+                          ⚠ {isNp ? 'भुक्तानी पछि परिवर्तन' : 'Overridden after payment'}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-center">
                       <span className="text-emerald-600 font-medium">{r.daysPresent}</span>
