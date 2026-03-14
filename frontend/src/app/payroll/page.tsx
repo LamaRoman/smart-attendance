@@ -7,8 +7,8 @@ import { api } from '@/lib/api';
 import AdminLayout from '@/components/AdminLayout';
 import AccountantLayout from '@/components/AccountantLayout';
 import {
-  CreditCard, Users, Clock, CheckCircle, AlertCircle, X,
-  Settings, FileText, Play, Download, RefreshCw, AlertTriangle, BarChart3,
+  CreditCard, Clock, CheckCircle, AlertCircle, X,
+  Settings, FileText, Play, RefreshCw, AlertTriangle, BarChart3,
 } from 'lucide-react';
 import { adToBS } from '@/components/BSDatePicker';
 
@@ -22,25 +22,17 @@ import MultiMonthTab from './components/MultiMonthTab';
 import PayslipModal from './components/PayslipModal';
 
 export default function PayrollPage() {
-  const { user, isLoading, language } = useAuth();
+  const { user, isLoading, language, features } = useAuth();
   const router = useRouter();
   const isNp = language === 'NEPALI';
 
-  // ── Subscription / tier ──
-  const [featureChecked, setFeatureChecked] = useState(false);
-  const [orgTier, setOrgTier] = useState<string | null>(null);
-  /**
-   * FIX (HIGH): featurePayrollWorkflow is fetched explicitly from the
-   * subscription API rather than being derived ad-hoc from `isStarter`.
-   * The Process / Approve / Paid workflow buttons in RecordsTab are gated
-   * on this flag, not just on the tier string.
-   */
-  const [featurePayrollWorkflow, setFeaturePayrollWorkflow] = useState(false);
+  // ── Derived from auth context — works for all roles ──
+  const featurePayrollWorkflow = features.payrollWorkflow;
+  const isStarter = user?.planFeatures?.tier === 'STARTER';
+  const isAccountant = user?.role === 'ORG_ACCOUNTANT';
 
   // ── UI state ──
   const [tab, setTab] = useState<Tab>('settings');
-
-
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -84,31 +76,22 @@ export default function PayrollPage() {
   const [loadingMultiMonth, setLoadingMultiMonth] = useState(false);
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
 
-  // ── Derived ──
-  const isStarter = orgTier === 'STARTER';
-  const isAccountant = user?.role === 'ORG_ACCOUNTANT';
-
   const hasUnsavedChanges = useMemo(
     () => JSON.stringify(form) !== JSON.stringify(originalForm),
     [form, originalForm],
   );
 
-  /** Live salary estimate shown on the settings form. */
   const liveCalculation = useMemo(() => {
     const gross =
       form.basicSalary + form.dearnessAllowance + form.transportAllowance +
       form.medicalAllowance + form.otherAllowances;
-
     const employeeSsf = form.ssfEnabled ? (gross * form.employeeSsfRate) / 100 : 0;
     const employeePf = form.pfEnabled ? (gross * form.employeePfRate) / 100 : 0;
     const citDeduction = form.citEnabled ? form.citAmount : 0;
-
     const tds = form.tdsEnabled
       ? calculateTDS(gross * 12, form.isMarried, employeeSsf, employeePf, citDeduction, form.ssfEnabled)
       : 0;
-
     const totalDeductions = employeeSsf + employeePf + citDeduction + tds + form.advanceDeduction;
-
     return {
       gross,
       employeeSsf,
@@ -124,36 +107,14 @@ export default function PayrollPage() {
 
   // ── Auth guard ──
   useEffect(() => {
-    if (!isLoading && (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT'))) router.push('/login');
+    if (!isLoading && (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT'))) {
+      router.push('/login');
+    }
   }, [user, isLoading, router]);
-
-  // ── Fetch subscription & features ──
-  useEffect(() => {
-    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT') || featureChecked) return;
-    (async () => {
-      const res = await api.get('/api/org-settings/subscription');
-      if (res.data) {
-        const sub = res.data as any;
-        const tier = sub?.plan?.tier || null;
-        setOrgTier(tier);
-        /*
-         * Prefer an explicit feature flag when the API provides one.
-         * Fall back to tier-based logic so the gate still works if the
-         * API hasn't been updated yet.
-         */
-        setFeaturePayrollWorkflow(
-            sub?.overrideFeaturePayrollWorkflow ??
-            sub?.plan?.featurePayrollWorkflow ??
-            false,
-          );
-      }
-      setFeatureChecked(true);
-    })();
-  }, [user, featureChecked]);
 
   // ── Load data on tab change ──
   useEffect(() => {
-    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT') || !featureChecked) return;
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'ORG_ACCOUNTANT')) return;
     if (tab === 'settings') {
       loadSettings();
       if (!tdsSlabs) {
@@ -163,7 +124,7 @@ export default function PayrollPage() {
       }
     }
     if (tab === 'records') loadRecords();
-  }, [user, tab, featureChecked]);
+  }, [user, tab]);
 
   // ── Warn before unload ──
   useEffect(() => {
@@ -186,7 +147,7 @@ export default function PayrollPage() {
     return () => window.removeEventListener('keydown', handle);
   }, [selectedUser, hasUnsavedChanges, form]);
 
-  // ────────────────────────────── API helpers ──────────────────────────────
+  // ── API helpers ──
 
   const loadSettings = useCallback(async () => {
     const res = await api.get('/api/payroll/settings');
@@ -231,8 +192,6 @@ export default function PayrollPage() {
 
   const saveSettings = async () => {
     if (!selectedUser) { setError(isNp ? 'कर्मचारी छान्नुहोस्' : 'Select an employee'); return; }
-
-    // Warn on large basic-salary changes
     const pct = originalForm.basicSalary > 0 && form.basicSalary > 0
       ? Math.abs((form.basicSalary - originalForm.basicSalary) / originalForm.basicSalary * 100)
       : 0;
@@ -242,7 +201,6 @@ export default function PayrollPage() {
         : `Basic salary changed by ${pct.toFixed(0)}%. Continue?`;
       if (!confirm(msg)) return;
     }
-
     setSaving(true); setError('');
     const res = await api.put(`/api/payroll/settings/${selectedUser}`, form);
     if (res.error) {
@@ -311,8 +269,6 @@ export default function PayrollPage() {
     setTab(newTab);
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -323,19 +279,20 @@ export default function PayrollPage() {
   if (!user) return null;
 
   const tabDefs: { key: Tab; label: string; icon: React.ElementType; locked?: boolean }[] = [
-    { key: 'settings', label: isNp ? 'तलब सेटिङ' : 'Pay settings', icon: Settings },
-    { key: 'generate', label: isNp ? 'तलब गणना' : 'Generate payroll', icon: Play },
-    { key: 'records', label: isNp ? 'तलब रेकर्ड' : 'Payroll records', icon: FileText },
-    { key: 'annual', label: isNp ? 'वार्षिक विवरण' : 'Annual report', icon: CreditCard, locked: isStarter },
-    { key: 'multimonth', label: isNp ? 'बहु-महिना दृश्य' : 'Multi-Month', icon: BarChart3, locked: isStarter },
+    { key: 'settings',    label: isNp ? 'तलब सेटिङ'    : 'Pay settings',     icon: Settings   },
+    { key: 'generate',    label: isNp ? 'तलब गणना'     : 'Generate payroll', icon: Play       },
+    { key: 'records',     label: isNp ? 'तलब रेकर्ड'   : 'Payroll records',  icon: FileText   },
+    { key: 'annual',      label: isNp ? 'वार्षिक विवरण' : 'Annual report',    icon: CreditCard, locked: isStarter },
+    { key: 'multimonth',  label: isNp ? 'बहु-महिना दृश्य' : 'Multi-Month',   icon: BarChart3,  locked: isStarter },
   ];
   const isBusy = saving || generating || loadingRecords;
-
   const Layout = isAccountant ? AccountantLayout : AdminLayout;
+
   return (
     <Layout>
       <div className="space-y-6">
-        {/* ── Header ── */}
+
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
@@ -363,7 +320,7 @@ export default function PayrollPage() {
           </div>
         </div>
 
-        {/* ── Unsaved changes banner ── */}
+        {/* Unsaved changes banner */}
         {hasUnsavedChanges && tab === 'settings' && (
           <div className="flex items-center justify-between p-3.5 bg-amber-50 rounded-lg border border-amber-200">
             <div className="flex items-center gap-2.5">
@@ -382,7 +339,7 @@ export default function PayrollPage() {
           </div>
         )}
 
-        {/* ── Error / success toasts ── */}
+        {/* Error / success toasts */}
         {error && (
           <div className="flex items-center justify-between p-3.5 bg-rose-50 rounded-lg border border-rose-200">
             <div className="flex items-center gap-2.5">
@@ -401,18 +358,19 @@ export default function PayrollPage() {
           </div>
         )}
 
-        {/* ── Tab bar ── */}
+        {/* Tab bar */}
         <div className="flex gap-1 border-b border-slate-200 pb-1">
           {tabDefs.map((t) => (
             <button
               key={t.key}
               onClick={() => handleTabChange(t.key)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative ${t.locked
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative ${
+                t.locked
                   ? 'text-slate-300'
                   : tab === t.key
-                    ? 'text-slate-900'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
+                  ? 'text-slate-900'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
             >
               <t.icon className="w-4 h-4" />
               {t.label}
@@ -431,7 +389,7 @@ export default function PayrollPage() {
           ))}
         </div>
 
-        {/* ── Tab panels ── */}
+        {/* Tab panels */}
         {tab === 'settings' && (
           <SettingsTab
             isNp={isNp}
@@ -523,7 +481,7 @@ export default function PayrollPage() {
         )}
       </div>
 
-      {/* ── Payslip modal ── */}
+      {/* Payslip modal */}
       {selectedPayslip && (
         <PayslipModal
           record={selectedPayslip}
