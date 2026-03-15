@@ -99,7 +99,20 @@ export default function RecordsTab({
     a.click();
     URL.revokeObjectURL(url);
   };
-
+const handleDetailedCsv = async () => {
+    const res = await fetch(
+      `${API_BASE}/api/payroll/export/detailed?bsYear=${recYear}&bsMonth=${recMonth}`,
+      { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
+    );
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payroll-detailed-${recYear}-${recMonth}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <div className="space-y-6">
       {/* Filter bar */}
@@ -178,6 +191,20 @@ export default function RecordsTab({
                   )}
                   <Download className="w-3 h-3" />
                   {isNp ? 'बैंक CSV' : 'Bank CSV'}
+                </button>
+                <button
+                  disabled={isStarter}
+                  onClick={handleDetailedCsv}
+                  title={isStarter ? t('common.opsRequired', lang) : undefined}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-violet-50 text-violet-700 rounded-md text-xs font-medium hover:bg-violet-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-violet-50"
+                >
+                  {isStarter && (
+                    <span className="px-1 py-0.5 text-[8px] font-semibold bg-violet-200 text-violet-800 rounded">
+                      PRO
+                    </span>
+                  )}
+                  <Download className="w-3 h-3" />
+                  {isNp ? 'विस्तृत CSV' : 'Detailed CSV'}
                 </button>
               </div>
             )}

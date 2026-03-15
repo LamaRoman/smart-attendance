@@ -334,6 +334,105 @@ router.get('/payslip/:recordId/pdf', requireFeature('featureFileDownload'), asyn
     next(error);
   }
 });
+// GET /api/payroll/export/detailed?bsYear=X&bsMonth=Y
+// Full internal payroll breakdown CSV — admin and accountant
+router.get('/export/detailed', requireFeature('featureFileDownload'), async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { bsYear, bsMonth } = req.query as any;
+    if (!bsYear || !bsMonth) return res.status(400).json({ error: { message: 'bsYear and bsMonth required' } });
+
+    const records = await pdfPrisma.payrollRecord.findMany({
+      where: { organizationId: req.user!.organizationId!, bsYear: Number(bsYear), bsMonth: Number(bsMonth) },
+      include: {
+        membership: {
+          select: {
+            employeeId: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { membership: { user: { firstName: 'asc' } } },
+    });
+
+    if (records.length === 0) return res.status(404).json({ error: { message: 'No payroll records found' } });
+
+    const toNum = (v: any) => typeof v === 'number' ? v : parseFloat(v?.toString() || '0');
+
+    const header = [
+      'SN', 'Employee ID', 'Employee Name',
+      'Days Present', 'Days Absent', 'Overtime Hours',
+      'Basic Salary', 'Dearness Allowance', 'Transport Allowance',
+      'Medical Allowance', 'Other Allowances', 'Overtime Pay',
+      'Dashain Bonus', 'Gross Salary',
+      'Employee SSF', 'Employer SSF',
+      'Employee PF', 'Employer PF',
+      'CIT Deduction', 'TDS', 'Advance Deduction',
+      'Total Deductions', 'Net Salary', 'Status',
+    ].join(',');
+
+    const rows = records.map((r, i) => [
+      i + 1,
+      r.membership.employeeId || '',
+      '"' + r.membership.user.firstName + ' ' + r.membership.user.lastName + '"',
+      r.daysPresent,
+      r.daysAbsent,
+      toNum(r.overtimeHours).toFixed(2),
+      toNum(r.basicSalary).toFixed(2),
+      toNum(r.dearnessAllowance).toFixed(2),
+      toNum(r.transportAllowance).toFixed(2),
+      toNum(r.medicalAllowance).toFixed(2),
+      toNum(r.otherAllowances).toFixed(2),
+      toNum(r.overtimePay).toFixed(2),
+      toNum(r.dashainBonus).toFixed(2),
+      toNum(r.grossSalary).toFixed(2),
+      toNum(r.employeeSsf).toFixed(2),
+      toNum(r.employerSsf).toFixed(2),
+      toNum(r.employeePf).toFixed(2),
+      toNum(r.employerPf).toFixed(2),
+      toNum(r.citDeduction).toFixed(2),
+      toNum(r.tds).toFixed(2),
+      toNum(r.advanceDeduction).toFixed(2),
+      toNum(r.totalDeductions).toFixed(2),
+      toNum(r.netSalary).toFixed(2),
+      r.status,
+    ].join(','));
+
+    // Totals row
+    const totals = [
+      '', '', 'TOTAL',
+      records.reduce((s, r) => s + r.daysPresent, 0),
+      records.reduce((s, r) => s + r.daysAbsent, 0),
+      records.reduce((s, r) => s + toNum(r.overtimeHours), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.basicSalary), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.dearnessAllowance), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.transportAllowance), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.medicalAllowance), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.otherAllowances), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.overtimePay), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.dashainBonus), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.grossSalary), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.employeeSsf), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.employerSsf), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.employeePf), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.employerPf), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.citDeduction), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.tds), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.advanceDeduction), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.totalDeductions), 0).toFixed(2),
+      records.reduce((s, r) => s + toNum(r.netSalary), 0).toFixed(2),
+      '',
+    ].join(',');
+    rows.push(totals);
+
+    const csv = header + '\n' + rows.join('\n');
+    const filename = `payroll-detailed-${bsYear}-${bsMonth}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.send(csv);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // GET /api/payroll/export/bank-sheet?bsYear=X&bsMonth=Y
 router.get('/export/bank-sheet', requireFeature('featureFileDownload'), async (req: AuthRequest, res: Response, next: NextFunction) => {
