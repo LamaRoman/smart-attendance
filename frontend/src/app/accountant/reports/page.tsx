@@ -57,7 +57,7 @@ export default function AccountantReportsPage() {
   const loadAnnual = async () => {
     setLoadingAnnual(true); setError('');
     try {
-      const res = await api.get(`/api/payroll/annual?bsYear=${annualYear}`);
+      const res = await api.get(`/api/payroll/annual-report?bsYear=${annualYear}`);
       if (res.error) throw new Error(res.error.message);
       setAnnualData(res.data);
     } catch (e: any) { setError(e.message || 'Failed to load'); }
@@ -80,6 +80,24 @@ export default function AccountantReportsPage() {
       a.download = type === 'monthly'
         ? `payroll-${monthYear}-${monthMonth}.csv`
         : `annual-tax-${annualYear}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e: any) { setError(e.message); }
+   finally { setExportingCsv(false); }
+    };
+
+  const exportDetailed = async () => {
+    setExportingCsv(true);
+    try {
+      const url = `${API_URL}/api/payroll/export/detailed?bsYear=${monthYear}&bsMonth=${monthMonth}`;
+      const res = await fetch(url, {
+        credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `payroll-detailed-${monthYear}-${monthMonth}.csv`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (e: any) { setError(e.message); }
@@ -175,13 +193,20 @@ export default function AccountantReportsPage() {
                     <FileText className="w-4 h-4" />
                     {loadingMonth ? t('common.loading', lang) : t('common.view', lang)}
                   </button>
-                  {records.length > 0 && (
-                    <button onClick={() => exportCsv('monthly')} disabled={exportingCsv}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50">
-                      <Download className="w-3.5 h-3.5" />
-                      {t('common.export', lang)} CSV
-                    </button>
-                  )}
+              {records.length > 0 && (
+                      <>
+                        <button onClick={() => exportCsv('monthly')} disabled={exportingCsv}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50">
+                          <Download className="w-3.5 h-3.5" />
+                          {lang === 'NEPALI' ? 'बैंक CSV' : 'Bank CSV'}
+                        </button>
+                        <button onClick={exportDetailed} disabled={exportingCsv}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 text-violet-700 rounded-lg text-sm font-medium hover:bg-violet-100 transition-colors disabled:opacity-50">
+                          <Download className="w-3.5 h-3.5" />
+                          {lang === 'NEPALI' ? 'विस्तृत CSV' : 'Detailed CSV'}
+                        </button>
+                      </>
+                    )}
                 </div>
               </div>
             </div>
