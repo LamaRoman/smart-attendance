@@ -490,7 +490,7 @@ export class PayrollService {
         continue;
       }
 
-const record = await prisma.$transaction(async (tx) => {
+      const record = await prisma.$transaction(async (tx) => {
         const existing = await tx.payrollRecord.findUnique({
           where: { membershipId_bsYear_bsMonth: { membershipId: membership.id, bsYear, bsMonth } },
           select: { status: true, netSalary: true },
@@ -513,12 +513,20 @@ const record = await prisma.$transaction(async (tx) => {
         }
 
         const isPaidOverride = existing?.status === 'PAID';
-        const overrideFields = isPaidOverride ? {
+        const netChanged = isPaidOverride &&
+          Math.abs(toNum(existing.netSalary) - payrollData.netSalary) > 0.01;
+        const overrideFields = netChanged ? {
           regeneratedFromPaid: true,
           regeneratedAt: new Date(),
           regeneratedBy: currentUser.userId,
           previousNetSalary: existing.netSalary,
           overrideReason: input.reason!.trim(),
+        } : isPaidOverride ? {
+          regeneratedFromPaid: false,
+          regeneratedAt: null,
+          regeneratedBy: null,
+          previousNetSalary: null,
+          overrideReason: null,
         } : {};
 
         const result = await tx.payrollRecord.upsert({
@@ -531,7 +539,7 @@ const record = await prisma.$transaction(async (tx) => {
         return { result, previousStatus: existing?.status, previousNetSalary: existing?.netSalary };
       });
 
-     this.logPayrollAudit({
+      this.logPayrollAudit({
         organizationId,
         payrollRecordId: record.result.id,
         employeeUserId: membership.user.id,
@@ -544,8 +552,8 @@ const record = await prisma.$transaction(async (tx) => {
         reason: record.previousStatus === 'PAID'
           ? `PAID OVERRIDE — Previous net: Rs.${toNum(record.previousNetSalary).toLocaleString()} — Reason: ${input.reason!.trim()}`
           : overtimeOverride !== undefined
-          ? `Overtime override applied: ${overtimeOverride}h (calculated was ${payrollData.overtimeHours}h)`
-          : undefined,
+            ? `Overtime override applied: ${overtimeOverride}h (calculated was ${payrollData.overtimeHours}h)`
+            : undefined,
       });
 
       payrollRecords.push(this.mapPayrollRecord(flattenRecordUser(record.result)));
@@ -663,7 +671,27 @@ const record = await prisma.$transaction(async (tx) => {
       include: PAYROLL_RECORD_INCLUDE,
       orderBy: { membership: { user: { firstName: 'asc' } } },
     });
-    const mapped = records.map(r => this.mapPayrollRecord(flattenRecordUser(r)));
+    // Resolve regeneratedBy userIds to names
+    const regeneratedByIds = [...new Set(
+      records.filter(r => r.regeneratedBy).map(r => r.regeneratedBy as string)
+    )];
+    const regeneratedByUsers = regeneratedByIds.length > 0
+      ? await prisma.user.findMany({
+        where: { id: { in: regeneratedByIds } },
+        select: { id: true, firstName: true, lastName: true },
+      })
+      : [];
+    const regeneratedByMap = Object.fromEntries(
+      regeneratedByUsers.map(u => [u.id, `${u.firstName} ${u.lastName}`])
+    );
+
+    const mapped = records.map(r => {
+      const base = this.mapPayrollRecord(flattenRecordUser(r));
+      if (base.regeneratedBy) {
+        base.regeneratedBy = regeneratedByMap[base.regeneratedBy] ?? base.regeneratedBy;
+      }
+      return base;
+    });
     const summary = {
       totalEmployees: mapped.length,
       totalGross: mapped.reduce((sum, r) => sum + r.grossSalary, 0),
@@ -676,35 +704,35 @@ const record = await prisma.$transaction(async (tx) => {
     };
     return { records: mapped, summary };
   }
-async getAuditLog(payrollRecordId: string, currentUser: JWTPayload) {
-      const record = await prisma.payrollRecord.findFirst({
-        where: {
-          id: payrollRecordId,
-          ...(currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
-        },
-      });
-      if (!record) throw new NotFoundError('Payroll record not found');
+  async getAuditLog(payrollRecordId: string, currentUser: JWTPayload) {
+    const record = await prisma.payrollRecord.findFirst({
+      where: {
+        id: payrollRecordId,
+        ...(currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
+      },
+    });
+    if (!record) throw new NotFoundError('Payroll record not found');
 
-      const logs = await prisma.payrollAuditLog.findMany({
-        where: { payrollRecordId },
-        orderBy: { createdAt: 'desc' },
-      });
+    const logs = await prisma.payrollAuditLog.findMany({
+      where: { payrollRecordId },
+      orderBy: { createdAt: 'desc' },
+    });
 
-      // Resolve triggeredBy userIds to names
-      const userIds = [...new Set(logs.map(l => l.triggeredBy).filter(Boolean))];
-      const users = userIds.length > 0
-        ? await prisma.user.findMany({
-            where: { id: { in: userIds } },
-            select: { id: true, firstName: true, lastName: true },
-          })
-        : [];
-      const userMap = Object.fromEntries(users.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
+    // Resolve triggeredBy userIds to names
+    const userIds = [...new Set(logs.map(l => l.triggeredBy).filter(Boolean))];
+    const users = userIds.length > 0
+      ? await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, firstName: true, lastName: true },
+      })
+      : [];
+    const userMap = Object.fromEntries(users.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
 
-      return logs.map(l => ({
-        ...l,
-        triggeredByName: userMap[l.triggeredBy] ?? l.triggeredBy,
-      }));
-    }
+    return logs.map(l => ({
+      ...l,
+      triggeredByName: userMap[l.triggeredBy] ?? l.triggeredBy,
+    }));
+  }
 
   // ======== Status updates ========
 
@@ -829,7 +857,7 @@ async getAuditLog(payrollRecordId: string, currentUser: JWTPayload) {
       },
     });
 
-  // Transition validation — same rules as individual updateStatus
+    // Transition validation — same rules as individual updateStatus
     const BULK_FROM_STATES: Record<string, string[]> = {
       PROCESSED: ['DRAFT', 'NEEDS_RECALCULATION'],
       APPROVED: ['PROCESSED'],
@@ -1200,6 +1228,11 @@ async getAuditLog(payrollRecordId: string, currentUser: JWTPayload) {
       otherDeductions: toNum(r.otherDeductions),
       totalDeductions: toNum(r.totalDeductions),
       netSalary: toNum(r.netSalary),
+      regeneratedFromPaid: r.regeneratedFromPaid ?? false,
+      regeneratedAt: r.regeneratedAt ?? null,
+      regeneratedBy: r.regeneratedBy ?? null,
+      previousNetSalary: r.previousNetSalary ? toNum(r.previousNetSalary) : null,
+      overrideReason: r.overrideReason ?? null,
     };
   }
 }
