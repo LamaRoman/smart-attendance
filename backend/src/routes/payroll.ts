@@ -206,8 +206,7 @@ router.put('/records/:id/status', requireFeature('featurePayrollWorkflow'), vali
 });
 
 // GET /api/payroll/records/:id/audit
-router.get('/records/:id/audit', requireOrgAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
+router.get('/records/:id/audit', requireOrgAdminOrAccountant, async (req: AuthRequest, res: Response, next: NextFunction) => {  try {
     const data = await payrollService.getAuditLog(req.params.id, req.user!);
     res.json({ data });
   } catch (error) {

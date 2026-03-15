@@ -1,15 +1,14 @@
 import { Router, Response, NextFunction } from 'express';
-import { authenticate, requireOrgAdmin, AuthRequest } from '../middleware/auth';
+import { authenticate, requireOrgAdminOrAccountant, AuthRequest } from '../middleware/auth';
 import { notificationService } from '../services/notification.service';
 import { requireFeature } from "../middleware/feature.guard";
 
 const router = Router();
 
-// All routes require authentication and ORG_ADMIN role
+// All routes require authentication. Accountants can access notifications too.
 router.use(authenticate);
-router.use(requireOrgAdmin);
+router.use(requireOrgAdminOrAccountant);
 router.use(requireFeature("featureNotifications"));
-
 /**
  * GET /api/notifications/unread
  * Get unread notifications

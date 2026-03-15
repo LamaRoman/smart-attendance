@@ -676,21 +676,35 @@ const record = await prisma.$transaction(async (tx) => {
     };
     return { records: mapped, summary };
   }
+async getAuditLog(payrollRecordId: string, currentUser: JWTPayload) {
+      const record = await prisma.payrollRecord.findFirst({
+        where: {
+          id: payrollRecordId,
+          ...(currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
+        },
+      });
+      if (!record) throw new NotFoundError('Payroll record not found');
 
-  async getAuditLog(payrollRecordId: string, currentUser: JWTPayload) {
-    const record = await prisma.payrollRecord.findFirst({
-      where: {
-        id: payrollRecordId,
-        ...(currentUser.role !== 'SUPER_ADMIN' && currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
-      },
-    });
-    if (!record) throw new NotFoundError('Payroll record not found');
+      const logs = await prisma.payrollAuditLog.findMany({
+        where: { payrollRecordId },
+        orderBy: { createdAt: 'desc' },
+      });
 
-    return prisma.payrollAuditLog.findMany({
-      where: { payrollRecordId },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
+      // Resolve triggeredBy userIds to names
+      const userIds = [...new Set(logs.map(l => l.triggeredBy).filter(Boolean))];
+      const users = userIds.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : [];
+      const userMap = Object.fromEntries(users.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
+
+      return logs.map(l => ({
+        ...l,
+        triggeredByName: userMap[l.triggeredBy] ?? l.triggeredBy,
+      }));
+    }
 
   // ======== Status updates ========
 
