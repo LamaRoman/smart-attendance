@@ -249,7 +249,7 @@ export default function RecordsTab({
                               </span>
                             </div>
                           )}
-                          {r.overrideReason && (
+                         {r.overrideReason && (
                             <div
                               className="text-[10px] text-slate-500 italic max-w-[200px] truncate"
                               title={r.overrideReason}
@@ -257,6 +257,12 @@ export default function RecordsTab({
                               "{r.overrideReason}"
                             </div>
                           )}
+                          <button
+                            onClick={() => openAudit(r)}
+                            className="text-[10px] text-violet-600 hover:underline font-medium mt-0.5"
+                          >
+                            {isNp ? 'पूरा इतिहास हेर्नुहोस् →' : 'View full history →'}
+                          </button>
                         </div>
                       )}
                     </td>

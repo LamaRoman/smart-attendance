@@ -124,7 +124,7 @@ export default function PayrollPage() {
       }
     }
     if (tab === 'records') loadRecords();
-  }, [user, tab]);
+  }, [user, tab, recYear, recMonth]);
 
   // ── Warn before unload ──
   useEffect(() => {
@@ -224,13 +224,16 @@ export default function PayrollPage() {
     });
     if (res.error) {
       setError(res.error.message);
-    } else {
-      setGenResult(res.data);
-      setSuccess(isNp ? 'तलब गणना सफल' : 'Payroll generated successfully');
-      setTimeout(() => setSuccess(''), 3000);
-      setLastRefreshed(new Date());
-    }
-    setGenerating(false);
+   } else {
+        setGenResult(res.data);
+        setSuccess(isNp ? 'तलब गणना सफल' : 'Payroll generated successfully');
+        setTimeout(() => setSuccess(''), 3000);
+        setLastRefreshed(new Date());
+        // Sync records tab to generated month so switching tabs shows correct data
+        setRecYear(genYear);
+        setRecMonth(genMonth);
+      }
+      setGenerating(false);
   };
 
   const bulkUpdateStatus = async (status: string) => {
