@@ -68,8 +68,8 @@ export default function AccountantReportsPage() {
     setExportingCsv(true);
     try {
       const url = type === 'monthly'
-        ? `${API_URL}/api/payroll/export/monthly?bsYear=${monthYear}&bsMonth=${monthMonth}`
-        : `${API_URL}/api/payroll/annual/export?bsYear=${annualYear}`;
+        ? `${API_URL}/api/payroll/export/bank-sheet?bsYear=${monthYear}&bsMonth=${monthMonth}`
+       : `${API_URL}/api/payroll/annual-report/csv?bsYear=${annualYear}`;
       const res = await fetch(url, {
         credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
