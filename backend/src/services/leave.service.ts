@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { adToBS } from '../lib/nepali-date';
+import { adToBS, getBSMonthADRange } from '../lib/nepali-date';
 import { NotFoundError, ValidationError, ConflictError } from '../lib/errors';
 import { createLogger } from '../logger';
 import { emailService } from './email.service';
@@ -219,13 +219,30 @@ export class LeaveService {
   }
 
   /**
-   * List all leave requests (admin) — org-scoped
+   * List all leave requests (admin/accountant) — org-scoped
+   *
+   * Supports filters:
+   *   - status: PENDING | APPROVED | REJECTED
+   *   - userId: specific user UUID
+   *   - type: leave type (SICK, CASUAL, etc.)
+   *   - fromDate / toDate: AD date range (leaves overlapping this range)
+   *   - search: partial match on employee name or employeeId
+   *   - bsYear / bsMonth: filter leaves that overlap a specific BS month
    */
   async listLeaves(
     currentUser: JWTPayload,
     limit: number,
     offset: number,
-    filters: { status?: string; userId?: string }
+    filters: {
+      status?: string;
+      userId?: string;
+      type?: string;
+      fromDate?: string;
+      toDate?: string;
+      search?: string;
+      bsYear?: number;
+      bsMonth?: number;
+    }
   ) {
     const where: Record<string, unknown> = {};
 
@@ -233,8 +250,13 @@ export class LeaveService {
       where.organizationId = currentUser.organizationId;
     }
 
+    // Status filter
     if (filters.status) where.status = filters.status;
 
+    // Leave type filter
+    if (filters.type) where.type = filters.type;
+
+    // User ID filter (exact UUID)
     if (filters.userId) {
       const orgId = currentUser.role !== 'SUPER_ADMIN' ? currentUser.organizationId! : undefined;
       const memberships = await prisma.orgMembership.findMany({
@@ -248,6 +270,88 @@ export class LeaveService {
         return { leaves: [], pagination: { total: 0, limit, offset, hasMore: false } };
       }
       where.membershipId = { in: memberships.map((m) => m.id) };
+    }
+
+    // Search by employee name or employeeId
+    if (filters.search && filters.search.trim()) {
+      const searchTerm = filters.search.trim();
+      const orgId = currentUser.role !== 'SUPER_ADMIN' ? currentUser.organizationId! : undefined;
+
+      const matchingMemberships = await prisma.orgMembership.findMany({
+        where: {
+          ...(orgId ? { organizationId: orgId } : {}),
+          isActive: true,
+          OR: [
+            { employeeId: { contains: searchTerm, mode: 'insensitive' } },
+            { user: { firstName: { contains: searchTerm, mode: 'insensitive' } } },
+            { user: { lastName: { contains: searchTerm, mode: 'insensitive' } } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (matchingMemberships.length === 0) {
+        return { leaves: [], pagination: { total: 0, limit, offset, hasMore: false } };
+      }
+
+      // If userId filter is also set, intersect the results
+      if (where.membershipId) {
+        const existingIds = (where.membershipId as { in: string[] }).in;
+        const searchIds = matchingMemberships.map((m) => m.id);
+        const intersection = existingIds.filter((id) => searchIds.includes(id));
+        if (intersection.length === 0) {
+          return { leaves: [], pagination: { total: 0, limit, offset, hasMore: false } };
+        }
+        where.membershipId = { in: intersection };
+      } else {
+        where.membershipId = { in: matchingMemberships.map((m) => m.id) };
+      }
+    }
+
+    // Date range filter (AD dates — leaves overlapping the range)
+    if (filters.fromDate || filters.toDate) {
+      const dateConditions: Record<string, unknown> = {};
+      if (filters.fromDate) {
+        const from = new Date(filters.fromDate);
+        if (!isNaN(from.getTime())) {
+          dateConditions.endDate = { gte: from };
+        }
+      }
+      if (filters.toDate) {
+        const to = new Date(filters.toDate);
+        if (!isNaN(to.getTime())) {
+          to.setHours(23, 59, 59, 999);
+          dateConditions.startDate = { lte: to };
+        }
+      }
+      Object.assign(where, dateConditions);
+    }
+
+    // BS year/month filter — convert to AD range and find overlapping leaves
+    if (filters.bsYear && filters.bsMonth) {
+      try {
+        const { start, end } = getBSMonthADRange(filters.bsYear, filters.bsMonth);
+        // Leaves overlap if: leave.startDate <= end AND leave.endDate >= start
+        // Only apply if no AD date filter is already set (BS filter takes priority)
+        if (!filters.fromDate && !filters.toDate) {
+          where.startDate = { lte: end };
+          where.endDate = { gte: start };
+        }
+      } catch (err) {
+        log.warn({ bsYear: filters.bsYear, bsMonth: filters.bsMonth, err }, 'Invalid BS date for leave filter');
+      }
+    } else if (filters.bsYear && !filters.bsMonth) {
+      // Filter by full BS year — first month to last month
+      try {
+        const { start } = getBSMonthADRange(filters.bsYear, 1);
+        const { end } = getBSMonthADRange(filters.bsYear, 12);
+        if (!filters.fromDate && !filters.toDate) {
+          where.startDate = { lte: end };
+          where.endDate = { gte: start };
+        }
+      } catch (err) {
+        log.warn({ bsYear: filters.bsYear, err }, 'Invalid BS year for leave filter');
+      }
     }
 
     const [rawLeaves, total] = await Promise.all([

@@ -17,6 +17,12 @@ export const leaveListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
   userId: z.string().uuid().optional(),
+  type: z.enum(['SICK', 'CASUAL', 'ANNUAL', 'UNPAID', 'MATERNITY', 'PATERNITY']).optional(),
+  fromDate: z.string().optional(),
+  toDate: z.string().optional(),
+  search: z.string().max(100).optional(),
+  bsYear: z.coerce.number().int().min(2070).max(2090).optional(),
+  bsMonth: z.coerce.number().int().min(1).max(12).optional(),
 });
 
 export type CreateLeaveInput = z.infer<typeof createLeaveSchema>;

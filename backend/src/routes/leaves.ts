@@ -92,9 +92,9 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
   }
 });
 
-// ===== Admin routes =====
+// ===== Admin / Accountant routes =====
 
-// GET /api/leaves — List all leaves (admin, org-scoped)
+// GET /api/leaves — List all leaves (admin + accountant, org-scoped)
 router.get(
   '/',
   requireOrgAdminOrAccountant,
@@ -102,8 +102,17 @@ router.get(
   validate(leaveListQuerySchema, 'query'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { limit, offset, status, userId } = req.query as any;
-      const result = await leaveService.listLeaves(req.user!, limit, offset, { status, userId });
+      const { limit, offset, status, userId, type, fromDate, toDate, search, bsYear, bsMonth } = req.query as any;
+      const result = await leaveService.listLeaves(req.user!, limit, offset, {
+        status,
+        userId,
+        type,
+        fromDate,
+        toDate,
+        search,
+        bsYear: bsYear ? Number(bsYear) : undefined,
+        bsMonth: bsMonth ? Number(bsMonth) : undefined,
+      });
       res.json({ data: result });
     } catch (error) {
       next(error);
