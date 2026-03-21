@@ -16,11 +16,11 @@ export interface PaySettings {
   citAmount: number;
   isMarried: boolean;
   advanceDeduction: number;
+  dashainBonusPercent: number | null;
   bankName: string;
   bankAccountName: string;
   bankAccountNumber: string;
 }
-
 export interface PayrollRecord {
   id: string;
   userId: string;
@@ -61,9 +61,7 @@ export interface PayrollRecord {
   monthNameNp: string;
   user?: { firstName: string; lastName: string; employeeId: string };
 }
-
 export type Tab = 'settings' | 'generate' | 'records' | 'annual' | 'multimonth';
-
 export interface LiveCalculation {
   gross: number;
   employeeSsf: number;
@@ -75,7 +73,6 @@ export interface LiveCalculation {
   employerSsf: number;
   employerPf: number;
 }
-
 export const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-slate-100 text-slate-700',
   PROCESSED: 'bg-blue-50 text-blue-700',

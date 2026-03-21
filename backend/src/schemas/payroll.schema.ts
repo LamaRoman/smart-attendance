@@ -18,6 +18,7 @@ export const paySettingsSchema = z.object({
   citAmount: z.coerce.number().min(0).default(0),
   isMarried: z.boolean().default(false),
   advanceDeduction: z.coerce.number().min(0).default(0),
+  dashainBonusPercent: z.number().int().min(0).max(200).nullable().optional(),
   bankName: z.string().optional(),
   bankAccountName: z.string().optional(),
   bankAccountNumber: z.string().optional(),

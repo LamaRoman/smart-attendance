@@ -144,6 +144,9 @@ model Organization {
   earlyClockInGraceMinutes Int @default(15)
   lateClockOutGraceMinutes Int @default(30)
 
+  dashainBonusMonth   Int @default(6)   // BS month for bonus (6=Ashwin, 7=Kartik)
+dashainBonusPercent Int @default(100) // Percentage of basic salary
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime? // Soft delete timestamp
@@ -445,7 +448,10 @@ model EmployeePaySettings {
   // Marital status — affects TDS first slab
   isMarried Boolean @default(false)
 
-  // Advance/Loan deductions
+  
+ dashainBonusPercent Int?  // null = use org default, 0 = no bonus, N = N% of basic
+ 
+ // Advance/Loan deductions
   advanceDeduction Decimal @default(0) @db.Decimal(12, 2)
 
   // TDS (Tax Deducted at Source)

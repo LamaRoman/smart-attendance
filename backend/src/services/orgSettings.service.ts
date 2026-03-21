@@ -36,6 +36,8 @@ export class OrgSettingsService {
         earlyClockInGraceMinutes: true,
         lateClockOutGraceMinutes: true,
         workingDays: true,
+        dashainBonusMonth: true,
+        dashainBonusPercent: true,
       },
     });
 
@@ -67,6 +69,8 @@ export class OrgSettingsService {
       earlyClockInGraceMinutes?: number;
       lateClockOutGraceMinutes?: number;
       attendanceMode?: 'QR_ONLY' | 'MOBILE_ONLY' | 'BOTH';
+      dashainBonusMonth?: number;
+      dashainBonusPercent?: number;
     }
   ) {
     if (!currentUser.organizationId) {
@@ -109,6 +113,19 @@ export class OrgSettingsService {
       data.earlyClockInGraceMinutes = Number(input.earlyClockInGraceMinutes);
     if (input.lateClockOutGraceMinutes !== undefined)
       data.lateClockOutGraceMinutes = Number(input.lateClockOutGraceMinutes);
+    // Dashain bonus configuration
+    if (input.dashainBonusMonth !== undefined) {
+      const month = Number(input.dashainBonusMonth);
+      if (month >= 1 && month <= 12) {
+        data.dashainBonusMonth = month;
+      }
+    }
+    if (input.dashainBonusPercent !== undefined) {
+      const percent = Number(input.dashainBonusPercent);
+      if (percent >= 0 && percent <= 200) {
+        data.dashainBonusPercent = percent;
+      }
+    }
 
     const org = await prisma.organization.update({
       where: { id: currentUser.organizationId },
@@ -133,6 +150,8 @@ export class OrgSettingsService {
         earlyClockInGraceMinutes: true,
         lateClockOutGraceMinutes: true,
         workingDays: true,
+        dashainBonusMonth: true,
+        dashainBonusPercent: true,
       },
     });
 

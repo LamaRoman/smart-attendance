@@ -239,6 +239,7 @@ export class PayrollService {
       citAmount: input.citAmount,
       isMarried: input.isMarried,
       advanceDeduction: input.advanceDeduction,
+      dashainBonusPercent: input.dashainBonusPercent ?? null,
       bankName: input.bankName,
       bankAccountName: input.bankAccountName,
       bankAccountNumber: input.bankAccountNumber,
@@ -281,7 +282,9 @@ export class PayrollService {
     workingDaysInMonth: number,
     holidaysInMonth: number,
     tdsConfig: any,
-    overtimeOverrideHours?: number
+    overtimeOverrideHours?: number,
+    dashainBonusMonth: number = 6,
+    dashainBonusPercent: number = 100
   ) {
     const adYear = adStart.getFullYear();
     const adMonth = adStart.getMonth() + 1;
@@ -374,8 +377,10 @@ export class PayrollService {
     const citDeduction = (s.citEnabled && hasEffectiveEarnings) ? toNum(s.citAmount) : 0;
     const advanceDeduct = hasEffectiveEarnings ? toNum(s.advanceDeduction) : 0;
 
-    const dashainBonus = bsMonth === 6 ? basicSalary : 0;
-
+    const empDashainOverride = s.dashainBonusPercent;
+    const effectiveDashainPercent = (empDashainOverride !== null && empDashainOverride !== undefined) ? toNum(empDashainOverride) : dashainBonusPercent;
+    const dashainBonus = bsMonth === dashainBonusMonth ? Math.round(basicSalary * (effectiveDashainPercent / 100) * 100) / 100 : 0;
+    
     let tds = 0;
     if (s.tdsEnabled && hasEffectiveEarnings) {
       const annualTaxable = (grossSalary + dashainBonus - employeeSsf - employeePf - citDeduction) * 12;
@@ -436,6 +441,9 @@ export class PayrollService {
     const org = await prisma.organization.findUnique({ where: { id: organizationId } });
     if (!org) throw new NotFoundError('Organization not found');
 
+    const orgDashainMonth = (org as any).dashainBonusMonth ?? 6;
+    const orgDashainPercent = (org as any).dashainBonusPercent ?? 100;
+
     if (currentUser.role !== 'SUPER_ADMIN' && organizationId !== currentUser.organizationId) {
       throw new ValidationError('Access denied to this organization');
     }
@@ -482,7 +490,9 @@ export class PayrollService {
       const payrollData = await this.calculateEmployeePayroll(
         membership, organizationId, bsYear, bsMonth,
         adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig,
-        overtimeOverride
+        overtimeOverride,
+        orgDashainMonth,
+        orgDashainPercent
       );
 
       if (payrollData.daysPresent === 0 && payrollData.overtimeHours === 0) {
@@ -611,6 +621,9 @@ export class PayrollService {
     const org = await prisma.organization.findUnique({ where: { id: organizationId } });
     if (!org) throw new NotFoundError('Organization not found');
 
+    const orgDashainMonth = (org as any).dashainBonusMonth ?? 6;
+    const orgDashainPercent = (org as any).dashainBonusPercent ?? 100;
+
     const holidayDates = await holidayService.getHolidayDatesForMonth(bsYear, bsMonth, organizationId);
     const holidaysInMonth = holidayDates.length;
     const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates);
@@ -626,10 +639,11 @@ export class PayrollService {
 
     const payrollData = await this.calculateEmployeePayroll(
       membership, organizationId, bsYear, bsMonth,
-      adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig
-      // No override for single-employee regeneration — uses fresh attendance data
+      adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig,
+      undefined, // No override for single-employee regeneration
+      orgDashainMonth,
+      orgDashainPercent
     );
-
     const record = await prisma.$transaction(async (tx) => {
       return tx.payrollRecord.upsert({
         where: { membershipId_bsYear_bsMonth: { membershipId: membership.id, bsYear, bsMonth } },

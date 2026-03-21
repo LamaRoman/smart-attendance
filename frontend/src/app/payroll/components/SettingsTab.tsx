@@ -2,7 +2,7 @@
 
 import {
   Copy, Calculator, Info, AlertTriangle, ChevronDown,
-  Banknote, Shield, Heart, Briefcase, Building, Users,
+  Banknote, Shield, Heart, Briefcase, Building, Users, Gift,
 } from 'lucide-react';
 import { PaySettings, LiveCalculation } from '../types';
 import { BS_MONTHS_NP, BS_MONTHS_EN, fmt } from '../utils';
@@ -396,6 +396,52 @@ export default function SettingsTab({
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 pr-8"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Rs.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Dashain Bonus Override ── */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                <Gift className="w-4 h-4 text-amber-500" />
+                {isNp ? 'दशैं बोनस' : 'Dashain Bonus'}
+              </h3>
+              <p className="text-xs text-slate-400 mb-4">
+                {isNp
+                  ? 'खाली छोड्नुहोस् भने संगठनको पूर्वनिर्धारित प्रतिशत लागू हुन्छ। ० राख्नुभयो भने बोनस दिइँदैन।'
+                  : 'Leave empty to use the organization default. Set to 0 to exclude this employee from bonus.'}
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  {isNp ? 'बोनस प्रतिशत (ओभरराइड)' : 'Bonus percentage (override)'}
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={form.dashainBonusPercent === null ? '' : form.dashainBonusPercent}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setField('dashainBonusPercent', null);
+                      } else {
+                        setField('dashainBonusPercent', Math.min(200, Math.max(0, Number(val))));
+                      }
+                    }}
+                    min="0"
+                    max="200"
+                    step="5"
+                    placeholder={isNp ? 'संगठन डिफल्ट' : 'Org default'}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200 pr-8 placeholder:text-slate-300"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-400">
+                  {form.dashainBonusPercent === null
+                    ? (isNp ? '→ संगठनको पूर्वनिर्धारित प्रतिशत प्रयोग हुन्छ' : '→ Will use organization default percentage')
+                    : form.dashainBonusPercent === 0
+                      ? (isNp ? '→ यस कर्मचारीलाई बोनस दिइँदैन' : '→ No bonus for this employee')
+                      : (isNp ? `→ मूल तलबको ${form.dashainBonusPercent}% बोनस` : `→ ${form.dashainBonusPercent}% of basic salary as bonus`)}
                 </div>
               </div>
             </div>

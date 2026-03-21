@@ -29,6 +29,7 @@ import {
   LocateFixed,
   Compass,
   Clock,
+  Gift,
 } from 'lucide-react';
 
 const GeofenceMap = dynamic(
@@ -78,6 +79,8 @@ export default function OrgSettingsPage() {
     earlyClockInGraceMinutes: 15,
     lateClockOutGraceMinutes: 30,
     notificationRetentionDays: 30,
+    dashainBonusMonth: 6,
+    dashainBonusPercent: 100,
   });
 
   useEffect(() => {
@@ -109,6 +112,8 @@ export default function OrgSettingsPage() {
         lateThresholdMinutes: data.lateThresholdMinutes || 10,
         earlyClockInGraceMinutes: data.earlyClockInGraceMinutes ?? 15,
         lateClockOutGraceMinutes: data.lateClockOutGraceMinutes ?? 30,
+        dashainBonusMonth: data.dashainBonusMonth ?? 6,
+        dashainBonusPercent: data.dashainBonusPercent ?? 100,
         notificationRetentionDays: 30,
       });
       const configRes = await api.get('/api/config');
@@ -151,6 +156,8 @@ export default function OrgSettingsPage() {
       lateThresholdMinutes: formData.lateThresholdMinutes,
       earlyClockInGraceMinutes: formData.earlyClockInGraceMinutes,
       lateClockOutGraceMinutes: formData.lateClockOutGraceMinutes,
+      dashainBonusMonth: formData.dashainBonusMonth,
+      dashainBonusPercent: formData.dashainBonusPercent,
     });
 
     await api.put('/api/config/notificationRetentionDays', {
@@ -180,6 +187,8 @@ export default function OrgSettingsPage() {
         lateThresholdMinutes: updated.lateThresholdMinutes || 10,
         earlyClockInGraceMinutes: updated.earlyClockInGraceMinutes ?? 15,
         lateClockOutGraceMinutes: updated.lateClockOutGraceMinutes ?? 30,
+        dashainBonusMonth: updated.dashainBonusMonth ?? 6,
+        dashainBonusPercent: updated.dashainBonusPercent ?? 100,
         notificationRetentionDays: formData.notificationRetentionDays,
       });
       await refreshUser();
@@ -529,6 +538,74 @@ export default function OrgSettingsPage() {
                       {isNepali
                         ? 'अन्त समय पछि यति मिनेटसम्म ओभरटाइम मानिँदैन। (डिफल्ट: ३०)'
                         : 'Clock-outs this many minutes after shift end are treated as on-time. (Default: 30)'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ===== Dashain Bonus Configuration ===== */}
+              <div className="pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Gift className="w-4 h-4 text-amber-500" />
+                  <p className="text-sm font-medium text-slate-700">
+                    {isNepali ? 'दशैं बोनस सेटिङ' : 'Dashain Bonus Settings'}
+                  </p>
+                </div>
+                <p className="text-xs text-slate-400 mb-4">
+                  {isNepali
+                    ? 'दशैं बोनस कुन महिनामा दिने र कति प्रतिशत दिने भनेर सेट गर्नुहोस्।'
+                    : 'Configure which BS month the Dashain bonus is paid and the percentage of basic salary.'}
+                </p>
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                      {isNepali ? 'बोनस महिना (वि.सं.)' : 'Bonus Month (BS)'}
+                    </label>
+                    <select
+                      value={formData.dashainBonusMonth}
+                      onChange={(e) => setFormData({ ...formData, dashainBonusMonth: parseInt(e.target.value) })}
+                      className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white"
+                    >
+                      {[
+                        { value: 1, en: 'Baishakh', np: 'बैशाख' },
+                        { value: 2, en: 'Jestha', np: 'जेठ' },
+                        { value: 3, en: 'Ashadh', np: 'असार' },
+                        { value: 4, en: 'Shrawan', np: 'श्रावण' },
+                        { value: 5, en: 'Bhadra', np: 'भाद्र' },
+                        { value: 6, en: 'Ashwin', np: 'आश्विन' },
+                        { value: 7, en: 'Kartik', np: 'कार्तिक' },
+                        { value: 8, en: 'Mangsir', np: 'मंसिर' },
+                        { value: 9, en: 'Poush', np: 'पौष' },
+                        { value: 10, en: 'Magh', np: 'माघ' },
+                        { value: 11, en: 'Falgun', np: 'फाल्गुन' },
+                        { value: 12, en: 'Chaitra', np: 'चैत्र' },
+                      ].map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {isNepali ? `${m.np} (${m.value})` : `${m.en} (Month ${m.value})`}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-500">
+                      {isNepali
+                        ? 'दशैं सामान्यतया आश्विन (६) मा पर्छ, कहिलेकाहीं कार्तिक (७) मा।'
+                        : 'Dashain usually falls in Ashwin (6), sometimes Kartik (7).'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <Clock className="w-4 h-4 text-slate-400" />
+                      {isNepali ? 'बोनस प्रतिशत' : 'Bonus Percentage'}
+                    </label>
+                    <input type="number" min="0" max="200" step="5"
+                      value={formData.dashainBonusPercent}
+                      onChange={(e) => setFormData({ ...formData, dashainBonusPercent: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                      placeholder="100" />
+                    <p className="text-xs text-slate-500">
+                      {isNepali
+                        ? 'मूल तलबको कति प्रतिशत बोनस दिने। नेपाल कानून: १००%। (डिफल्ट: १००)'
+                        : 'Percentage of basic salary as bonus. Nepal law: 100%. (Default: 100)'}
                     </p>
                   </div>
                 </div>

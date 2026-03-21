@@ -1,13 +1,13 @@
-﻿import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database...\n');
+  console.log('?? Seeding database...\n');
 
   // ============================================================
-  // 1. Super Admin (platform-level — no org membership)
+  // 1. Super Admin (platform-level � no org membership)
   // ============================================================
   const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || 'admin@smartattendance.com';
   const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@123';
@@ -16,7 +16,7 @@ async function main() {
 
   let superAdmin;
   if (existingSuperAdmin) {
-    console.log(`✔ Super admin already exists: ${superAdminEmail}`);
+    console.log(`? Super admin already exists: ${superAdminEmail}`);
     superAdmin = existingSuperAdmin;
   } else {
     superAdmin = await prisma.user.create({
@@ -29,7 +29,7 @@ async function main() {
         isActive: true,
       },
     });
-    console.log(`✔ Super admin created: ${superAdminEmail} / ${superAdminPassword}`);
+    console.log(`? Super admin created: ${superAdminEmail} / ${superAdminPassword}`);
   }
 
   // ============================================================
@@ -48,9 +48,9 @@ async function main() {
         calendarMode: 'NEPALI',
       },
     });
-    console.log(`✔ Organization created: ${org.name}`);
+    console.log(`? Organization created: ${org.name}`);
   } else {
-    console.log(`✔ Organization already exists: ${org.name}`);
+    console.log(`? Organization already exists: ${org.name}`);
   }
 
   // ============================================================
@@ -79,9 +79,9 @@ async function main() {
         isActive: true,
       },
     });
-    console.log(`✔ Org admin created: ${orgAdminEmail} / OrgAdmin@123`);
+    console.log(`? Org admin created: ${orgAdminEmail} / OrgAdmin@123`);
   } else {
-    console.log(`✔ Org admin already exists: ${orgAdminEmail}`);
+    console.log(`? Org admin already exists: ${orgAdminEmail}`);
   }
 
   // ============================================================
@@ -122,9 +122,9 @@ async function main() {
         },
       });
 
-      console.log(`✔ Employee created: ${emp.firstName} ${emp.lastName} (${emp.employeeId}) / Employee@123 / PIN: 1234`);
+      console.log(`? Employee created: ${emp.firstName} ${emp.lastName} (${emp.employeeId}) / Employee@123 / PIN: 1234`);
     } else {
-      console.log(`✔ Employee already exists: ${emp.email}`);
+      console.log(`? Employee already exists: ${emp.email}`);
     }
   }
 
@@ -161,7 +161,7 @@ async function main() {
           tdsEnabled: true,
         },
       });
-      console.log(`✔ Pay settings created for: ${membership.user.firstName} ${membership.user.lastName} -- NPR ${salaries[i]}`);
+      console.log(`? Pay settings created for: ${membership.user.firstName} ${membership.user.lastName} -- NPR ${salaries[i]}`);
     }
   }
 
@@ -184,7 +184,7 @@ async function main() {
       await prisma.systemConfig.create({
         data: { organizationId: org.id, ...cfg },
       });
-      console.log(`✔ Config set: ${cfg.key} = ${cfg.value}`);
+      console.log(`? Config set: ${cfg.key} = ${cfg.value}`);
     }
   }
 
@@ -200,7 +200,6 @@ async function main() {
       description: 'Free forever for micro teams. Core Nepal features included.',
       pricePerEmployee: 0,
       maxEmployees: 5,
-      hardEmployeeCap: 5,
       trialDaysMonthly: 0,
       featureLeave: true,
       featureManualCorrection: false,
@@ -219,7 +218,7 @@ async function main() {
       sortOrder: 1,
     },
   });
-  console.log(`✔ Pricing plan seeded: ${starterPlan.displayName}`);
+  console.log(`? Pricing plan seeded: ${starterPlan.displayName}`);
 
   const operationsPlan = await prisma.pricingPlan.upsert({
     where: { tier: 'OPERATIONS' },
@@ -229,7 +228,6 @@ async function main() {
       displayName: 'Operations',
       description: 'Full features. Rs. 250 per employee per month.',
       pricePerEmployee: 250,
-      hardEmployeeCap: 100,
       trialDaysMonthly: 30,
       featureLeave: true,
       featureManualCorrection: true,
@@ -249,7 +247,7 @@ async function main() {
       sortOrder: 2,
     },
   });
-  console.log(`✔ Pricing plan seeded: ${operationsPlan.displayName}`);
+  console.log(`? Pricing plan seeded: ${operationsPlan.displayName}`);
 
   // ============================================================
   // 8. OrgSubscription for Demo Company (Operations)
@@ -273,12 +271,12 @@ async function main() {
         assignedAt: new Date(),
       },
     });
-    console.log(`✔ Subscription created for: ${org.name} (Operations -- Founding Member)`);
+    console.log(`? Subscription created for: ${org.name} (Operations -- Founding Member)`);
   } else {
-    console.log(`✔ Subscription already exists for: ${org.name}`);
+    console.log(`? Subscription already exists for: ${org.name}`);
   }
 
-  console.log('\n✅ Seeding complete!\n');
+  console.log('\n? Seeding complete!\n');
   console.log('=== Login Credentials ===');
   console.log(`Super Admin:  ${superAdminEmail} / ${superAdminPassword}`);
   console.log(`Org Admin:    ${orgAdminEmail} / OrgAdmin@123`);
@@ -288,7 +286,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Seed failed:', e);
+    console.error('? Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {
