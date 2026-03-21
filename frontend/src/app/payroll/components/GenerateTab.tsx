@@ -222,15 +222,38 @@ export default function GenerateTab({
         {/* Overtime override section */}
         {!isLocked && employees.length > 0 && (
           <div className="mt-5 pt-5 border-t border-slate-100">
-            <div className="mb-3">
-              <p className="text-xs font-semibold text-slate-700">
-                {isNp ? 'ओभरटाइम ओभरराइड (ऐच्छिक)' : 'Overtime override (optional)'}
-              </p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {isNp
-                  ? 'खाली छोड्नुहोस् = स्वचालित गणना। संख्या भर्नुहोस् = त्यही घण्टा प्रयोग हुनेछ।'
-                  : 'Leave blank to use calculated hours. Enter a number to override for that employee.'}
-              </p>
+            <div className="mb-3 flex items-start justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-700">
+                  {isNp ? 'ओभरटाइम ओभरराइड (ऐच्छिक)' : 'Overtime override (optional)'}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {isNp
+                    ? 'खाली छोड्नुहोस् = स्वचालित गणना। संख्या भर्नुहोस् = त्यही घण्टा प्रयोग हुनेछ।'
+
+                    : 'Leave blank to use calculated hours. Enter a number to override for that employee.'}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const all: Record<string, string> = {};
+                    employees.forEach((e) => { all[e.membershipId] = '0'; });
+                    setOvertimeOverrides(all);
+                  }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-rose-600 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 transition-colors"
+                >
+                  {isNp ? 'सबै ० मा सेट' : 'Set all to 0'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOvertimeOverrides({})}
+                  className="px-3 py-1.5 text-[11px] font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  {isNp ? 'सबै रिसेट' : 'Clear all'}
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {employees.map((emp) => (
