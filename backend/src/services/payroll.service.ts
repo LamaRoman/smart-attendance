@@ -380,7 +380,7 @@ export class PayrollService {
     const empDashainOverride = s.dashainBonusPercent;
     const effectiveDashainPercent = (empDashainOverride !== null && empDashainOverride !== undefined) ? toNum(empDashainOverride) : dashainBonusPercent;
     const dashainBonus = bsMonth === dashainBonusMonth ? Math.round(basicSalary * (effectiveDashainPercent / 100) * 100) / 100 : 0;
-    
+
     let tds = 0;
     if (s.tdsEnabled && hasEffectiveEarnings) {
       const annualTaxable = (grossSalary + dashainBonus - employeeSsf - employeePf - citDeduction) * 12;
@@ -1151,18 +1151,17 @@ export class PayrollService {
     }
     return { paidDays, unpaidDays };
   }
-
   /**
-   * Point 1 — Grace period: fetches org's earlyClockInGraceMinutes and
-   * lateClockOutGraceMinutes, subtracts total grace from overtime calculation.
-   *
-   * Logic: per worked day, up to (early + late) grace minutes are not counted
-   * as overtime. This handles minor time variations (clocked in 10 min early,
-   * clocked out 20 min late) that would otherwise inflate overtime.
-   */
+     * Grace periods applied independently:
+     * - earlyClockInGrace: only deducted from minutes worked before workStartTime
+     * - lateClockOutGrace: only deducted from minutes worked after workEndTime
+     * 
+     * Example (grace: 15 early, 30 late, shift: 10:00-18:00):
+     *   Clock in 9:50, clock out 18:40 → 10 min early (within 15 grace) + 40 min late (30 grace applied) = 10 min OT
+     *   Clock in 10:00, clock out 19:00 → 0 early + 60 min late - 30 grace = 30 min OT
+     *   Clock in 10:00, clock out 18:25 → 0 early + 25 min late (within 30 grace) = 0 OT
+     */
   private async getDaysPresent(membershipId: string, adStart: Date, adEnd: Date) {
-    // Fetch grace settings from org
-    let graceMinutesPerDay = 0;
     const membership = await prisma.orgMembership.findUnique({
       where: { id: membershipId },
       select: {
@@ -1170,15 +1169,20 @@ export class PayrollService {
           select: {
             earlyClockInGraceMinutes: true,
             lateClockOutGraceMinutes: true,
+            workStartTime: true,
+            workEndTime: true,
           },
         },
       },
     });
-    if (membership?.organization) {
-      const early = membership.organization.earlyClockInGraceMinutes ?? 0;
-      const late = membership.organization.lateClockOutGraceMinutes ?? 0;
-      graceMinutesPerDay = early + late;
-    }
+
+    const earlyGrace = membership?.organization?.earlyClockInGraceMinutes ?? 0;
+    const lateGrace = membership?.organization?.lateClockOutGraceMinutes ?? 0;
+    const workStart = membership?.organization?.workStartTime ?? '10:00';
+    const workEnd = membership?.organization?.workEndTime ?? '18:00';
+
+    const [startH, startM] = workStart.split(':').map(Number);
+    const [endH, endM] = workEnd.split(':').map(Number);
 
     const records = await prisma.attendanceRecord.findMany({
       where: {
@@ -1190,9 +1194,29 @@ export class PayrollService {
 
     const uniqueDays = new Set<string>();
     let totalMinutes = 0;
+    let totalOvertimeMinutes = 0;
+
     for (const r of records) {
       uniqueDays.add(r.checkInTime.toISOString().split('T')[0]);
       if (r.duration) totalMinutes += r.duration;
+
+      if (r.checkOutTime && r.duration) {
+        const checkIn = r.checkInTime;
+        const checkOut = r.checkOutTime;
+
+        const dayStart = new Date(checkIn);
+        dayStart.setHours(startH, startM, 0, 0);
+        const dayEnd = new Date(checkIn);
+        dayEnd.setHours(endH, endM, 0, 0);
+
+        const earlyMinutes = Math.max(0, Math.floor((dayStart.getTime() - checkIn.getTime()) / 60000));
+        const lateMinutes = Math.max(0, Math.floor((checkOut.getTime() - dayEnd.getTime()) / 60000));
+
+        const earlyOvertime = earlyMinutes > earlyGrace ? earlyMinutes : 0;
+        const lateOvertime = lateMinutes > lateGrace ? lateMinutes : 0;
+        
+        totalOvertimeMinutes += earlyOvertime + lateOvertime;
+      }
     }
 
     const openRecords = await prisma.attendanceRecord.findMany({
@@ -1204,14 +1228,7 @@ export class PayrollService {
     }
 
     const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
-
-    // Standard hours for this period: 8h per day
-    const standardMinutes = uniqueDays.size * 8 * 60;
-    // Total grace budget: graceMinutesPerDay * days worked
-    const totalGraceMinutes = graceMinutesPerDay * uniqueDays.size;
-    // Overtime = total worked - standard - grace, floored at 0
-    const overtimeMinutes = Math.max(0, totalMinutes - standardMinutes - totalGraceMinutes);
-    const overtimeHours = Math.round((overtimeMinutes / 60) * 100) / 100;
+    const overtimeHours = Math.round((totalOvertimeMinutes / 60) * 100) / 100;
 
     return { daysPresent: uniqueDays.size, totalHours, overtimeHours };
   }
