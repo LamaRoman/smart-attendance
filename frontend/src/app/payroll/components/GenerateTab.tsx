@@ -210,12 +210,12 @@ export default function GenerateTab({
         )}
 
         {/* Dashain bonus notice */}
-        {genMonth === 6 && (
+        {(genMonth === 6 || genMonth === 7) && (
           <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-700 flex items-center gap-2">
             <span>🎉</span>
             {isNp
-              ? 'आश्विन महिना — दशैं बोनस (१ महिनाको आधारभूत तलब) स्वचालित रूपमा थपिन्छ'
-              : 'Ashwin month — Dashain bonus (1 month basic salary) will be added automatically'}
+              ? 'दशैं बोनस संगठन सेटिङ अनुसार स्वचालित रूपमा थपिन्छ'
+              : 'Dashain bonus will be added automatically based on organization settings'}
           </div>
         )}
 

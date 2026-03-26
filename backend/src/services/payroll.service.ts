@@ -441,8 +441,8 @@ export class PayrollService {
     const org = await prisma.organization.findUnique({ where: { id: organizationId } });
     if (!org) throw new NotFoundError('Organization not found');
 
-    const orgDashainMonth = (org as any).dashainBonusMonth ?? 6;
-    const orgDashainPercent = (org as any).dashainBonusPercent ?? 100;
+    const orgDashainMonth = org.dashainBonusMonth ?? 6;
+    const orgDashainPercent = org.dashainBonusPercent ?? 100;
 
     if (currentUser.role !== 'SUPER_ADMIN' && organizationId !== currentUser.organizationId) {
       throw new ValidationError('Access denied to this organization');
@@ -621,8 +621,8 @@ export class PayrollService {
     const org = await prisma.organization.findUnique({ where: { id: organizationId } });
     if (!org) throw new NotFoundError('Organization not found');
 
-    const orgDashainMonth = (org as any).dashainBonusMonth ?? 6;
-    const orgDashainPercent = (org as any).dashainBonusPercent ?? 100;
+    const orgDashainMonth = org.dashainBonusMonth ?? 6;
+    const orgDashainPercent = org.dashainBonusPercent ?? 100;
 
     const holidayDates = await holidayService.getHolidayDatesForMonth(bsYear, bsMonth, organizationId);
     const holidaysInMonth = holidayDates.length;
