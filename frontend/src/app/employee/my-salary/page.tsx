@@ -47,6 +47,13 @@ export default function MySalaryHistoryPage() {
   const [showRowTooltip, setShowRowTooltip] = useState<string | null>(null);
   const [earliestBsYear, setEarliestBsYear] = useState<number | null>(null);
 
+  // Payslip detail modal state
+  const [selectedPayslip, setSelectedPayslip] = useState<{
+    monthData: any;
+    bsYear: number;
+    bsMonth: number;
+  } | null>(null);
+
   useEffect(() => {
     api.get('/api/payroll/my-earliest-year').then((res) => {
       if (!res.error && (res.data as any)?.earliestBsYear) {
@@ -256,7 +263,7 @@ export default function MySalaryHistoryPage() {
     setSummaryDownloading(false);
   };
 
-  // ── Per-row payslip preview ──
+  // ── Per-row payslip PDF preview ──
   const [preview, setPreview] = useState<{ blobUrl: string; filename: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -308,7 +315,24 @@ export default function MySalaryHistoryPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
 
-      {/* Payslip Preview Modal */}
+      {/* ── Payslip Detail Modal (click a row to open) ── */}
+      {selectedPayslip && (
+        <EmployeePayslipModal
+          monthData={selectedPayslip.monthData}
+          bsYear={selectedPayslip.bsYear}
+          bsMonth={selectedPayslip.bsMonth}
+          language={lang}
+          canDownloadPayslips={canDownloadPayslips}
+          fmtDisplay={fmtDisplay}
+          onClose={() => setSelectedPayslip(null)}
+          onViewPdf={() => {
+            setSelectedPayslip(null);
+            openPreview(selectedPayslip.monthData.id, selectedPayslip.bsYear, selectedPayslip.bsMonth);
+          }}
+        />
+      )}
+
+      {/* ── Payslip PDF Preview Modal ── */}
       {(preview || previewLoading) && (
         <div className="fixed inset-0 z-50 flex flex-col bg-black/80 backdrop-blur-sm">
           <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shrink-0">
@@ -351,7 +375,7 @@ export default function MySalaryHistoryPage() {
         </div>
       )}
 
-      {/* Page Header */}
+      {/* ── Page Header ── */}
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex justify-between items-center h-16">
@@ -378,7 +402,7 @@ export default function MySalaryHistoryPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
 
-        {/* Filters */}
+        {/* ── Filters ── */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           {/* Mode toggle */}
           <div className="flex items-center gap-2 mb-4">
@@ -476,7 +500,7 @@ export default function MySalaryHistoryPage() {
           </div>
         </div>
 
-        {/* Error */}
+        {/* ── Error ── */}
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-500" />
@@ -484,7 +508,7 @@ export default function MySalaryHistoryPage() {
           </div>
         )}
 
-        {/* Loading */}
+        {/* ── Loading ── */}
         {loadingData && (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
             <Clock className="w-6 h-6 text-slate-400 animate-spin mx-auto mb-3" />
@@ -492,23 +516,30 @@ export default function MySalaryHistoryPage() {
           </div>
         )}
 
-        {/* Results */}
+        {/* ── Results ── */}
         {!loadingData && employeeData && (
           <>
             {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <SummaryCard color="blue"   icon={<Calendar   className="w-4 h-4 text-blue-600"   />} label={t('common.months', lang)}        value={String(employeeData.totals.monthsProcessed)} sub={t('payroll.recorded', lang)} />
-              <SummaryCard color="emerald" icon={<DollarSign  className="w-4 h-4 text-emerald-600" />} label={t('payroll.totalNet', lang)}      value={`Rs. ${fmtDisplay(employeeData.totals.netSalary)}`} sub={`${employeeData.totals.monthsProcessed} ${t('common.months', lang)}`} />
-              <SummaryCard color="purple"  icon={<TrendingUp  className="w-4 h-4 text-purple-600"  />} label={t('payroll.avgMonth', lang)}      value={`Rs. ${employeeData.totals.monthsProcessed > 0 ? fmtDisplay(Math.round(employeeData.totals.netSalary / employeeData.totals.monthsProcessed)) : 0}`} sub={t('payroll.perMonth', lang)} />
-              <SummaryCard color="rose"    icon={<FileText    className="w-4 h-4 text-rose-600"    />} label={t('payroll.deductions', lang)}    value={`Rs. ${fmtDisplay(employeeData.totals.totalDeductions)}`} sub={t('common.total', lang)} />
+              <SummaryCard color="blue"    icon={<Calendar   className="w-4 h-4 text-blue-600"   />} label={t('common.months', lang)}     value={String(employeeData.totals.monthsProcessed)}                                                                                                                         sub={t('payroll.recorded', lang)} />
+              <SummaryCard color="emerald" icon={<DollarSign  className="w-4 h-4 text-emerald-600" />} label={t('payroll.totalNet', lang)}   value={`Rs. ${fmtDisplay(employeeData.totals.netSalary)}`}                                                                                                               sub={`${employeeData.totals.monthsProcessed} ${t('common.months', lang)}`} />
+              <SummaryCard color="purple"  icon={<TrendingUp  className="w-4 h-4 text-purple-600"  />} label={t('payroll.avgMonth', lang)}   value={`Rs. ${employeeData.totals.monthsProcessed > 0 ? fmtDisplay(Math.round(employeeData.totals.netSalary / employeeData.totals.monthsProcessed)) : 0}`}             sub={t('payroll.perMonth', lang)} />
+              <SummaryCard color="rose"    icon={<FileText    className="w-4 h-4 text-rose-600"    />} label={t('payroll.deductions', lang)} value={`Rs. ${fmtDisplay(employeeData.totals.totalDeductions)}`}                                                                                                         sub={t('common.total', lang)} />
             </div>
 
             {/* Monthly Breakdown Table */}
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  {t('payroll.monthlyBreakdown', lang)}
-                </h3>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {t('payroll.monthlyBreakdown', lang)}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {lang === 'NEPALI'
+                      ? 'विस्तृत जानकारीका लागि कुनै पनि पङ्क्तिमा क्लिक गर्नुहोस्'
+                      : 'Click any row for a full payslip breakdown'}
+                  </p>
+                </div>
 
                 {/* Summary PDF button */}
                 {canDownloadPayslips ? (
@@ -548,16 +579,16 @@ export default function MySalaryHistoryPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/50">
-                      <th className="text-left   py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('common.month',        lang)}</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.basic',        lang)}</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.allowances',   lang)}</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.gross',        lang)}</th>
+                      <th className="text-left   py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('common.month',      lang)}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.basic',      lang)}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.allowances', lang)}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.gross',      lang)}</th>
                       <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">SSF</th>
                       <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">PF</th>
                       <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">TDS</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.deductions',   lang)}</th>
-                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.netSalary',    lang)}</th>
-                      <th className="text-center py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('common.status',        lang)}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.deductions', lang)}</th>
+                      <th className="text-right  py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('payroll.netSalary',  lang)}</th>
+                      <th className="text-center py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">{t('common.status',     lang)}</th>
                       <th className="text-center py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">PDF</th>
                     </tr>
                   </thead>
@@ -566,6 +597,7 @@ export default function MySalaryHistoryPage() {
                       const monthKey  = m.bsYear + '-' + m.bsMonth;
                       const monthData = employeeData.months[monthKey];
 
+                      // ── No payroll record for this month ──
                       if (!monthData) {
                         return (
                           <tr key={monthKey} className="hover:bg-slate-50/50">
@@ -586,7 +618,12 @@ export default function MySalaryHistoryPage() {
                         (monthData.otherAllowances    || 0);
 
                       return (
-                        <tr key={monthKey} className="hover:bg-slate-50/50">
+                        // ── Clicking the row opens the payslip detail modal ──
+                        <tr
+                          key={monthKey}
+                          className="hover:bg-slate-50 cursor-pointer transition-colors"
+                          onClick={() => setSelectedPayslip({ monthData, bsYear: m.bsYear, bsMonth: m.bsMonth })}
+                        >
                           <td className="py-3 px-4">
                             <div className="text-sm font-medium text-slate-900">
                               {lang === 'NEPALI' ? BS_MONTHS_NP[m.bsMonth - 1] : BS_MONTHS_EN[m.bsMonth - 1]} {m.bsYear}
@@ -609,11 +646,14 @@ export default function MySalaryHistoryPage() {
                             </span>
                           </td>
 
-                          {/* Per-row PDF */}
+                          {/* PDF button — stopPropagation so it doesn't open the detail modal */}
                           <td className="py-3 px-4 text-center">
                             {canDownloadPayslips ? (
                               <button
-                                onClick={() => openPreview(monthData.id, m.bsYear, m.bsMonth)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openPreview(monthData.id, m.bsYear, m.bsMonth);
+                                }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-900 text-white rounded-md text-[10px] font-medium hover:bg-slate-700 transition-colors"
                               >
                                 <ExternalLink className="w-3 h-3" />
@@ -624,6 +664,7 @@ export default function MySalaryHistoryPage() {
                                 className="relative inline-block"
                                 onMouseEnter={() => setShowRowTooltip(monthKey)}
                                 onMouseLeave={() => setShowRowTooltip(null)}
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 <button
                                   disabled
@@ -668,7 +709,7 @@ export default function MySalaryHistoryPage() {
           </>
         )}
 
-        {/* Empty state */}
+        {/* ── Empty state ── */}
         {!loadingData && !employeeData && !error && (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
             <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
@@ -688,9 +729,258 @@ export default function MySalaryHistoryPage() {
   );
 }
 
-// ── Reusable select dropdown ──
+// ─────────────────────────────────────────────────────────────────────────────
+// Payslip Detail Modal
+// Opened by clicking a row in the monthly breakdown table.
+// Uses the data already loaded in employeeData — no extra API call needed.
+// ─────────────────────────────────────────────────────────────────────────────
+function EmployeePayslipModal({
+  monthData,
+  bsYear,
+  bsMonth,
+  language,
+  canDownloadPayslips,
+  fmtDisplay,
+  onClose,
+  onViewPdf,
+}: {
+  monthData: any;
+  bsYear: number;
+  bsMonth: number;
+  language: string;
+  canDownloadPayslips: boolean;
+  fmtDisplay: (n: number) => string;
+  onClose: () => void;
+  onViewPdf: () => void;
+}) {
+  const isNp = language === 'NEPALI';
+  const monthLabel = isNp ? BS_MONTHS_NP[bsMonth - 1] : BS_MONTHS_EN[bsMonth - 1];
+
+  // Safe number formatter — treats null/undefined as 0
+  const fmt = (n: number | null | undefined) => fmtDisplay(n ?? 0);
+
+  const earningsRows: [string, number][] = [
+    [isNp ? 'आधारभूत तलब'   : 'Basic salary',        monthData.basicSalary        ?? 0],
+    [isNp ? 'महँगी भत्ता'     : 'Dearness allowance',  monthData.dearnessAllowance  ?? 0],
+    [isNp ? 'यातायात भत्ता'  : 'Transport allowance', monthData.transportAllowance ?? 0],
+    [isNp ? 'चिकित्सा भत्ता' : 'Medical allowance',   monthData.medicalAllowance   ?? 0],
+    [isNp ? 'अन्य भत्ता'     : 'Other allowances',    monthData.otherAllowances    ?? 0],
+    [isNp ? 'ओभरटाइम'        : 'Overtime pay',        monthData.overtimePay        ?? 0],
+    ...((monthData.dashainBonus ?? 0) > 0
+      ? [[isNp ? 'दशैं बोनस' : 'Dashain bonus', monthData.dashainBonus] as [string, number]]
+      : []),
+  ];
+
+  const absenceDeduction: number = monthData.absenceDeduction ?? 0;
+
+  const deductionRows: [string, number][] = [
+    [`SSF (${isNp ? 'कर्मचारी' : 'Employee'})`, monthData.employeeSsf     ?? 0],
+    [`PF (${isNp ? 'कर्मचारी'  : 'Employee'})`, monthData.employeePf      ?? 0],
+    ['CIT',                                       monthData.citDeduction    ?? 0],
+    ['TDS',                                       monthData.tds             ?? 0],
+    [isNp ? 'पेशगी कटौती' : 'Advance deduction', monthData.advanceDeduction ?? 0],
+  ];
+
+  const employerSsf: number = monthData.employerSsf ?? 0;
+  const employerPf:  number = monthData.employerPf  ?? 0;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {isNp ? 'पे-स्लिप विवरण' : 'Payslip Detail'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {monthLabel} {bsYear}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {canDownloadPayslips && (
+              <button
+                onClick={onViewPdf}
+                className="flex items-center gap-1 px-3 py-1.5 bg-slate-900 text-white rounded-md text-xs font-medium hover:bg-slate-800 transition-colors"
+              >
+                {isNp ? 'PDF हेर्नुहोस्' : 'View PDF'}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+
+          {/* Attendance summary */}
+          <ModalSection label={isNp ? 'उपस्थिति' : 'Attendance'}>
+            <div className="grid grid-cols-3 gap-2">
+              <ModalStatBox label={isNp ? 'कार्य दिन'  : 'Working'} value={monthData.workingDaysInMonth ?? 0} />
+              <ModalStatBox label={isNp ? 'उपस्थित'    : 'Present'} value={monthData.daysPresent ?? 0}        className="bg-emerald-50" valueClass="text-emerald-700" />
+              <ModalStatBox label={isNp ? 'अनुपस्थित'  : 'Absent'}  value={monthData.daysAbsent  ?? 0}        className="bg-rose-50"    valueClass="text-rose-700" />
+            </div>
+          </ModalSection>
+
+          {/* Earnings */}
+          <ModalSection label={isNp ? 'आमदानी' : 'Earnings'}>
+            <div className="space-y-1 text-xs">
+              {earningsRows
+                .filter(([, v]) => v > 0)
+                .map(([label, val]) => (
+                  <ModalLineItem key={label} label={label} value={`Rs. ${fmt(val)}`} />
+                ))}
+              {absenceDeduction > 0 && (
+                <ModalLineItem
+                  label={isNp ? 'अनुपस्थिति कटौती' : 'Absence deduction'}
+                  value={`- Rs. ${fmt(absenceDeduction)}`}
+                  valueClass="text-rose-600"
+                />
+              )}
+              <ModalLineItem
+                label={isNp ? 'कुल आमदानी' : 'Gross salary'}
+                value={`Rs. ${fmt(monthData.grossSalary ?? 0)}`}
+                bold
+                separator
+              />
+            </div>
+          </ModalSection>
+
+          {/* Deductions */}
+          <ModalSection label={isNp ? 'कटौती' : 'Deductions'}>
+            <div className="space-y-1 text-xs">
+              {deductionRows
+                .filter(([, v]) => v > 0)
+                .map(([label, val]) => (
+                  <ModalLineItem key={label} label={label} value={`Rs. ${fmt(val)}`} valueClass="text-rose-600" />
+                ))}
+              <ModalLineItem
+                label={isNp ? 'जम्मा कटौती' : 'Total deductions'}
+                value={`Rs. ${fmt(monthData.totalDeductions ?? 0)}`}
+                bold
+                separator
+                valueClass="text-rose-700"
+              />
+            </div>
+          </ModalSection>
+
+          {/* Employer contribution — only shown if non-zero */}
+          {(employerSsf > 0 || employerPf > 0) && (
+            <ModalSection label={isNp ? 'नियोक्ता योगदान' : 'Employer contribution'}>
+              <div className="space-y-1 text-xs">
+                {employerSsf > 0 && (
+                  <ModalLineItem
+                    label={`SSF (${isNp ? 'नियोक्ता' : 'Employer'})`}
+                    value={`Rs. ${fmt(employerSsf)}`}
+                    valueClass="text-blue-600"
+                  />
+                )}
+                {employerPf > 0 && (
+                  <ModalLineItem
+                    label={`PF (${isNp ? 'नियोक्ता' : 'Employer'})`}
+                    value={`Rs. ${fmt(employerPf)}`}
+                    valueClass="text-blue-600"
+                  />
+                )}
+              </div>
+            </ModalSection>
+          )}
+
+          {/* Net salary */}
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-semibold text-slate-900">
+                {isNp ? 'खुद तलब' : 'Net salary'}
+              </span>
+              <span className="text-xl font-bold text-slate-900 tracking-tight">
+                Rs. {fmt(monthData.netSalary ?? 0)}
+              </span>
+            </div>
+            {monthData.isMarried && (
+              <p className="text-[10px] text-slate-500 mt-1">
+                {isNp ? '* विवाहित कर स्ल्याब लागू' : '* Married tax slab applied'}
+              </p>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared sub-components
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ModalSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+        {label}
+      </h4>
+      {children}
+    </div>
+  );
+}
+
+function ModalStatBox({
+  label,
+  value,
+  className = 'bg-slate-50',
+  valueClass = 'text-slate-900',
+}: {
+  label: string;
+  value: number;
+  className?: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className={`${className} rounded-lg p-2 text-center`}>
+      <div className={`text-sm font-semibold ${valueClass}`}>{value}</div>
+      <div className="text-[10px] text-slate-400">{label}</div>
+    </div>
+  );
+}
+
+function ModalLineItem({
+  label,
+  value,
+  bold,
+  separator,
+  valueClass = 'text-slate-900',
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  separator?: boolean;
+  valueClass?: string;
+}) {
+  return (
+    <div className={`flex justify-between py-0.5 ${separator ? 'border-t border-slate-200 mt-1 pt-1.5' : ''}`}>
+      <span className={bold ? 'font-semibold text-slate-900' : 'text-slate-600'}>{label}</span>
+      <span className={`font-medium ${valueClass}`}>{value}</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable select dropdown
+// ─────────────────────────────────────────────────────────────────────────────
 function SelectDropdown({
-  value, onChange, options,
+  value,
+  onChange,
+  options,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -714,18 +1004,27 @@ function SelectDropdown({
   );
 }
 
-// ── Summary card ──
+// ─────────────────────────────────────────────────────────────────────────────
+// Summary card (top stats row)
+// ─────────────────────────────────────────────────────────────────────────────
 function SummaryCard({
-  color, icon, label, value, sub,
+  color,
+  icon,
+  label,
+  value,
+  sub,
 }: {
   color: 'blue' | 'emerald' | 'purple' | 'rose';
-  icon: React.ReactNode; label: string; value: string; sub: string;
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
 }) {
   const styles = {
-    blue:    { wrap: 'from-blue-50 to-blue-100 border-blue-200',      label: 'text-blue-700',    val: 'text-blue-900',    sub: 'text-blue-600' },
+    blue:    { wrap: 'from-blue-50 to-blue-100 border-blue-200',         label: 'text-blue-700',    val: 'text-blue-900',    sub: 'text-blue-600' },
     emerald: { wrap: 'from-emerald-50 to-emerald-100 border-emerald-200', label: 'text-emerald-700', val: 'text-emerald-900', sub: 'text-emerald-600' },
-    purple:  { wrap: 'from-purple-50 to-purple-100 border-purple-200', label: 'text-purple-700',  val: 'text-purple-900',  sub: 'text-purple-600' },
-    rose:    { wrap: 'from-rose-50 to-rose-100 border-rose-200',       label: 'text-rose-700',    val: 'text-rose-900',    sub: 'text-rose-600' },
+    purple:  { wrap: 'from-purple-50 to-purple-100 border-purple-200',   label: 'text-purple-700',  val: 'text-purple-900',  sub: 'text-purple-600' },
+    rose:    { wrap: 'from-rose-50 to-rose-100 border-rose-200',         label: 'text-rose-700',    val: 'text-rose-900',    sub: 'text-rose-600' },
   }[color];
 
   return (

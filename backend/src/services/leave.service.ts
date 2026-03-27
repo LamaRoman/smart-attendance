@@ -5,6 +5,7 @@ import { createLogger } from '../logger';
 import { emailService } from './email.service';
 import { JWTPayload } from '../lib/jwt';
 import { CreateLeaveInput } from '../schemas/leave.schema';
+import { leaveBalanceService } from './leaveBalance.service';
 
 const log = createLogger('leave-service');
 
@@ -159,6 +160,20 @@ export class LeaveService {
     });
 
     log.info({ leaveId, status, approvedBy: currentUser.userId }, 'Leave status updated');
+
+    // Hook: update leave balance if tracking is enabled for this org.
+    // Fire-and-forget — leave approval is never blocked by a balance failure.
+    leaveBalanceService
+      .handleLeaveDecision(
+        leaveId,
+        leave.organizationId,
+        leave.membershipId,
+        leave.type,
+        leave.startDate,
+        leave.endDate,
+        status
+      )
+      .catch((err) => log.error({ err, leaveId }, 'Failed to update leave balance'));
 
     try {
       const approverName = (updated.approver?.firstName || '') + ' ' + (updated.approver?.lastName || '');

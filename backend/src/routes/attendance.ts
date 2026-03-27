@@ -152,11 +152,12 @@ router.get(
       if (!req.user!.membershipId) {
         return res.status(400).json({ error: { message: 'No active membership' } });
       }
-      const { limit, offset } = req.query as any;
+      const { limit, offset, bsYear, bsMonth } = req.query as any;
       const result = await attendanceService.getMyAttendance(
         req.user!.membershipId,
         limit,
-        offset
+        offset,
+        { bsYear, bsMonth }
       );
       res.json({ data: result });
     } catch (error) {

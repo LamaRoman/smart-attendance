@@ -830,38 +830,86 @@ export class AttendanceService {
     return { isClockedIn: false, record: null, currentDuration: null };
   }
 
-  async getMyAttendance(membershipId: string, limit: number, offset: number) {
-    const where = { membershipId };
+  async getMyAttendance(
+  membershipId: string,
+  limit: number,
+  offset: number,
+  filters?: { bsYear?: number; bsMonth?: number }
+) {
+  const where: Record<string, unknown> = { membershipId };
+  if (filters?.bsYear)  where.bsYear  = filters.bsYear;
+  if (filters?.bsMonth) where.bsMonth = filters.bsMonth;
 
-    const [records, total] = await Promise.all([
-      prisma.attendanceRecord.findMany({
-        where,
-        select: {
-          id: true,
-          checkInTime: true,
-          checkOutTime: true,
-          checkInMethod: true,
-          checkOutMethod: true,
-          duration: true,
-          status: true,
-          isActive: true,
-          notes: true,
-          bsYear: true,
-          bsMonth: true,
-          bsDay: true,
+  const [records, total] = await Promise.all([
+    prisma.attendanceRecord.findMany({
+      where,
+      select: {
+        id: true,
+        checkInTime: true,
+        checkOutTime: true,
+        checkInMethod: true,
+        checkOutMethod: true,
+        duration: true,
+        status: true,
+        isActive: true,
+        notes: true,
+        bsYear: true,
+        bsMonth: true,
+        bsDay: true,
+      },
+      // asc for monthly calendar view; the dashboard uses desc for "recent first"
+      orderBy: { checkInTime: filters?.bsYear ? 'asc' : 'desc' },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.attendanceRecord.count({ where }),
+  ]);
+
+  // Summary stats — only computed when filtering by a specific month
+  let summary: {
+    daysPresent: number;
+    totalMinutes: number;
+    lateCount: number;
+    workStartTime: string | null;
+  } | null = null;
+
+  if (filters?.bsYear && filters?.bsMonth) {
+    const membership = await prisma.orgMembership.findUnique({
+      where: { id: membershipId },
+      include: {
+        organization: {
+          select: { workStartTime: true, lateThresholdMinutes: true },
         },
-        orderBy: { checkInTime: 'desc' },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.attendanceRecord.count({ where }),
-    ]);
+      },
+    });
 
-    return {
-      records,
-      pagination: { total, limit, offset, hasMore: offset + records.length < total },
-    };
+    const workStartTime = membership?.organization.workStartTime ?? null;
+    const lateThreshold = membership?.organization.lateThresholdMinutes ?? 10;
+
+    const daysPresent  = records.length;
+    const totalMinutes = records.reduce((sum, r) => sum + (r.duration ?? 0), 0);
+
+    let lateCount = 0;
+    if (workStartTime) {
+      const [startHour, startMinute] = workStartTime.split(':').map(Number);
+      lateCount = records.filter((r) => {
+        if (!r.checkInTime) return false;
+        const checkIn   = new Date(r.checkInTime);
+        const workStart = new Date(checkIn);
+        workStart.setHours(startHour, startMinute, 0, 0);
+        return Math.floor((checkIn.getTime() - workStart.getTime()) / 60000) > lateThreshold;
+      }).length;
+    }
+
+    summary = { daysPresent, totalMinutes, lateCount, workStartTime };
   }
+
+  return {
+    records,
+    pagination: { total, limit, offset, hasMore: offset + records.length < total },
+    summary,
+  };
+}
 
   async listAttendance(
     currentUser: JWTPayload,

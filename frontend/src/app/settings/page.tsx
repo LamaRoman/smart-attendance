@@ -30,6 +30,7 @@ import {
   Compass,
   Clock,
   Gift,
+  BookOpen,
 } from 'lucide-react';
 
 const GeofenceMap = dynamic(
@@ -81,6 +82,11 @@ export default function OrgSettingsPage() {
     notificationRetentionDays: 30,
     dashainBonusMonth: 6,
     dashainBonusPercent: 100,
+    // ── Leave Balance Policy ──────────────────────────────────────────────
+    leaveBalanceEnabled: false,
+    annualLeaveEntitlement: 18,
+    sickLeaveEntitlement: 12,
+    casualLeaveEntitlement: 6,
   });
 
   useEffect(() => {
@@ -115,6 +121,10 @@ export default function OrgSettingsPage() {
         dashainBonusMonth: data.dashainBonusMonth ?? 6,
         dashainBonusPercent: data.dashainBonusPercent ?? 100,
         notificationRetentionDays: 30,
+        leaveBalanceEnabled: data.leaveBalanceEnabled ?? false,
+        annualLeaveEntitlement: data.annualLeaveEntitlement ?? 18,
+        sickLeaveEntitlement: data.sickLeaveEntitlement ?? 12,
+        casualLeaveEntitlement: data.casualLeaveEntitlement ?? 6,
       });
       const configRes = await api.get('/api/config');
       if (configRes.data) {
@@ -158,6 +168,10 @@ export default function OrgSettingsPage() {
       lateClockOutGraceMinutes: formData.lateClockOutGraceMinutes,
       dashainBonusMonth: formData.dashainBonusMonth,
       dashainBonusPercent: formData.dashainBonusPercent,
+      leaveBalanceEnabled: formData.leaveBalanceEnabled,
+      annualLeaveEntitlement: formData.annualLeaveEntitlement,
+      sickLeaveEntitlement: formData.sickLeaveEntitlement,
+      casualLeaveEntitlement: formData.casualLeaveEntitlement,
     });
 
     await api.put('/api/config/notificationRetentionDays', {
@@ -190,6 +204,10 @@ export default function OrgSettingsPage() {
         dashainBonusMonth: updated.dashainBonusMonth ?? 6,
         dashainBonusPercent: updated.dashainBonusPercent ?? 100,
         notificationRetentionDays: formData.notificationRetentionDays,
+        leaveBalanceEnabled: updated.leaveBalanceEnabled ?? false,
+        annualLeaveEntitlement: updated.annualLeaveEntitlement ?? 18,
+        sickLeaveEntitlement: updated.sickLeaveEntitlement ?? 12,
+        casualLeaveEntitlement: updated.casualLeaveEntitlement ?? 6,
       });
       await refreshUser();
       setLastRefreshed(new Date());
@@ -290,7 +308,8 @@ export default function OrgSettingsPage() {
         )}
 
         <div className="space-y-6">
-          {/* Language & Calendar */}
+
+          {/* ── Language & Calendar ── */}
           <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
               <div className="flex items-center gap-3">
@@ -357,7 +376,7 @@ export default function OrgSettingsPage() {
             </div>
           </div>
 
-          {/* Organization Info */}
+          {/* ── Organization Info ── */}
           <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
               <div className="flex items-center gap-3">
@@ -411,7 +430,7 @@ export default function OrgSettingsPage() {
             </div>
           </div>
 
-          {/* ===== WORK SCHEDULE SECTION ===== */}
+          {/* ── Work Schedule ── */}
           <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
               <div className="flex items-center gap-3">
@@ -497,7 +516,7 @@ export default function OrgSettingsPage() {
                 </div>
               </div>
 
-              {/* ===== Grace period fields (Point 1) ===== */}
+              {/* Overtime grace periods */}
               <div className="pt-2 pb-1">
                 <p className="text-sm font-medium text-slate-700 mb-1">
                   {isNepali ? 'ओभरटाइम ग्रेस पिरियड' : 'Overtime Grace Periods'}
@@ -543,7 +562,7 @@ export default function OrgSettingsPage() {
                 </div>
               </div>
 
-              {/* ===== Dashain Bonus Configuration ===== */}
+              {/* Dashain Bonus */}
               <div className="pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2 mb-1">
                   <Gift className="w-4 h-4 text-amber-500" />
@@ -613,7 +632,170 @@ export default function OrgSettingsPage() {
             </div>
           </div>
 
-          {/* Geofencing */}
+          {/* ── Leave Policy ── */}
+          <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-slate-800"><BookOpen className="w-5 h-5 text-white" /></div>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
+                    {isNepali ? 'बिदा नीति' : 'Leave Policy'}
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {isNepali
+                      ? 'बिदा ब्यालेन्स ट्र्याकिङ सक्रिय गर्नुहोस् र वार्षिक अधिकार सेट गर्नुहोस्'
+                      : 'Enable leave balance tracking and configure annual entitlements'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+
+              {/* Master toggle */}
+              <div className="flex items-start justify-between gap-4 p-4 rounded-xl border-2 border-slate-100 bg-slate-50/50">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {isNepali ? 'बिदा ब्यालेन्स ट्र्याकिङ' : 'Leave Balance Tracking'}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    {isNepali
+                      ? 'सक्रिय भएमा कर्मचारीहरूले आफ्नो बिदा ब्यालेन्स देख्न सक्छन् र प्रशासकले ब्यालेन्स व्यवस्थापन गर्न सक्छन्। बन्द भएमा बिदा अनुरोध सामान्य रूपमा काम गर्छ तर ब्यालेन्स कतै देखिँदैन।'
+                      : 'When enabled, employees can see their leave balances and admins can manage them. When disabled, leave requests work normally but no balance is tracked or shown anywhere.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, leaveBalanceEnabled: !formData.leaveBalanceEnabled })}
+                  className="shrink-0 mt-0.5"
+                >
+                  <div className="relative">
+                    <div className={`w-11 h-6 rounded-full transition-colors duration-200 ${formData.leaveBalanceEnabled ? 'bg-slate-800' : 'bg-slate-200'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 absolute top-1 ${formData.leaveBalanceEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Policy fields — only shown when enabled */}
+              {formData.leaveBalanceEnabled && (
+                <div className="space-y-5">
+
+                  {/* Template picker */}
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                      {isNepali ? 'टेम्प्लेट' : 'Quick Template'}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          annualLeaveEntitlement: 18,
+                          sickLeaveEntitlement: 12,
+                          casualLeaveEntitlement: 6,
+                        })}
+                        className="flex flex-col gap-1 p-4 rounded-xl border-2 border-slate-200 hover:border-slate-400 transition-all text-left"
+                      >
+                        <span className="text-sm font-semibold text-slate-800">
+                          {isNepali ? 'नेपाल श्रम ऐन २०७४' : 'Nepal Labor Act 2074'}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {isNepali ? 'वार्षिक १८, बिरामी १२, आकस्मिक ६' : 'Annual 18, Sick 12, Casual 6'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          annualLeaveEntitlement: 0,
+                          sickLeaveEntitlement: 0,
+                          casualLeaveEntitlement: 0,
+                        })}
+                        className="flex flex-col gap-1 p-4 rounded-xl border-2 border-slate-200 hover:border-slate-400 transition-all text-left"
+                      >
+                        <span className="text-sm font-semibold text-slate-800">
+                          {isNepali ? 'कस्टम' : 'Custom'}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {isNepali ? 'आफैं सेट गर्नुहोस्' : 'Set your own values'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Entitlement fields */}
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                      {isNepali ? 'वार्षिक अधिकार (दिन)' : 'Annual Entitlement (days)'}
+                    </p>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-slate-600">
+                          {isNepali ? 'वार्षिक बिदा' : 'Annual Leave'}
+                        </label>
+                        <input
+                          type="number" min="0" max="60"
+                          value={formData.annualLeaveEntitlement}
+                          onChange={(e) => setFormData({ ...formData, annualLeaveEntitlement: parseInt(e.target.value) || 0 })}
+                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                        />
+                        <p className="text-[10px] text-slate-400">
+                          {isNepali ? 'श्रम ऐन न्यूनतम: १८' : 'Labor Act min: 18'}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-slate-600">
+                          {isNepali ? 'बिरामी बिदा' : 'Sick Leave'}
+                        </label>
+                        <input
+                          type="number" min="0" max="60"
+                          value={formData.sickLeaveEntitlement}
+                          onChange={(e) => setFormData({ ...formData, sickLeaveEntitlement: parseInt(e.target.value) || 0 })}
+                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                        />
+                        <p className="text-[10px] text-slate-400">
+                          {isNepali ? 'श्रम ऐन न्यूनतम: १२' : 'Labor Act min: 12'}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-slate-600">
+                          {isNepali ? 'आकस्मिक बिदा' : 'Casual Leave'}
+                        </label>
+                        <input
+                          type="number" min="0" max="60"
+                          value={formData.casualLeaveEntitlement}
+                          onChange={(e) => setFormData({ ...formData, casualLeaveEntitlement: parseInt(e.target.value) || 0 })}
+                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                        />
+                        <p className="text-[10px] text-slate-400">
+                          {isNepali ? 'ऐनमा परिभाषित छैन — संस्था अनुसार' : 'Not in Act — org practice'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Legal accumulation caps info box */}
+                  <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                    <CheckCircle className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-blue-800 mb-1">
+                        {isNepali ? 'संचय सीमा — नेपाल श्रम ऐन २०७४' : 'Accumulation Caps — Nepal Labor Act 2074'}
+                      </p>
+                      <p className="text-xs text-blue-700 leading-relaxed">
+                        {isNepali
+                          ? 'वार्षिक बिदा अधिकतम ९० दिनसम्म संचय हुन सक्छ। बिरामी बिदा अधिकतम ४५ दिनसम्म। यी सीमाहरू कानूनले तोकेकाले परिवर्तन हुँदैन। सीमा नाघेका दिनहरू वर्षको अन्तमा नगद भुक्तानी (encashment) गर्नुपर्छ।'
+                          : 'Annual leave accumulates up to 90 days maximum. Sick leave up to 45 days. These caps are set by law and cannot be changed. Excess days must be encashed at year end.'}
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Geofencing ── */}
           <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
               <div className="flex items-center gap-3">
@@ -739,12 +921,12 @@ export default function OrgSettingsPage() {
             </div>
           </div>
 
-          {/* Document Type Manager */}
+          {/* ── Document Type Manager ── */}
           <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden p-5">
             <DocumentTypeManager language={formData.language} />
           </div>
 
-          {/* Save */}
+          {/* ── Save ── */}
           <div className="flex justify-end gap-3 pt-4">
             <button onClick={() => router.push('/admin')}
               className="px-6 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all">

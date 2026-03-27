@@ -38,6 +38,7 @@ import platformConfigRouter from './routes/superadmin.platform-config.routes';
 import superAdminPlansRouter from './routes/superadmin.plans.routes';
 import documentTypeRoutes from './routes/documentTypes';
 import documentRoutes from './routes/documents';
+import leaveBalanceRoutes from './routes/leaveBalance';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -178,6 +179,7 @@ app.use('/api/config', configRoutes);
 app.use('/api/nepali-date', nepaliDateRoutes);
 app.use('/api/org-settings', orgSettingsRoutes);
 app.use('/api/leaves', leaveRoutes);
+app.use('/api/leave-balance', leaveBalanceRoutes);
 app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/super-admin/subscriptions', superAdminSubscriptionRouter);

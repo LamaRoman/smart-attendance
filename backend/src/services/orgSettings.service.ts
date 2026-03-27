@@ -38,6 +38,11 @@ export class OrgSettingsService {
         workingDays: true,
         dashainBonusMonth: true,
         dashainBonusPercent: true,
+        // ── Leave Balance Policy ──────────────────────────────────────────
+        leaveBalanceEnabled: true,
+        annualLeaveEntitlement: true,
+        sickLeaveEntitlement: true,
+        casualLeaveEntitlement: true,
       },
     });
 
@@ -71,6 +76,11 @@ export class OrgSettingsService {
       attendanceMode?: 'QR_ONLY' | 'MOBILE_ONLY' | 'BOTH';
       dashainBonusMonth?: number;
       dashainBonusPercent?: number;
+      // ── Leave Balance Policy ────────────────────────────────────────────
+      leaveBalanceEnabled?: boolean;
+      annualLeaveEntitlement?: number;
+      sickLeaveEntitlement?: number;
+      casualLeaveEntitlement?: number;
     }
   ) {
     if (!currentUser.organizationId) {
@@ -78,9 +88,11 @@ export class OrgSettingsService {
     }
 
     const data: Record<string, unknown> = {};
+
     if (input.language) data.language = input.language;
     if (input.calendarMode) data.calendarMode = input.calendarMode;
     if (input.name) data.name = input.name;
+
     if (input.slug !== undefined) {
       const cleaned = input.slug
         .toLowerCase()
@@ -94,6 +106,7 @@ export class OrgSettingsService {
         throw new AuthorizationError('This URL is already taken');
       data.slug = cleaned;
     }
+
     if (input.email !== undefined) data.email = input.email;
     if (input.phone !== undefined) data.phone = input.phone;
     if (input.address !== undefined) data.address = input.address;
@@ -108,23 +121,34 @@ export class OrgSettingsService {
     if (input.workEndTime !== undefined) data.workEndTime = input.workEndTime;
     if (input.lateThresholdMinutes !== undefined)
       data.lateThresholdMinutes = Number(input.lateThresholdMinutes);
-    // Grace period fields (Point 1)
     if (input.earlyClockInGraceMinutes !== undefined)
       data.earlyClockInGraceMinutes = Number(input.earlyClockInGraceMinutes);
     if (input.lateClockOutGraceMinutes !== undefined)
       data.lateClockOutGraceMinutes = Number(input.lateClockOutGraceMinutes);
-    // Dashain bonus configuration
+
     if (input.dashainBonusMonth !== undefined) {
       const month = Number(input.dashainBonusMonth);
-      if (month >= 1 && month <= 12) {
-        data.dashainBonusMonth = month;
-      }
+      if (month >= 1 && month <= 12) data.dashainBonusMonth = month;
     }
     if (input.dashainBonusPercent !== undefined) {
       const percent = Number(input.dashainBonusPercent);
-      if (percent >= 0 && percent <= 200) {
-        data.dashainBonusPercent = percent;
-      }
+      if (percent >= 0 && percent <= 200) data.dashainBonusPercent = percent;
+    }
+
+    // ── Leave Balance Policy ──────────────────────────────────────────────
+    if (input.leaveBalanceEnabled !== undefined)
+      data.leaveBalanceEnabled = Boolean(input.leaveBalanceEnabled);
+    if (input.annualLeaveEntitlement !== undefined) {
+      const days = Number(input.annualLeaveEntitlement);
+      if (days >= 0 && days <= 60) data.annualLeaveEntitlement = days;
+    }
+    if (input.sickLeaveEntitlement !== undefined) {
+      const days = Number(input.sickLeaveEntitlement);
+      if (days >= 0 && days <= 60) data.sickLeaveEntitlement = days;
+    }
+    if (input.casualLeaveEntitlement !== undefined) {
+      const days = Number(input.casualLeaveEntitlement);
+      if (days >= 0 && days <= 60) data.casualLeaveEntitlement = days;
     }
 
     const org = await prisma.organization.update({
@@ -152,6 +176,11 @@ export class OrgSettingsService {
         workingDays: true,
         dashainBonusMonth: true,
         dashainBonusPercent: true,
+        // ── Leave Balance Policy ──────────────────────────────────────────
+        leaveBalanceEnabled: true,
+        annualLeaveEntitlement: true,
+        sickLeaveEntitlement: true,
+        casualLeaveEntitlement: true,
       },
     });
 

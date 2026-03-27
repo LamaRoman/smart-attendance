@@ -83,6 +83,8 @@ export const attendanceListQuerySchema = z.object({
 });
 
 export const myAttendanceQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(30),
-  offset: z.coerce.number().int().min(0).default(0),
+  limit:    z.coerce.number().int().min(1).max(100).default(30),
+  offset:   z.coerce.number().int().min(0).default(0),
+  bsYear:   z.coerce.number().int().min(2070).max(2100).optional(),
+  bsMonth:  z.coerce.number().int().min(1).max(12).optional(),
 });

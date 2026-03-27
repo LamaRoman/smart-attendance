@@ -15,6 +15,7 @@ import {
   X,
   CreditCard,
   DollarSign,
+  BarChart2,
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
 
@@ -282,6 +283,17 @@ export default function EmployeeDashboard() {
             </span>
           </button>
           <button
+            onClick={() => router.push('/employee/attendance')}
+            className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all col-span-2"
+          >
+            <div className="p-2 bg-violet-100 rounded-lg">
+              <BarChart2 className="w-5 h-5 text-violet-600" />
+            </div>
+            <span className="text-sm font-medium text-gray-700">
+              {isNp ? 'उपस्थिति इतिहास' : 'Attendance History'}
+            </span>
+          </button>
+          <button
             onClick={() => router.push('/employee/my-salary')}
             className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all col-span-2"
           >
@@ -294,7 +306,7 @@ export default function EmployeeDashboard() {
           </button>
         </div>
 
-        {/* History */}
+        {/* Recent History */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">

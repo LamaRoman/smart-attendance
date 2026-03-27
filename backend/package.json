@@ -85,5 +85,8 @@
   ],
   "overrides": {
     "fast-xml-parser": ">=5.3.8"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }

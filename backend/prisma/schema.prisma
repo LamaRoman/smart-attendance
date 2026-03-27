@@ -145,7 +145,15 @@ model Organization {
   lateClockOutGraceMinutes Int @default(30)
 
   dashainBonusMonth   Int @default(6)   // BS month for bonus (6=Ashwin, 7=Kartik)
-dashainBonusPercent Int @default(100) // Percentage of basic salary
+  dashainBonusPercent Int @default(100) // Percentage of basic salary
+
+  // ── Leave Balance Tracking ───────────────────────────────────────────────
+  // When disabled, leave requests still work normally — only balance
+  // tracking, display, and deduction are skipped.
+  leaveBalanceEnabled      Boolean @default(false)
+  annualLeaveEntitlement   Int     @default(18) // Nepal Labor Act 2074 minimum
+  sickLeaveEntitlement     Int     @default(12) // Nepal Labor Act 2074 minimum
+  casualLeaveEntitlement   Int     @default(6)  // Org practice — not in Act
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -165,6 +173,7 @@ dashainBonusPercent Int @default(100) // Percentage of basic salary
   documents         EmployeeDocument[]
   documentTypes     DocumentType[]
   subscription      OrgSubscription?
+  leaveBalances    LeaveBalance[]
 
   @@map("organizations")
 }
@@ -247,6 +256,7 @@ model OrgMembership {
   paySettings       EmployeePaySettings?
   payrollRecords    PayrollRecord[]
   requestedLeaves   Leave[]              @relation("RequestedLeaves")
+  leaveBalances    LeaveBalance[]
   createdQRCodes    QRCode[]             @relation("QRCodeCreator")
   notifications     Notification[]
   documents         EmployeeDocument[]
@@ -634,6 +644,75 @@ model Leave {
   @@index([organizationId, status])
   @@index([startDate, endDate])
   @@map("leaves")
+}
+
+// ============================================================
+// LEAVE BALANCE — Annual leave entitlement tracking per employee
+// One record per membership per BS year.
+// Only active when Organization.leaveBalanceEnabled = true.
+//
+// Accumulation caps (Nepal Labor Act 2074):
+//   Annual (Home) leave: max 90 days accumulated
+//   Sick leave:          max 45 days accumulated
+//   Casual leave:        no legal cap — org practice
+//
+// Available days (computed, not stored):
+//   annual:  annualEntitlement + annualCarriedOver - annualUsed
+//   sick:    sickEntitlement   + sickCarriedOver   - sickUsed
+//   casual:  casualEntitlement                     - casualUsed
+// ============================================================
+model LeaveBalance {
+  id           String        @id @default(uuid())
+  membershipId String
+  membership   OrgMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  // Multi-tenant (denormalized)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // BS year this balance belongs to (e.g. 2082)
+  bsYear Int
+
+  // ── Entitlements (copied from org policy at initialization) ──────────────
+  // Stored per-record so a mid-year policy change doesn't affect
+  // already-initialized balances.
+  annualEntitlement  Int // e.g. 18
+  sickEntitlement    Int // e.g. 12
+  casualEntitlement  Int // e.g. 6
+
+  // ── Carried over from previous BS year ──────────────────────────────────
+  // Capped at: (90 - annualEntitlement) for annual, (45 - sickEntitlement) for sick
+  // so total available never exceeds the legal accumulation cap.
+  annualCarriedOver  Int @default(0)
+  sickCarriedOver    Int @default(0)
+  // Casual has no legal carry-over provision — always 0
+  casualCarriedOver  Int @default(0)
+
+  // ── Used days (incremented on leave approval, decremented on rejection) ──
+  annualUsed   Int @default(0)
+  sickUsed     Int @default(0)
+  casualUsed   Int @default(0)
+
+  // ── Admin manual adjustment audit trail ─────────────────────────────────
+  // Tracks the last manual adjustment made by an admin (e.g. bonus leave).
+  // Full history is in PayrollAuditLog / a future LeaveBalanceAuditLog.
+  lastAdjustedBy   String?   // userId of admin
+  lastAdjustedAt   DateTime?
+  adjustmentNote   String?
+
+  // ── Initialization tracking ──────────────────────────────────────────────
+  initializedBy String?   // userId of admin who ran initialize
+  initializedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // One balance record per employee per BS year
+  @@unique([membershipId, bsYear])
+  @@index([organizationId])
+  @@index([organizationId, bsYear])
+  @@index([membershipId])
+  @@map("leave_balances")
 }
 
 // ============================================================
