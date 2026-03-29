@@ -30,6 +30,7 @@ export class OrgSettingsService {
         officeLat: true,
         officeLng: true,
         geofenceRadius: true,
+        attendanceMode:true,
         workStartTime: true,
         workEndTime: true,
         lateThresholdMinutes: true,

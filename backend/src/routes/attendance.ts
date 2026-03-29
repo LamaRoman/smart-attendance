@@ -86,7 +86,7 @@ router.get(
   }
 );
 
-// POST /api/attendance/mobile-checkin -- Unauthenticated, GPS-based, requires PIN
+// POST /api/attendance/mobile-checkin -- Unauthenticated, GPS-based, requires PIN (kiosk use)
 router.post(
   '/mobile-checkin',
   scanRateLimiter,
@@ -99,6 +99,134 @@ router.post(
         req.get('user-agent') || undefined
       );
       res.json({ data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /api/attendance/mobile-checkin-auth -- Authenticated GPS check-in for mobile app
+// Employee is already identified via Bearer token — no PIN or employeeId needed
+router.post(
+  '/mobile-checkin-auth',
+  authenticate,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user!.membershipId) {
+        return res.status(400).json({ error: { message: 'No active membership' } });
+      }
+
+      const { latitude, longitude } = req.body;
+
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        return res.status(400).json({ error: { message: 'latitude and longitude are required' } });
+      }
+
+      // Get membership + org settings for geofence check
+      const membership = await prisma.orgMembership.findUnique({
+        where: { id: req.user!.membershipId },
+        include: {
+          organization: {
+            select: {
+              id: true,
+              attendanceMode: true,
+              geofenceEnabled: true,
+              officeLat: true,
+              officeLng: true,
+              geofenceRadius: true,
+            },
+          },
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ error: { message: 'Membership not found' } });
+      }
+
+      const org = membership.organization;
+
+      // Geofence check if enabled
+      if (org.geofenceEnabled && org.officeLat && org.officeLng) {
+        const R = 6371000;
+        const toRad = (v: number) => (v * Math.PI) / 180;
+        const dLat = toRad(latitude - org.officeLat);
+        const dLng = toRad(longitude - org.officeLng);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(org.officeLat)) *
+            Math.cos(toRad(latitude)) *
+            Math.sin(dLng / 2) *
+            Math.sin(dLng / 2);
+        const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        if (distance > org.geofenceRadius) {
+          return res.status(400).json({
+            error: {
+              message: `You are ${Math.round(distance)}m away from the office. Must be within ${org.geofenceRadius}m.`,
+              code: 'OUTSIDE_GEOFENCE',
+            },
+          });
+        }
+      }
+
+      // Check current status
+      const existing = await prisma.attendanceRecord.findFirst({
+        where: {
+          membershipId: req.user!.membershipId,
+          checkInTime: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        },
+        orderBy: { checkInTime: 'desc' },
+      });
+
+      const now = new Date();
+
+      if (!existing || existing.status === 'CHECKED_OUT') {
+        // Clock in
+        const record = await prisma.attendanceRecord.create({
+          data: {
+            membershipId: req.user!.membershipId,
+            organizationId: org.id,
+            checkInTime: now,
+            checkInMethod: 'MOBILE_CHECKIN',
+            status: 'CHECKED_IN',
+          },
+        });
+        return res.json({
+          data: {
+            action: 'CLOCK_IN',
+            message: `Clocked in at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+            time: now.toISOString(),
+            recordId: record.id,
+          },
+        });
+      } else if (existing.status === 'CHECKED_IN') {
+        // Clock out
+        const duration = Math.floor(
+          (now.getTime() - new Date(existing.checkInTime!).getTime()) / 60000
+        );
+        const record = await prisma.attendanceRecord.update({
+          where: { id: existing.id },
+          data: {
+            checkOutTime: now,
+            checkOutMethod: 'MOBILE_CHECKIN',
+            status: 'CHECKED_OUT',
+            duration,
+          },
+        });
+        return res.json({
+          data: {
+            action: 'CLOCK_OUT',
+            message: `Clocked out at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+            time: now.toISOString(),
+            recordId: record.id,
+            duration,
+          },
+        });
+      } else {
+        return res.status(400).json({
+          error: { message: 'Attendance already recorded for today', code: 'ALREADY_RECORDED' },
+        });
+      }
     } catch (error) {
       next(error);
     }
@@ -206,9 +334,6 @@ router.post(
 );
 
 // PUT /api/attendance/:id/edit
-// ORG_ADMIN: can edit any field on any record
-// ORG_ACCOUNTANT: can edit checkOutTime on AUTO_CLOSED records only
-//   (role restriction is enforced in attendanceService.editAttendance)
 router.put(
   '/:id/edit',
   authenticate,
@@ -230,7 +355,6 @@ router.put(
 );
 
 // PUT /api/attendance/:id/acknowledge
-// ORG_ACCOUNTANT only: marks an AUTO_CLOSED record as reviewed and locks it from further accountant edits
 router.put(
   '/:id/acknowledge',
   authenticate,
@@ -248,6 +372,7 @@ router.put(
     }
   }
 );
+
 // POST /api/attendance/mark-present -- Admin marks absent employee as present (ORG_ADMIN only)
 router.post(
   '/mark-present',
