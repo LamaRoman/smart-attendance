@@ -44,6 +44,7 @@ router.post(
 // GET /api/attendance/org-mode/:orgId -- Public
 router.get(
   '/org-mode/:orgId',
+  scanRateLimiter,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const org = await prisma.organization.findUnique({
@@ -69,6 +70,7 @@ router.get(
 // GET /api/attendance/org-slug/:slug -- Public
 router.get(
   '/org-slug/:slug',
+  scanRateLimiter,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const org = await prisma.organization.findUnique({
@@ -109,6 +111,7 @@ router.post(
 // Employee is already identified via Bearer token — no PIN or employeeId needed
 router.post(
   '/mobile-checkin-auth',
+  scanRateLimiter,
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
