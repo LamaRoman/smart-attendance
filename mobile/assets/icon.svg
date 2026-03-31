@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="#F9FAFB"/>
+
+  <!-- Blue square housing A -->
+  <rect x="188" y="212" width="310" height="310" rx="72" fill="#2563EB"/>
+
+  <!-- A inside blue square -->
+  <text x="343" y="420" text-anchor="middle"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-weight="700" font-size="248" fill="white">A</text>
+
+  <!-- x beside, in dark -->
+  <text x="668" y="420" text-anchor="middle"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-weight="700" font-size="248" fill="#111827">x</text>
+
+  <!-- Blue underline — centered under Ax mark -->
+  <rect x="188" y="556" width="492" height="18" rx="9" fill="#2563EB"/>
+
+  <!-- AttendXpress name — two spaces between words -->
+  <text x="434" y="660" text-anchor="middle"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-weight="700" font-size="86" fill="#111827" letter-spacing="2">Attend  Xpress</text>
+</svg>

@@ -6,11 +6,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, getOrgName } from '../../../../store/auth.store';
-import { apiPost } from '../../../../lib/api';
 import api from '../../../../lib/api';
-import { Colors } from '../../../../constants/colors';
 import { useBiometric } from '../../../../hooks/useBiometric';
 import { useBiometricStore } from '../../../../store/biometricStore';
+
+const ADMIN_PRIMARY = '#7C3AED';
+const ADMIN_PRIMARY_LIGHT = '#EDE9FE';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -28,7 +29,7 @@ function InfoRow({ icon, label, value }: {
   return (
     <View style={s.infoRow}>
       <View style={s.infoIconWrap}>
-        <Ionicons name={icon} size={15} color={Colors.textMuted} />
+        <Ionicons name={icon} size={15} color="#9CA3AF" />
       </View>
       <View style={s.infoContent}>
         <Text style={s.infoLabel}>{label}</Text>
@@ -54,7 +55,7 @@ function Field({ label, value, onChangeText, placeholder, secureTextEntry, autoC
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={Colors.textMuted}
+        placeholderTextColor="#9CA3AF"
         secureTextEntry={secureTextEntry}
         autoCapitalize={autoCapitalize ?? 'sentences'}
         keyboardType={keyboardType ?? 'default'}
@@ -63,7 +64,7 @@ function Field({ label, value, onChangeText, placeholder, secureTextEntry, autoC
   );
 }
 
-export default function ProfileScreen() {
+export default function AdminProfileScreen() {
   const { user, initialize } = useAuthStore();
   const orgName = getOrgName(user);
 
@@ -76,10 +77,6 @@ export default function ProfileScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
-
-  const [currentPin, setCurrentPin] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [savingPin, setSavingPin] = useState(false);
 
   const { isSupported, authenticate } = useBiometric();
   const { biometricEnabled, setBiometricEnabled, loadSettings } = useBiometricStore();
@@ -151,20 +148,6 @@ export default function ProfileScreen() {
     } finally { setSavingPassword(false); }
   };
 
-  const handleChangePin = async () => {
-    if (!/^\d{4}$/.test(currentPin)) { Alert.alert('Error', 'Current PIN must be 4 digits.'); return; }
-    if (!/^\d{4}$/.test(newPin)) { Alert.alert('Error', 'New PIN must be 4 digits.'); return; }
-    if (currentPin === newPin) { Alert.alert('Error', 'New PIN must differ from current PIN.'); return; }
-    setSavingPin(true);
-    try {
-      await apiPost('/api/auth/attendance-pin', { currentPin, newPin });
-      setCurrentPin(''); setNewPin('');
-      Alert.alert('Success', 'Attendance PIN changed successfully.');
-    } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.error?.message ?? 'Failed to change PIN.');
-    } finally { setSavingPin(false); }
-  };
-
   const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || '—';
 
   return (
@@ -181,7 +164,7 @@ export default function ProfileScreen() {
             <Text style={s.sectionTitle}>Account</Text>
             {!isEditing ? (
               <TouchableOpacity style={s.editBtn} onPress={() => setIsEditing(true)}>
-                <Ionicons name="pencil-outline" size={13} color={Colors.primary} />
+                <Ionicons name="pencil-outline" size={13} color={ADMIN_PRIMARY} />
                 <Text style={s.editBtnText}>Edit</Text>
               </TouchableOpacity>
             ) : (
@@ -199,8 +182,6 @@ export default function ProfileScreen() {
                 <InfoRow icon="mail-outline" label="Email" value={user?.email ?? '—'} />
                 <Divider />
                 <InfoRow icon="call-outline" label="Phone" value={user?.phone ?? '—'} />
-                <Divider />
-                <InfoRow icon="card-outline" label="Employee ID" value={user?.employeeId ?? '—'} />
                 <Divider />
                 <InfoRow icon="shield-outline" label="Role" value={user?.role ?? '—'} />
                 <Divider />
@@ -221,7 +202,7 @@ export default function ProfileScreen() {
                     disabled={savingProfile}
                   >
                     {savingProfile
-                      ? <ActivityIndicator color={Colors.white} size="small" />
+                      ? <ActivityIndicator color="#FFFFFF" size="small" />
                       : <Text style={s.saveBtnText}>Save Changes</Text>}
                   </TouchableOpacity>
                 </View>
@@ -235,7 +216,7 @@ export default function ProfileScreen() {
           <Section title="Security">
             <View style={s.toggleRow}>
               <View style={s.toggleLeft}>
-                <Ionicons name="finger-print" size={20} color={Colors.textSecondary} style={{ marginRight: 12 }} />
+                <Ionicons name="finger-print" size={20} color="#6B7280" style={{ marginRight: 12 }} />
                 <View>
                   <Text style={s.toggleLabel}>Biometric Unlock</Text>
                   <Text style={s.toggleHint}>Lock app after 5 min in background</Text>
@@ -244,8 +225,8 @@ export default function ProfileScreen() {
               <Switch
                 value={biometricEnabled}
                 onValueChange={handleBiometricToggle}
-                trackColor={{ false: '#E5E7EB', true: Colors.primary }}
-                thumbColor={Colors.white}
+                trackColor={{ false: '#E5E7EB', true: ADMIN_PRIMARY }}
+                thumbColor="#FFFFFF"
               />
             </View>
           </Section>
@@ -255,17 +236,12 @@ export default function ProfileScreen() {
         <Section title="Change Password">
           <Field label="New Password" value={newPassword} onChangeText={setNewPassword} placeholder="Min 8 chars, upper, lower, number, special" secureTextEntry autoCapitalize="none" />
           <Field label="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat new password" secureTextEntry autoCapitalize="none" />
-          <TouchableOpacity style={[s.btn, savingPassword && { opacity: 0.6 }]} onPress={handleChangePassword} disabled={savingPassword}>
-            {savingPassword ? <ActivityIndicator color={Colors.white} /> : <Text style={s.btnText}>Change Password</Text>}
-          </TouchableOpacity>
-        </Section>
-
-        {/* Change attendance PIN */}
-        <Section title="Attendance PIN">
-          <Field label="Current PIN" value={currentPin} onChangeText={setCurrentPin} placeholder="4-digit current PIN" secureTextEntry autoCapitalize="none" keyboardType="phone-pad" />
-          <Field label="New PIN" value={newPin} onChangeText={setNewPin} placeholder="4-digit new PIN" secureTextEntry autoCapitalize="none" keyboardType="phone-pad" />
-          <TouchableOpacity style={[s.btn, savingPin && { opacity: 0.6 }]} onPress={handleChangePin} disabled={savingPin}>
-            {savingPin ? <ActivityIndicator color={Colors.white} /> : <Text style={s.btnText}>Change PIN</Text>}
+          <TouchableOpacity
+            style={[s.btn, savingPassword && { opacity: 0.6 }]}
+            onPress={handleChangePassword}
+            disabled={savingPassword}
+          >
+            {savingPassword ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnText}>Change Password</Text>}
           </TouchableOpacity>
         </Section>
 
@@ -276,36 +252,36 @@ export default function ProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: Colors.text },
+  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  header: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
   body: { padding: 16 },
   section: { marginBottom: 20 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginLeft: 4 },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  sectionCard: { backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 16 },
-  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primaryLight ?? '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  editBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E5E7EB', padding: 16 },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: ADMIN_PRIMARY_LIGHT, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  editBtnText: { fontSize: 12, fontWeight: '600', color: ADMIN_PRIMARY },
   cancelBtn: { paddingHorizontal: 10, paddingVertical: 4 },
-  cancelBtnText: { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
+  cancelBtnText: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
   infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
   infoIconWrap: { width: 28, alignItems: 'center' },
   infoContent: { flex: 1, marginLeft: 8 },
-  infoLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: '600', marginBottom: 1 },
-  infoValue: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  divider: { height: 1, backgroundColor: Colors.gray100, marginVertical: 2 },
+  infoLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', marginBottom: 1 },
+  infoValue: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 2 },
   field: { marginBottom: 14 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: Colors.gray700, marginBottom: 6 },
-  fieldInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: Colors.text, backgroundColor: Colors.white },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  fieldInput: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#111827', backgroundColor: '#FFFFFF' },
   editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  cancelFullBtn: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  cancelFullBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
-  saveBtn: { flex: 2, backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  saveBtnText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
-  btn: { backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  btnText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
+  cancelFullBtn: { flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  cancelFullBtnText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  saveBtn: { flex: 2, backgroundColor: ADMIN_PRIMARY, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  saveBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  btn: { backgroundColor: ADMIN_PRIMARY, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
+  btnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   toggleLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  toggleLabel: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  toggleHint: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
+  toggleLabel: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  toggleHint: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
 });

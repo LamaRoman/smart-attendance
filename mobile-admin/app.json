@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Attend Xpress",
-    "slug": "attendxpress",
-    "scheme": "attendxpress",
+    "name": "Attend Xpress Admin",
+    "slug": "attendxpress-admin",
     "icon": "./assets/icon.png",
+    "scheme": "attendxpress-admin",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -14,15 +14,15 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F9FAFB"
       },
-      "package": "com.yourcompany.attendxpress"
+      "package": "com.yourcompany.attendxpress.admin"
     },
     "ios": {
-      "bundleIdentifier": "com.yourcompany.attendxpress",
+      "bundleIdentifier": "com.yourcompany.attendxpress.admin",
       "supportsTablet": false
     },
     "extra": {
       "eas": {
-        "projectId": "c10d5cfd-cc65-469b-a696-330e69b7e383"
+        "projectId": "3b9521d0-76fa-4eff-b0f9-08ab24873ccf"
       }
     }
   }

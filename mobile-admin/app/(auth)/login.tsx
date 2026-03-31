@@ -13,7 +13,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth.store';
-import { Colors } from '../../constants/colors';
+
+const ADMIN_PRIMARY = '#7C3AED';
+const ADMIN_PRIMARY_LIGHT = '#EDE9FE';
 
 export default function LoginScreen() {
   const { login, error, clearError, isLoading } = useAuthStore();
@@ -59,31 +61,31 @@ export default function LoginScreen() {
             </View>
             <Text style={s.appName}>Attend  Xpress</Text>
             <View style={s.portalBadge}>
-              <Ionicons name="person-outline" size={12} color={Colors.primary} />
-              <Text style={s.portalText}>Employee Portal</Text>
+              <Ionicons name="shield-outline" size={12} color={ADMIN_PRIMARY} />
+              <Text style={s.portalText}>Admin Portal</Text>
             </View>
           </View>
 
           {/* Card */}
           <View style={s.card}>
-            <Text style={s.cardTitle}>Sign In</Text>
-            <Text style={s.cardSubtitle}>Enter your work email and password</Text>
+            <Text style={s.cardTitle}>Admin Sign In</Text>
+            <Text style={s.cardSubtitle}>Enter your admin email and password</Text>
 
             {/* Error banner */}
             {error ? (
               <View style={s.errorBanner}>
-                <Ionicons name="alert-circle-outline" size={16} color={Colors.error} style={{ marginRight: 6 }} />
+                <Ionicons name="alert-circle-outline" size={16} color="#DC2626" style={{ marginRight: 6 }} />
                 <Text style={s.errorText}>{error}</Text>
               </View>
             ) : null}
 
             {/* Email */}
             <View style={s.fieldGroup}>
-              <Text style={s.label}>Work Email</Text>
+              <Text style={s.label}>Admin Email</Text>
               <TextInput
                 style={s.input}
-                placeholder="you@company.com"
-                placeholderTextColor={Colors.textMuted}
+                placeholder="admin@company.com"
+                placeholderTextColor="#9CA3AF"
                 value={email}
                 onChangeText={(t) => { setEmail(t); clearError(); }}
                 autoCapitalize="none"
@@ -101,7 +103,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={[s.input, s.passwordInput]}
                   placeholder="••••••••"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor="#9CA3AF"
                   value={password}
                   onChangeText={(t) => { setPassword(t); clearError(); }}
                   secureTextEntry={!showPassword}
@@ -117,7 +119,7 @@ export default function LoginScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color={Colors.textMuted}
+                    color="#9CA3AF"
                   />
                 </TouchableOpacity>
               </View>
@@ -131,7 +133,7 @@ export default function LoginScreen() {
               activeOpacity={0.85}
             >
               {busy ? (
-                <ActivityIndicator color={Colors.white} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={s.btnText}>Sign In</Text>
               )}
@@ -139,7 +141,7 @@ export default function LoginScreen() {
           </View>
 
           <Text style={s.footer}>
-            Having trouble? Contact your HR administrator.
+            Admin access only. Unauthorised access is prohibited.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -148,7 +150,7 @@ export default function LoginScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: '#F9FAFB' },
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
@@ -168,10 +170,10 @@ const s = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 16,
-    backgroundColor: Colors.primary,
+    backgroundColor: ADMIN_PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primary,
+    shadowColor: ADMIN_PRIMARY,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -179,18 +181,18 @@ const s = StyleSheet.create({
   },
   logoA: { color: '#FFFFFF', fontSize: 38, fontWeight: '700' },
   logoX: { fontSize: 32, fontWeight: '700', color: '#111827', marginLeft: 6 },
-  appName: { fontSize: 24, fontWeight: '700', color: Colors.text, marginBottom: 10, letterSpacing: 0.5 },
+  appName: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 10, letterSpacing: 0.5 },
   portalBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.primaryLight ?? '#EFF6FF',
+    backgroundColor: ADMIN_PRIMARY_LIGHT,
     paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: 20,
   },
-  portalText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+  portalText: { fontSize: 12, fontWeight: '600', color: ADMIN_PRIMARY },
 
   // Card
   card: {
-    backgroundColor: Colors.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
@@ -199,34 +201,34 @@ const s = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  cardTitle: { fontSize: 20, fontWeight: '700', color: Colors.text, marginBottom: 4 },
-  cardSubtitle: { fontSize: 14, color: Colors.textSecondary, marginBottom: 20 },
+  cardTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  cardSubtitle: { fontSize: 14, color: '#6B7280', marginBottom: 20 },
 
   // Error
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.errorLight,
+    backgroundColor: '#FEE2E2',
     borderWidth: 1,
-    borderColor: Colors.error,
+    borderColor: '#DC2626',
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
   },
-  errorText: { color: Colors.error, fontSize: 14, flex: 1 },
+  errorText: { color: '#DC2626', fontSize: 14, flex: 1 },
 
   // Fields
   fieldGroup: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.gray700, marginBottom: 6 },
+  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#E5E7EB',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     fontSize: 16,
-    color: Colors.text,
-    backgroundColor: Colors.white,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
   },
   passwordRow: { position: 'relative' },
   passwordInput: { paddingRight: 48 },
@@ -240,19 +242,19 @@ const s = StyleSheet.create({
 
   // Button
   btn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: ADMIN_PRIMARY,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
+  btnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 
   footer: {
     textAlign: 'center',
     marginTop: 24,
     fontSize: 13,
-    color: Colors.textMuted,
+    color: '#9CA3AF',
   },
 });

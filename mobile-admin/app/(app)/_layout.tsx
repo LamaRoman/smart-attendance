@@ -36,9 +36,7 @@ export default function AppLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="attendance/scan" />
-      <Stack.Screen name="attendance/gps-checkin" />
+      <Stack.Screen name="(admin-tabs)" />
     </Stack>
   );
 }
