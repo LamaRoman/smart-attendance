@@ -3,7 +3,7 @@ import { TokenStorage } from './auth';
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 // Change this to your Railway URL for production builds
-const BASE_URL = __DEV__ ? 'http://192.168.1.65:5001' : 'https://api.zentaralabs.com';
+const BASE_URL = __DEV__ ? 'http://192.168.1.65:5001' : 'https://YOUR_RAILWAY_URL';
 // ─── Create instance ─────────────────────────────────────────────────────────
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,

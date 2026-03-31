@@ -172,25 +172,6 @@ router.post(
         }
       }
 
-      // Block second clock-in if user already completed attendance today
-      // (has a CHECKED_OUT record) — once in, once out per day
-      const completedToday = await prisma.attendanceRecord.findFirst({
-        where: {
-          membershipId: req.user!.membershipId,
-          checkInTime: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-          status: 'CHECKED_OUT',
-        },
-      });
-
-      if (completedToday) {
-        return res.status(400).json({
-          error: {
-            message: 'Attendance already recorded for today.',
-            code: 'ALREADY_RECORDED',
-          },
-        });
-      }
-
       // Check current status
       const existing = await prisma.attendanceRecord.findFirst({
         where: {
@@ -202,8 +183,8 @@ router.post(
 
       const now = new Date();
 
-      if (!existing) {
-        // No record today — clock in
+      if (!existing || existing.status === 'CHECKED_OUT') {
+        // Clock in
         const record = await prisma.attendanceRecord.create({
           data: {
             membershipId: req.user!.membershipId,
@@ -222,7 +203,7 @@ router.post(
           },
         });
       } else if (existing.status === 'CHECKED_IN') {
-        // Currently clocked in — clock out
+        // Clock out
         const duration = Math.floor(
           (now.getTime() - new Date(existing.checkInTime!).getTime()) / 60000
         );

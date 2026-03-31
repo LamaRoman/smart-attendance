@@ -73,6 +73,8 @@ export default function GPSCheckinScreen() {
       setTimeout(() => router.replace('/(app)/home'), 2500);
     } catch (err: unknown) {
   const error = err as any;
+  console.log('CHECKIN ERROR:', JSON.stringify(error?.response?.data));
+  console.log('CHECKIN STATUS:', error?.response?.status);
   const msg = error?.response?.data?.error?.message ?? error?.response?.data?.message ?? 'Check-in failed. Please try again.';
   setMessage(msg);
   setScreenState('error');

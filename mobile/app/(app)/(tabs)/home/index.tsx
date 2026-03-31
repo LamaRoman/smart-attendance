@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,9 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, getOrgName } from '../../../../store/auth.store';
 import { useAttendanceStore } from '../../../../store/attendance.store';
 import { Colors } from '../../../../constants/colors';
@@ -43,12 +40,18 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub: st
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const orgName = getOrgName(user);
   const { status, isLoading, fetchStatus } = useAttendanceStore();
   const [refreshing, setRefreshing] = useState(false);
   const [quickStats, setQuickStats] = useState<{ present: number; leaveBalance: number } | null>(null);
   const [todayRecord, setTodayRecord] = useState<{ checkInTime: string | null; checkOutTime: string | null } | null>(null);
+
+  useEffect(() => {
+    fetchStatus();
+    fetchQuickStats();
+    fetchTodayRecord();
+  }, []);
 
   const fetchQuickStats = async () => {
     try {
@@ -71,6 +74,7 @@ export default function HomeScreen() {
       const today = todayBS();
       const data = await apiGet<any>(`/api/attendance/my?bsYear=${today.year}&bsMonth=${today.month}`);
       const records = data?.records ?? [];
+      // Match by BS date fields instead of ISO string to avoid timezone issues
       const rec = records.find((r: any) =>
         r.bsYear === today.year && r.bsMonth === today.month && r.bsDay === today.day
       );
@@ -82,23 +86,6 @@ export default function HomeScreen() {
     } catch { /* non-critical */ }
   };
 
-  // Initial load on mount
-  useEffect(() => {
-    fetchStatus();
-    fetchQuickStats();
-    fetchTodayRecord();
-  }, []);
-
-  // Refetch every time the screen comes into focus
-  // (e.g. returning from clock-in/clock-out screen)
-  useFocusEffect(
-    useCallback(() => {
-      fetchStatus();
-      fetchQuickStats();
-      fetchTodayRecord();
-    }, [])
-  );
-
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([fetchStatus(), fetchQuickStats(), fetchTodayRecord()]);
@@ -107,25 +94,27 @@ export default function HomeScreen() {
 
   const handleClockAction = () => {
     const mode = user?.organization?.attendanceMode ?? 'BOTH';
+    // DEBUG — remove after confirming
+    console.log('=== CLOCK ACTION ===');
+    console.log('attendanceMode:', mode);
+    console.log('user.organization:', JSON.stringify(user?.organization));
 
     if (mode === 'QR_ONLY') {
       router.push('/(app)/attendance/scan');
     } else {
+      // MOBILE_ONLY or BOTH → GPS check-in on mobile
       router.push('/(app)/attendance/gps-checkin');
     }
-  };
-
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
-    ]);
   };
 
   const isClockedIn = status?.isClockedIn ?? false;
   const checkInTime = (status as any)?.record?.checkInTime ?? todayRecord?.checkInTime ?? null;
   const checkOutTime = (status as any)?.record?.checkOutTime ?? todayRecord?.checkOutTime ?? null;
   const elapsedFormatted = (status as any)?.currentDuration?.formatted ?? null;
+
+  // DEBUG — remove after confirming
+  console.log('STATUS:', JSON.stringify(status));
+  console.log('checkInTime:', checkInTime, 'checkOutTime:', checkOutTime);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -135,16 +124,9 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <View style={s.headerTop}>
-            <View>
-              <Text style={s.greeting}>Good {getGreeting()},</Text>
-              <Text style={s.userName}>{user ? `${user.firstName} ${user.lastName}` : '—'}</Text>
-              <Text style={s.orgName}>{orgName}</Text>
-            </View>
-            <TouchableOpacity style={s.logoutBtn} onPress={handleLogout} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="log-out-outline" size={24} color={Colors.error} />
-            </TouchableOpacity>
-          </View>
+          <Text style={s.greeting}>Good {getGreeting()},</Text>
+          <Text style={s.userName}>{user ? `${user.firstName} ${user.lastName}` : '—'}</Text>
+          <Text style={s.orgName}>{orgName}</Text>
         </View>
 
         {/* Clock-in card */}
@@ -220,15 +202,9 @@ const CIRCLE_SIZE = 180;
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
-  headerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   greeting: { fontSize: 14, color: Colors.textSecondary },
   userName: { fontSize: 22, fontWeight: '700', color: Colors.text, marginTop: 2 },
   orgName: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
-  logoutBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border,
-    alignItems: 'center', justifyContent: 'center', marginTop: 4,
-  },
   loadingCard: {
     marginHorizontal: 20, height: 300, backgroundColor: Colors.card,
     borderRadius: 20, alignItems: 'center', justifyContent: 'center',

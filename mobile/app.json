@@ -1,29 +1,56 @@
 {
   "expo": {
-    "name": "Attend Xpress",
-    "slug": "attendxpress",
-    "scheme": "attendxpress",
+    "name": "Smart Attendance",
+    "slug": "smart-attendance",
+    "version": "1.0.0",
+    "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F9FAFB"
+      "backgroundColor": "#2563EB"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourcompany.smartattendance"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F9FAFB"
+        "backgroundColor": "#2563EB"
       },
-      "package": "com.yourcompany.attendxpress"
+      "package": "com.yourcompany.smartattendance"
     },
-    "ios": {
-      "bundleIdentifier": "com.yourcompany.attendxpress",
-      "supportsTablet": false
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
-    "extra": {
-      "eas": {
-        "projectId": "c10d5cfd-cc65-469b-a696-330e69b7e383"
-      }
-    }
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Smart Attendance needs camera access to scan QR codes for check-in."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Smart Attendance needs your location to verify check-in at your workplace."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2563EB"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "smart-attendance"
   }
 }

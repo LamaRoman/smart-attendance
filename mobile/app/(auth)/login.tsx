@@ -11,7 +11,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth.store';
 import { Colors } from '../../constants/colors';
 
@@ -29,8 +28,9 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       await login(email.trim().toLowerCase(), password);
+      // Navigation happens automatically via the auth guard in _layout.tsx
     } catch {
-      // Error is set in the store
+      // Error is set in the store — displayed below
     } finally {
       setSubmitting(false);
     }
@@ -39,49 +39,42 @@ export default function LoginScreen() {
   const busy = submitting || isLoading;
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={s.flex}
+        style={styles.flex}
       >
         <ScrollView
-          contentContainerStyle={s.scroll}
+          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Branding */}
-          <View style={s.header}>
-            <View style={s.logoBox}>
-              <View style={s.logoInner}>
-                <Text style={s.logoA}>A</Text>
-              </View>
-              <Text style={s.logoX}>x</Text>
+          {/* Logo / branding */}
+          <View style={styles.header}>
+            <View style={styles.logoBox}>
+              <Text style={styles.logoText}>SA</Text>
             </View>
-            <Text style={s.appName}>Attend  Xpress</Text>
-            <View style={s.portalBadge}>
-              <Ionicons name="person-outline" size={12} color={Colors.primary} />
-              <Text style={s.portalText}>Employee Portal</Text>
-            </View>
+            <Text style={styles.appName}>Smart Attendance</Text>
+            <Text style={styles.tagline}>Employee Portal</Text>
           </View>
 
           {/* Card */}
-          <View style={s.card}>
-            <Text style={s.cardTitle}>Sign In</Text>
-            <Text style={s.cardSubtitle}>Enter your work email and password</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Sign In</Text>
+            <Text style={styles.cardSubtitle}>Enter your work email and password</Text>
 
             {/* Error banner */}
             {error ? (
-              <View style={s.errorBanner}>
-                <Ionicons name="alert-circle-outline" size={16} color={Colors.error} style={{ marginRight: 6 }} />
-                <Text style={s.errorText}>{error}</Text>
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
 
             {/* Email */}
-            <View style={s.fieldGroup}>
-              <Text style={s.label}>Work Email</Text>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Work Email</Text>
               <TextInput
-                style={s.input}
+                style={styles.input}
                 placeholder="you@company.com"
                 placeholderTextColor={Colors.textMuted}
                 value={email}
@@ -95,11 +88,11 @@ export default function LoginScreen() {
             </View>
 
             {/* Password */}
-            <View style={s.fieldGroup}>
-              <Text style={s.label}>Password</Text>
-              <View style={s.passwordRow}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordRow}>
                 <TextInput
-                  style={[s.input, s.passwordInput]}
+                  style={[styles.input, styles.passwordInput]}
                   placeholder="••••••••"
                   placeholderTextColor={Colors.textMuted}
                   value={password}
@@ -110,22 +103,18 @@ export default function LoginScreen() {
                   editable={!busy}
                 />
                 <TouchableOpacity
-                  style={s.eyeBtn}
+                  style={styles.eyeBtn}
                   onPress={() => setShowPassword((v) => !v)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={Colors.textMuted}
-                  />
+                  <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Submit */}
             <TouchableOpacity
-              style={[s.btn, busy && s.btnDisabled]}
+              style={[styles.btn, busy && styles.btnDisabled]}
               onPress={handleLogin}
               disabled={busy || !email.trim() || !password.trim()}
               activeOpacity={0.85}
@@ -133,12 +122,12 @@ export default function LoginScreen() {
               {busy ? (
                 <ActivityIndicator color={Colors.white} />
               ) : (
-                <Text style={s.btnText}>Sign In</Text>
+                <Text style={styles.btnText}>Sign In</Text>
               )}
             </TouchableOpacity>
           </View>
 
-          <Text style={s.footer}>
+          <Text style={styles.footer}>
             Having trouble? Contact your HR administrator.
           </Text>
         </ScrollView>
@@ -147,7 +136,7 @@ export default function LoginScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
   scroll: {
@@ -157,36 +146,25 @@ const s = StyleSheet.create({
     paddingVertical: 40,
   },
 
-  // Branding
+  // Header
   header: { alignItems: 'center', marginBottom: 32 },
   logoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  logoInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+    width: 72,
+    height: 72,
+    borderRadius: 20,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 16,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  logoA: { color: '#FFFFFF', fontSize: 38, fontWeight: '700' },
-  logoX: { fontSize: 32, fontWeight: '700', color: '#111827', marginLeft: 6 },
-  appName: { fontSize: 24, fontWeight: '700', color: Colors.text, marginBottom: 10, letterSpacing: 0.5 },
-  portalBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.primaryLight ?? '#EFF6FF',
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 20,
-  },
-  portalText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+  logoText: { color: Colors.white, fontSize: 26, fontWeight: '700' },
+  appName: { fontSize: 24, fontWeight: '700', color: Colors.text, marginBottom: 4 },
+  tagline: { fontSize: 14, color: Colors.textSecondary },
 
   // Card
   card: {
@@ -204,8 +182,6 @@ const s = StyleSheet.create({
 
   // Error
   errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: Colors.errorLight,
     borderWidth: 1,
     borderColor: Colors.error,
@@ -213,7 +189,7 @@ const s = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
   },
-  errorText: { color: Colors.error, fontSize: 14, flex: 1 },
+  errorText: { color: Colors.error, fontSize: 14 },
 
   // Fields
   fieldGroup: { marginBottom: 16 },
@@ -237,6 +213,7 @@ const s = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
   },
+  eyeText: { fontSize: 18 },
 
   // Button
   btn: {

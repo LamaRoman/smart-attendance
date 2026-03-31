@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, ActivityIndicator, Alert, Switch,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, getOrgName } from '../../../../store/auth.store';
 import { apiPost } from '../../../../lib/api';
 import api from '../../../../lib/api';
 import { Colors } from '../../../../constants/colors';
-import { useBiometric } from '../../../../hooks/useBiometric';
-import { useBiometricStore } from '../../../../store/biometricStore';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,26 +24,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function InfoRow({ icon, label, value }: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  label: string; value: string;
-}) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={s.infoRow}>
-      <View style={s.infoIconWrap}>
-        <Ionicons name={icon} size={15} color={Colors.textMuted} />
-      </View>
-      <View style={s.infoContent}>
-        <Text style={s.infoLabel}>{label}</Text>
-        <Text style={s.infoValue}>{value || '—'}</Text>
-      </View>
+      <Text style={s.infoLabel}>{label}</Text>
+      <Text style={s.infoValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
 
-function Divider() { return <View style={s.divider} />; }
+function Divider() {
+  return <View style={s.divider} />;
+}
 
-function Field({ label, value, onChangeText, placeholder, secureTextEntry, autoCapitalize, keyboardType }: {
+function Field({
+  label, value, onChangeText, placeholder, secureTextEntry, autoCapitalize, keyboardType,
+}: {
   label: string; value: string; onChangeText: (v: string) => void;
   placeholder?: string; secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'words' | 'sentences';
@@ -64,10 +63,9 @@ function Field({ label, value, onChangeText, placeholder, secureTextEntry, autoC
 }
 
 export default function ProfileScreen() {
-  const { user, initialize } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const orgName = getOrgName(user);
 
-  const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
@@ -81,33 +79,6 @@ export default function ProfileScreen() {
   const [newPin, setNewPin] = useState('');
   const [savingPin, setSavingPin] = useState(false);
 
-  const { isSupported, authenticate } = useBiometric();
-  const { biometricEnabled, setBiometricEnabled, loadSettings } = useBiometricStore();
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-
-  useEffect(() => {
-    loadSettings();
-    isSupported().then(setBiometricAvailable);
-  }, []);
-
-  // Sync local state when user updates in store
-  useEffect(() => {
-    setFirstName(user?.firstName ?? '');
-    setLastName(user?.lastName ?? '');
-    setPhone(user?.phone ?? '');
-  }, [user]);
-
-  const handleBiometricToggle = async (value: boolean) => {
-    if (value) {
-      const result = await authenticate();
-      if (!result.success) {
-        Alert.alert('Biometric Failed', 'Could not verify biometrics. Please try again.');
-        return;
-      }
-    }
-    await setBiometricEnabled(value);
-  };
-
   const handleSaveProfile = async () => {
     if (!firstName.trim()) { Alert.alert('Error', 'First name is required.'); return; }
     setSavingProfile(true);
@@ -117,20 +88,12 @@ export default function ProfileScreen() {
         lastName: lastName.trim(),
         phone: phone.trim() || undefined,
       });
-      // Refresh user in store so updated values show immediately
-      await initialize();
-      setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully.');
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.error?.message ?? 'Failed to update profile.');
-    } finally { setSavingProfile(false); }
-  };
-
-  const handleCancelEdit = () => {
-    setFirstName(user?.firstName ?? '');
-    setLastName(user?.lastName ?? '');
-    setPhone(user?.phone ?? '');
-    setIsEditing(false);
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -141,14 +104,18 @@ export default function ProfileScreen() {
     if (!/[a-z]/.test(newPassword)) { Alert.alert('Error', 'Must contain a lowercase letter.'); return; }
     if (!/[0-9]/.test(newPassword)) { Alert.alert('Error', 'Must contain a number.'); return; }
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) { Alert.alert('Error', 'Must contain a special character.'); return; }
+
     setSavingPassword(true);
     try {
       await api.put(`/api/users/${user?.id}`, { password: newPassword });
-      setNewPassword(''); setConfirmPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
       Alert.alert('Success', 'Password changed successfully.');
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.error?.message ?? 'Failed to change password.');
-    } finally { setSavingPassword(false); }
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const handleChangePin = async () => {
@@ -158,14 +125,22 @@ export default function ProfileScreen() {
     setSavingPin(true);
     try {
       await apiPost('/api/auth/attendance-pin', { currentPin, newPin });
-      setCurrentPin(''); setNewPin('');
+      setCurrentPin('');
+      setNewPin('');
       Alert.alert('Success', 'Attendance PIN changed successfully.');
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.error?.message ?? 'Failed to change PIN.');
-    } finally { setSavingPin(false); }
+    } finally {
+      setSavingPin(false);
+    }
   };
 
-  const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || '—';
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
+    ]);
+  };
 
   return (
     <SafeAreaView style={s.safe}>
@@ -175,81 +150,30 @@ export default function ProfileScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.body}>
 
-        {/* Account */}
-        <View style={s.section}>
-          <View style={s.sectionRow}>
-            <Text style={s.sectionTitle}>Account</Text>
-            {!isEditing ? (
-              <TouchableOpacity style={s.editBtn} onPress={() => setIsEditing(true)}>
-                <Ionicons name="pencil-outline" size={13} color={Colors.primary} />
-                <Text style={s.editBtnText}>Edit</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={s.cancelBtn} onPress={handleCancelEdit}>
-                <Text style={s.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+        {/* Account — read only */}
+        <Section title="Account">
+          <InfoRow label="Name" value={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || '—'} />
+          <Divider />
+          <InfoRow label="Email" value={user?.email ?? '—'} />
+          <Divider />
+          <InfoRow label="Phone" value={user?.phone ?? '—'} />
+          <Divider />
+          <InfoRow label="Employee ID" value={user?.employeeId ?? '—'} />
+          <Divider />
+          <InfoRow label="Role" value={user?.role ?? '—'} />
+          <Divider />
+          <InfoRow label="Organisation" value={orgName} />
+        </Section>
 
-          <View style={s.sectionCard}>
-            {!isEditing ? (
-              <>
-                <InfoRow icon="person-outline" label="Full Name" value={fullName} />
-                <Divider />
-                <InfoRow icon="mail-outline" label="Email" value={user?.email ?? '—'} />
-                <Divider />
-                <InfoRow icon="call-outline" label="Phone" value={user?.phone ?? '—'} />
-                <Divider />
-                <InfoRow icon="card-outline" label="Employee ID" value={user?.employeeId ?? '—'} />
-                <Divider />
-                <InfoRow icon="shield-outline" label="Role" value={user?.role ?? '—'} />
-                <Divider />
-                <InfoRow icon="business-outline" label="Organisation" value={orgName} />
-              </>
-            ) : (
-              <>
-                <Field label="First Name" value={firstName} onChangeText={setFirstName} placeholder="First name" autoCapitalize="words" />
-                <Field label="Last Name" value={lastName} onChangeText={setLastName} placeholder="Last name" autoCapitalize="words" />
-                <Field label="Phone" value={phone} onChangeText={setPhone} placeholder="Phone number" autoCapitalize="none" keyboardType="phone-pad" />
-                <View style={s.editActions}>
-                  <TouchableOpacity style={s.cancelFullBtn} onPress={handleCancelEdit}>
-                    <Text style={s.cancelFullBtnText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.saveBtn, savingProfile && { opacity: 0.6 }]}
-                    onPress={handleSaveProfile}
-                    disabled={savingProfile}
-                  >
-                    {savingProfile
-                      ? <ActivityIndicator color={Colors.white} size="small" />
-                      : <Text style={s.saveBtnText}>Save Changes</Text>}
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-
-        {/* Security */}
-        {biometricAvailable && (
-          <Section title="Security">
-            <View style={s.toggleRow}>
-              <View style={s.toggleLeft}>
-                <Ionicons name="finger-print" size={20} color={Colors.textSecondary} style={{ marginRight: 12 }} />
-                <View>
-                  <Text style={s.toggleLabel}>Biometric Unlock</Text>
-                  <Text style={s.toggleHint}>Lock app after 5 min in background</Text>
-                </View>
-              </View>
-              <Switch
-                value={biometricEnabled}
-                onValueChange={handleBiometricToggle}
-                trackColor={{ false: '#E5E7EB', true: Colors.primary }}
-                thumbColor={Colors.white}
-              />
-            </View>
-          </Section>
-        )}
+        {/* Edit profile */}
+        <Section title="Edit Profile">
+          <Field label="First Name" value={firstName} onChangeText={setFirstName} placeholder="First name" autoCapitalize="words" />
+          <Field label="Last Name" value={lastName} onChangeText={setLastName} placeholder="Last name" autoCapitalize="words" />
+          <Field label="Phone" value={phone} onChangeText={setPhone} placeholder="Phone number" autoCapitalize="none" keyboardType="phone-pad" />
+          <TouchableOpacity style={[s.btn, savingProfile && { opacity: 0.6 }]} onPress={handleSaveProfile} disabled={savingProfile}>
+            {savingProfile ? <ActivityIndicator color={Colors.white} /> : <Text style={s.btnText}>Save Profile</Text>}
+          </TouchableOpacity>
+        </Section>
 
         {/* Change password */}
         <Section title="Change Password">
@@ -269,6 +193,11 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </Section>
 
+        {/* Sign out */}
+        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+          <Text style={s.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -281,31 +210,17 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: '700', color: Colors.text },
   body: { padding: 16 },
   section: { marginBottom: 20 },
-  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginLeft: 4 },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginLeft: 4 },
   sectionCard: { backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 16 },
-  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primaryLight ?? '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  editBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
-  cancelBtn: { paddingHorizontal: 10, paddingVertical: 4 },
-  cancelBtnText: { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
-  infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  infoIconWrap: { width: 28, alignItems: 'center' },
-  infoContent: { flex: 1, marginLeft: 8 },
-  infoLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: '600', marginBottom: 1 },
-  infoValue: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  divider: { height: 1, backgroundColor: Colors.gray100, marginVertical: 2 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  infoLabel: { fontSize: 14, color: Colors.textSecondary },
+  infoValue: { fontSize: 14, fontWeight: '600', color: Colors.text, maxWidth: '60%', textAlign: 'right' },
+  divider: { height: 1, backgroundColor: Colors.gray100, marginVertical: 8 },
   field: { marginBottom: 14 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: Colors.gray700, marginBottom: 6 },
   fieldInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: Colors.text, backgroundColor: Colors.white },
-  editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  cancelFullBtn: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  cancelFullBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
-  saveBtn: { flex: 2, backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  saveBtnText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
   btn: { backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
   btnText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  toggleLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  toggleLabel: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  toggleHint: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
+  logoutBtn: { borderWidth: 1, borderColor: Colors.error, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  logoutText: { color: Colors.error, fontSize: 15, fontWeight: '700' },
 });
