@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Attend Xpress",
-    "slug": "attendxpress",
+    "slug": "smart-attendance",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -63,6 +63,7 @@
       "eas": {
         "projectId": "eaec5037-7f5c-42f2-ab93-eb1603e2fe1e"
       }
-    }
+    },
+    "owner": "romanlama"
   }
 }
