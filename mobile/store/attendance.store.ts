@@ -1,17 +1,18 @@
 import { create } from 'zustand';
 import { apiGet } from '../lib/api';
 
+// Matches actual API response from /api/attendance/status
 export interface AttendanceStatus {
   isClockedIn: boolean;
-  clockInTime: string | null;   // ISO timestamp
-  shiftStart: string | null;
-  todaySummary: {
-    date: string;
-    present: boolean;
-    clockIn: string | null;
-    clockOut: string | null;
-    durationMinutes: number | null;
-    status: 'ON_TIME' | 'LATE' | 'ABSENT' | 'AUTO_CLOSED' | null;
+  record: {
+    id: string;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    status: string;
+  } | null;
+  currentDuration: {
+    minutes: number;
+    formatted: string;
   } | null;
 }
 
@@ -38,8 +39,8 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
       set({ status: data, isLoading: false, lastFetched: new Date() });
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Failed to load attendance status.';
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? 'Failed to load attendance status.';
       set({ error: message, isLoading: false });
     }
   },

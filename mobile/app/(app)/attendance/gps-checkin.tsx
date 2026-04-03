@@ -28,7 +28,6 @@ export default function GPSCheckinScreen() {
   const [message, setMessage] = useState('');
   const [permissionDenied, setPermissionDenied] = useState(false);
 
-  // Fetch location on mount
   useEffect(() => {
     getLocation();
   }, []);
@@ -63,27 +62,39 @@ export default function GPSCheckinScreen() {
     setScreenState('submitting');
 
     try {
-      const result = await apiPost<{ message: string; time: string }>(
+      const result = await apiPost<{ message: string; time: string; action: string }>(
         '/api/attendance/mobile-checkin-auth',
         { latitude: coords.lat, longitude: coords.lng }
       );
-      setMessage(result.message ?? (isClockedIn ? 'Clocked out successfully!' : 'Clocked in successfully!'));
+      setMessage(
+        result.message ??
+          (isClockedIn ? 'Clocked out successfully!' : 'Clocked in successfully!')
+      );
       setScreenState('success');
+
+      // Refresh store immediately so home screen has fresh data
       await fetchStatus();
-      setTimeout(() => router.replace('/(app)/home'), 2500);
+
+      // Go back to home — triggers useFocusEffect which refetches again
+      setTimeout(() => router.back(), 2000);
     } catch (err: unknown) {
-  const error = err as any;
-  console.log('CHECKIN ERROR:', JSON.stringify(error?.response?.data));
-  console.log('CHECKIN STATUS:', error?.response?.status);
-  const msg = error?.response?.data?.error?.message ?? error?.response?.data?.message ?? 'Check-in failed. Please try again.';
-  setMessage(msg);
-  setScreenState('error');
-}
+      const error = err as any;
+      const msg =
+        error?.response?.data?.error?.message ??
+        error?.response?.data?.message ??
+        'Check-in failed. Please try again.';
+      setMessage(msg);
+      setScreenState('error');
+    }
   };
 
   const accuracyColor =
     accuracy !== null
-      ? accuracy <= 20 ? Colors.success : accuracy <= 50 ? Colors.warning : Colors.error
+      ? accuracy <= 20
+        ? Colors.success
+        : accuracy <= 50
+        ? Colors.warning
+        : Colors.error
       : Colors.textMuted;
 
   return (
@@ -134,14 +145,21 @@ export default function GPSCheckinScreen() {
         {org && (
           <View style={styles.orgCard}>
             <Text style={styles.orgCardLabel}>Workplace</Text>
-            <Text style={styles.orgCardName}>{org.name}</Text>
+            <Text style={styles.orgCardName}>{(org as any).name}</Text>
           </View>
         )}
 
         {/* Result message */}
         {(screenState === 'success' || (screenState === 'error' && message)) && (
-          <View style={[styles.resultBanner, screenState === 'success' ? styles.bannerSuccess : styles.bannerError]}>
-            <Text style={styles.resultIcon}>{screenState === 'success' ? '✅' : '⚠️'}</Text>
+          <View
+            style={[
+              styles.resultBanner,
+              screenState === 'success' ? styles.bannerSuccess : styles.bannerError,
+            ]}
+          >
+            <Text style={styles.resultIcon}>
+              {screenState === 'success' ? '✅' : '⚠️'}
+            </Text>
             <Text style={styles.resultText}>{message}</Text>
           </View>
         )}
@@ -161,7 +179,9 @@ export default function GPSCheckinScreen() {
               isClockedIn ? styles.actionBtnOut : styles.actionBtnIn,
               screenState === 'error' && !permissionDenied && styles.actionBtnRetry,
             ]}
-            onPress={screenState === 'error' && !permissionDenied ? getLocation : handleCheckInOut}
+            onPress={
+              screenState === 'error' && !permissionDenied ? getLocation : handleCheckInOut
+            }
             disabled={!coords && screenState !== 'error'}
             activeOpacity={0.85}
           >
@@ -182,7 +202,7 @@ export default function GPSCheckinScreen() {
         )}
 
         {screenState === 'success' && (
-          <Text style={styles.redirectText}>Redirecting to home…</Text>
+          <Text style={styles.redirectText}>Returning to home…</Text>
         )}
 
         {/* Cancel */}
@@ -198,7 +218,6 @@ export default function GPSCheckinScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -210,15 +229,18 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 28, color: Colors.primary, lineHeight: 32 },
-  title: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: Colors.text },
-
+  title: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
+  },
   body: { flex: 1, padding: 24, alignItems: 'center' },
-
   pinContainer: { alignItems: 'center', marginBottom: 24, marginTop: 16 },
   pinEmoji: { fontSize: 64, marginBottom: 12 },
   locatingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   locatingText: { fontSize: 14, color: Colors.textSecondary },
-
   coordsCard: {
     width: '100%',
     backgroundColor: Colors.card,
@@ -229,13 +251,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   coordsLabel: { fontSize: 12, color: Colors.textMuted, marginBottom: 4 },
-  coordsValue: { fontSize: 15, fontWeight: '600', color: Colors.text, fontFamily: 'monospace' },
+  coordsValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    fontFamily: 'monospace',
+  },
   accuracyRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
   accuracyDot: { width: 8, height: 8, borderRadius: 4 },
   accuracyText: { fontSize: 13, fontWeight: '500' },
   refreshBtn: { marginLeft: 'auto' },
   refreshText: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
-
   orgCard: {
     width: '100%',
     backgroundColor: Colors.primaryLight,
@@ -247,7 +273,6 @@ const styles = StyleSheet.create({
   },
   orgCardLabel: { fontSize: 12, color: Colors.primary, marginBottom: 2 },
   orgCardName: { fontSize: 16, fontWeight: '700', color: Colors.primaryDark },
-
   resultBanner: {
     width: '100%',
     borderRadius: 10,
@@ -257,11 +282,18 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 20,
   },
-  bannerSuccess: { backgroundColor: Colors.successLight, borderWidth: 1, borderColor: '#BBF7D0' },
-  bannerError: { backgroundColor: Colors.errorLight, borderWidth: 1, borderColor: '#FECACA' },
+  bannerSuccess: {
+    backgroundColor: Colors.successLight,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  bannerError: {
+    backgroundColor: Colors.errorLight,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
   resultIcon: { fontSize: 22 },
   resultText: { flex: 1, fontSize: 14, fontWeight: '500', color: Colors.text },
-
   permDeniedText: {
     fontSize: 13,
     color: Colors.textSecondary,
@@ -269,7 +301,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 16,
   },
-
   actionBtn: {
     width: '100%',
     borderRadius: 12,
@@ -281,9 +312,7 @@ const styles = StyleSheet.create({
   actionBtnOut: { backgroundColor: Colors.error },
   actionBtnRetry: { backgroundColor: Colors.gray600 },
   actionBtnText: { color: Colors.white, fontSize: 17, fontWeight: '700' },
-
   redirectText: { fontSize: 13, color: Colors.textMuted, marginTop: 8 },
-
   cancelBtn: { marginTop: 4, paddingVertical: 12 },
   cancelText: { fontSize: 15, color: Colors.textSecondary },
 });
