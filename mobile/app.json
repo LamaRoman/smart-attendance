@@ -47,7 +47,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Attend Xpress needs your location to verify check-in at your workplace."
         }
-      ]
+      ],
+      "expo-local-authentication"
     ],
     "experiments": {
       "typedRoutes": true
