@@ -32,7 +32,19 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-local-authentication"
+      "expo-local-authentication",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Attend Xpress Admin needs camera access to scan QR codes."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Attend Xpress Admin needs your location to verify attendance."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
