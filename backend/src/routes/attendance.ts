@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { attendanceService } from '../services/attendance.service';
 import { validate } from '../middleware/validate';
 import {
@@ -18,6 +18,7 @@ import {
   AuthRequest,
 } from '../middleware/auth';
 import { scanRateLimiter } from '../middleware/rateLimiter';
+import { adToBS } from '../lib/nepali-date';
 import prisma from '../lib/prisma';
 
 const router = Router();
@@ -172,43 +173,27 @@ router.post(
         }
       }
 
-      // Check current status
-      const existing = await prisma.attendanceRecord.findFirst({
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const now = new Date();
+
+      // Step 1 — Check if currently CHECKED_IN → allow clock out immediately
+      const openRecord = await prisma.attendanceRecord.findFirst({
         where: {
           membershipId: req.user!.membershipId,
-          checkInTime: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+          checkInTime: { gte: todayStart },
+          status: 'CHECKED_IN',
         },
         orderBy: { checkInTime: 'desc' },
       });
 
-      const now = new Date();
-
-      if (!existing || existing.status === 'CHECKED_OUT') {
-        // Clock in
-        const record = await prisma.attendanceRecord.create({
-          data: {
-            membershipId: req.user!.membershipId,
-            organizationId: org.id,
-            checkInTime: now,
-            checkInMethod: 'MOBILE_CHECKIN',
-            status: 'CHECKED_IN',
-          },
-        });
-        return res.json({
-          data: {
-            action: 'CLOCK_IN',
-            message: `Clocked in at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-            time: now.toISOString(),
-            recordId: record.id,
-          },
-        });
-      } else if (existing.status === 'CHECKED_IN') {
+      if (openRecord) {
         // Clock out
         const duration = Math.floor(
-          (now.getTime() - new Date(existing.checkInTime!).getTime()) / 60000
+          (now.getTime() - new Date(openRecord.checkInTime!).getTime()) / 60000
         );
-        const record = await prisma.attendanceRecord.update({
-          where: { id: existing.id },
+        await prisma.attendanceRecord.update({
+          where: { id: openRecord.id },
           data: {
             checkOutTime: now,
             checkOutMethod: 'MOBILE_CHECKIN',
@@ -221,15 +206,55 @@ router.post(
             action: 'CLOCK_OUT',
             message: `Clocked out at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
             time: now.toISOString(),
-            recordId: record.id,
+            recordId: openRecord.id,
             duration,
           },
         });
-      } else {
+      }
+
+      // Step 2 — Not currently clocked in
+      // Block new clock-in if already completed today (once in once out rule)
+      const completedToday = await prisma.attendanceRecord.findFirst({
+        where: {
+          membershipId: req.user!.membershipId,
+          checkInTime: { gte: todayStart },
+          status: 'CHECKED_OUT',
+        },
+      });
+
+      if (completedToday) {
         return res.status(400).json({
-          error: { message: 'Attendance already recorded for today', code: 'ALREADY_RECORDED' },
+          error: {
+            message: 'Attendance already recorded for today.',
+            code: 'ALREADY_RECORDED',
+          },
         });
       }
+
+      // Step 3 — No record today at all → clock in with BS date fields
+      const bs = adToBS(now);
+      const record = await prisma.attendanceRecord.create({
+        data: {
+          membershipId: req.user!.membershipId,
+          organizationId: org.id,
+          checkInTime: now,
+          checkInMethod: 'MOBILE_CHECKIN',
+          status: 'CHECKED_IN',
+          bsYear: bs.year,
+          bsMonth: bs.month,
+          bsDay: bs.day,
+        },
+      });
+
+      return res.json({
+        data: {
+          action: 'CLOCK_IN',
+          message: `Clocked in at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          time: now.toISOString(),
+          recordId: record.id,
+        },
+      });
+
     } catch (error) {
       next(error);
     }
@@ -487,7 +512,6 @@ router.get(
           const minutesLate = Math.floor(
             (checkIn.getTime() - workStart.getTime()) / 60000
           );
-
           if (minutesLate > threshold) {
             return {
               id: record.id,
