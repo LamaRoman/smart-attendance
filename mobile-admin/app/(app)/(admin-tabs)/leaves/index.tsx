@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet, apiPut } from '../../../../lib/api';
+import { Colors } from '../../../../constants/colors';
 
 
 type LeaveRequest = {

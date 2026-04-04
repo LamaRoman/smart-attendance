@@ -139,7 +139,8 @@ export default function SalaryScreen() {
       setLoading(true);
       try {
         const data = await apiGet<PayslipRecord[]>('/api/payroll/my-payslips');
-        setRecords(Array.isArray(data) ? data : []);
+        const all = Array.isArray(data) ? data : [];
+        setRecords(all.filter(r => r.status === 'PAID'));
       } catch {
         setError('Failed to load salary history.');
       } finally {

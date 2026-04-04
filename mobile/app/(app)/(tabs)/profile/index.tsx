@@ -63,7 +63,7 @@ function Field({
 }
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const orgName = getOrgName(user);
 
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
@@ -135,13 +135,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
-    ]);
-  };
-
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
@@ -193,11 +186,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </Section>
 
-        {/* Sign out */}
-        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
-          <Text style={s.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
-
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -221,6 +209,4 @@ const s = StyleSheet.create({
   fieldInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: Colors.text, backgroundColor: Colors.white },
   btn: { backgroundColor: Colors.slate900, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
   btnText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
-  logoutBtn: { borderWidth: 1, borderColor: Colors.error, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  logoutText: { color: Colors.error, fontSize: 15, fontWeight: '700' },
 });

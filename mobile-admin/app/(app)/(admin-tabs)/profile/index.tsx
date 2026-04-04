@@ -28,7 +28,7 @@ function InfoRow({ icon, label, value }: { icon: IoniconsName; label: string; va
 }
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const orgName = getOrgName(user);
   const { biometricEnabled, setBiometricEnabled } = useBiometricStore();
   const { isSupported, authenticate } = useBiometric();
@@ -51,13 +51,6 @@ export default function ProfileScreen() {
       await setBiometricEnabled(false);
     }
     setToggling(false);
-  };
-
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
-    ]);
   };
 
   const name = user ? `${user.firstName} ${user.lastName}` : '—';
@@ -118,12 +111,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-          <Text style={s.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
-
         <Text style={s.version}>Attend Xpress Admin v1.0.0</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -173,11 +160,5 @@ const s = StyleSheet.create({
   divider: { height: 1, backgroundColor: Colors.slate100, marginLeft: 60 },
   switchRow: { flexDirection: 'row', alignItems: 'center', padding: 14 },
   switchSub: { fontSize: 11, color: Colors.slate400, marginTop: 1 },
-  logoutBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    marginHorizontal: 16, backgroundColor: '#FEE2E2',
-    borderRadius: 12, paddingVertical: 14, gap: 8, marginTop: 8,
-  },
-  logoutText: { fontSize: 16, fontWeight: '700', color: '#EF4444' },
   version: { textAlign: 'center', fontSize: 12, color: Colors.slate300, marginTop: 20 },
 });
