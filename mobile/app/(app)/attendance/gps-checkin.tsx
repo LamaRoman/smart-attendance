@@ -75,8 +75,8 @@ export default function GPSCheckinScreen() {
       // Refresh store immediately so home screen has fresh data
       await fetchStatus();
 
-      // Go back to home — triggers useFocusEffect which refetches again
-      setTimeout(() => router.back(), 2000);
+      // Navigate to home — triggers useFocusEffect which refetches again
+      setTimeout(() => router.replace('/(app)/(tabs)/home'), 2000);
     } catch (err: unknown) {
       const error = err as any;
       const msg =
@@ -101,7 +101,7 @@ export default function GPSCheckinScreen() {
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(app)/(tabs)/home')} style={styles.backBtn}>
           <Text style={styles.backBtnText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.title}>GPS Check-{isClockedIn ? 'Out' : 'In'}</Text>
@@ -207,7 +207,7 @@ export default function GPSCheckinScreen() {
 
         {/* Cancel */}
         {screenState !== 'success' && (
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.replace('/(app)/(tabs)/home')}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
         )}

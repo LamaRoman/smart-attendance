@@ -48,7 +48,7 @@ export default function QRScannerScreen() {
           <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
             <Text style={styles.permBtnText}>Grant Permission</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelLink} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.cancelLink} onPress={() => router.replace('/(app)/(tabs)/home')}>
             <Text style={styles.cancelLinkText}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -173,14 +173,14 @@ export default function QRScannerScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.replace('/(app)/(tabs)/home')}>
             <Text style={styles.cancelBtnText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(app)/(tabs)/home')}>
           <Text style={styles.backBtnText}>✕</Text>
         </TouchableOpacity>
         <Text style={styles.topTitle}>QR Check-in</Text>

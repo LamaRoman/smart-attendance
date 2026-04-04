@@ -1,26 +1,22 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  StyleSheet,
+  View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
+  Platform, ScrollView, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth.store';
 import { Colors } from '../../constants/colors';
 
 export default function LoginScreen() {
   const { login, error, clearError, isLoading } = useAuthStore();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) return;
@@ -28,9 +24,7 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       await login(email.trim().toLowerCase(), password);
-      // Navigation happens automatically via the auth guard in _layout.tsx
     } catch {
-      // Error is set in the store — displayed below
     } finally {
       setSubmitting(false);
     }
@@ -39,105 +33,127 @@ export default function LoginScreen() {
   const busy = submitting || isLoading;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={s.safe}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
+        style={s.flex}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={s.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo / branding */}
-          <View style={styles.header}>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoText}>SA</Text>
+          {/* Logo */}
+          <View style={s.logoRow}>
+            <View style={s.logoBox}>
+              <Text style={s.logoText}>S</Text>
             </View>
-            <Text style={styles.appName}>Smart Attendance</Text>
-            <Text style={styles.tagline}>Employee Portal</Text>
+            <Text style={s.logoLabel}>Smart Attendance</Text>
           </View>
 
-          {/* Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sign In</Text>
-            <Text style={styles.cardSubtitle}>Enter your work email and password</Text>
+          {/* Form */}
+          <View style={s.formSection}>
+            <Text style={s.heading}>Sign in</Text>
+            <Text style={s.subtitle}>Enter your credentials to access your account</Text>
 
-            {/* Error banner */}
+            {/* Error */}
             {error ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={s.errorBanner}>
+                <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                <Text style={s.errorText}>{error}</Text>
               </View>
             ) : null}
 
             {/* Email */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Work Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@company.com"
-                placeholderTextColor={Colors.textMuted}
-                value={email}
-                onChangeText={(t) => { setEmail(t); clearError(); }}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                returnKeyType="next"
-                editable={!busy}
-              />
+            <View style={s.fieldGroup}>
+              <Text style={s.label}>Email</Text>
+              <View style={[s.inputWrap, emailFocused && s.inputFocused]}>
+                <Ionicons name="mail-outline" size={16} color={Colors.slate400} style={s.inputIcon} />
+                <TextInput
+                  style={s.input}
+                  placeholder="name@company.com"
+                  placeholderTextColor={Colors.slate400}
+                  value={email}
+                  onChangeText={(t) => { setEmail(t); clearError(); }}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  editable={!busy}
+                />
+              </View>
             </View>
 
             {/* Password */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordRow}>
+            <View style={s.fieldGroup}>
+              <Text style={s.label}>Password</Text>
+              <View style={[s.inputWrap, passwordFocused && s.inputFocused]}>
+                <Ionicons name="lock-closed-outline" size={16} color={Colors.slate400} style={s.inputIcon} />
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  ref={passwordRef}
+                  style={[s.input, { paddingRight: 44 }]}
                   placeholder="••••••••"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={Colors.slate400}
                   value={password}
                   onChangeText={(t) => { setPassword(t); clearError(); }}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
                   secureTextEntry={!showPassword}
                   returnKeyType="done"
                   onSubmitEditing={handleLogin}
                   editable={!busy}
                 />
                 <TouchableOpacity
-                  style={styles.eyeBtn}
+                  style={s.eyeBtn}
                   onPress={() => setShowPassword((v) => !v)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁'}</Text>
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color={Colors.slate400}
+                  />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Submit */}
+            {/* Sign in button */}
             <TouchableOpacity
-              style={[styles.btn, busy && styles.btnDisabled]}
+              style={[s.btn, busy && s.btnDisabled]}
               onPress={handleLogin}
               disabled={busy || !email.trim() || !password.trim()}
               activeOpacity={0.85}
             >
               {busy ? (
-                <ActivityIndicator color={Colors.white} />
+                <View style={s.btnRow}>
+                  <ActivityIndicator color={Colors.white} size="small" />
+                  <Text style={s.btnText}>Signing in...</Text>
+                </View>
               ) : (
-                <Text style={styles.btnText}>Sign In</Text>
+                <View style={s.btnRow}>
+                  <Ionicons name="log-in-outline" size={16} color={Colors.white} />
+                  <Text style={s.btnText}>Sign in</Text>
+                </View>
               )}
             </TouchableOpacity>
-          </View>
 
-          <Text style={styles.footer}>
-            Having trouble? Contact your HR administrator.
-          </Text>
+            {/* Footer divider */}
+            <View style={s.divider} />
+            <Text style={s.footerText}>
+              Having trouble? Contact your HR administrator.
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.white },
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
@@ -146,90 +162,129 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
 
-  // Header
-  header: { alignItems: 'center', marginBottom: 32 },
+  // Logo
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 40,
+  },
   logoBox: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: Colors.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.slate900,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  logoText: { color: Colors.white, fontSize: 26, fontWeight: '700' },
-  appName: { fontSize: 24, fontWeight: '700', color: Colors.text, marginBottom: 4 },
-  tagline: { fontSize: 14, color: Colors.textSecondary },
+  logoText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  logoLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.slate900,
+    letterSpacing: -0.3,
+  },
 
-  // Card
-  card: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+  // Form
+  formSection: {},
+  heading: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: Colors.slate900,
+    marginBottom: 4,
   },
-  cardTitle: { fontSize: 20, fontWeight: '700', color: Colors.text, marginBottom: 4 },
-  cardSubtitle: { fontSize: 14, color: Colors.textSecondary, marginBottom: 20 },
+  subtitle: {
+    fontSize: 14,
+    color: Colors.slate500,
+    marginBottom: 28,
+  },
 
   // Error
   errorBanner: {
-    backgroundColor: Colors.errorLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: Colors.error,
-    borderRadius: 8,
+    borderColor: '#FEE2E2',
+    borderRadius: 10,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  errorText: { color: Colors.error, fontSize: 14 },
+  errorText: { color: '#DC2626', fontSize: 13, flex: 1 },
 
   // Fields
   fieldGroup: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.gray700, marginBottom: 6 },
-  input: {
+  label: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.slate700,
+    marginBottom: 6,
+  },
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.slate200,
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-    fontSize: 16,
-    color: Colors.text,
     backgroundColor: Colors.white,
   },
-  passwordRow: { position: 'relative' },
-  passwordInput: { paddingRight: 48 },
+  inputFocused: {
+    borderColor: Colors.slate900,
+    borderWidth: 2,
+  },
+  inputIcon: {
+    marginLeft: 12,
+  },
+  input: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: Platform.OS === 'ios' ? 13 : 10,
+    fontSize: 14,
+    color: Colors.slate900,
+  },
   eyeBtn: {
     position: 'absolute',
-    right: 14,
+    right: 12,
     top: 0,
     bottom: 0,
     justifyContent: 'center',
   },
-  eyeText: { fontSize: 18 },
 
   // Button
   btn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.slate900,
     borderRadius: 10,
-    paddingVertical: 14,
+    paddingVertical: 13,
     alignItems: 'center',
     marginTop: 8,
   },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
+  btnDisabled: { opacity: 0.5 },
+  btnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  btnText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 
-  footer: {
+  // Footer
+  divider: {
+    height: 1,
+    backgroundColor: Colors.slate100,
+    marginTop: 32,
+    marginBottom: 16,
+  },
+  footerText: {
     textAlign: 'center',
-    marginTop: 24,
-    fontSize: 13,
-    color: Colors.textMuted,
+    fontSize: 12,
+    color: Colors.slate400,
   },
 });

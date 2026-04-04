@@ -1,13 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  RefreshControl,
-  ActivityIndicator,
-  Alert,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet,
+  RefreshControl, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -27,19 +21,9 @@ function formatTime(isoString: string | null | undefined): string {
 
 function getGreeting(): string {
   const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
-}
-
-function StatCard({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <View style={s.statCard}>
-      <Text style={s.statLabel}>{label}</Text>
-      <Text style={s.statValue}>{value}</Text>
-      <Text style={s.statSub}>{sub}</Text>
-    </View>
-  );
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
 }
 
 export default function HomeScreen() {
@@ -50,7 +34,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [quickStats, setQuickStats] = useState<{
     present: number;
-    leaveBalance: number;
+    hoursToday: number;
   } | null>(null);
   const [todayRecord, setTodayRecord] = useState<{
     checkInTime: string | null;
@@ -59,12 +43,8 @@ export default function HomeScreen() {
 
   const fetchQuickStats = async () => {
     try {
-      // Fetch last 60 records and count by checkInTime date
-      // instead of bsYear/bsMonth to support records without BS fields
       const attData = await apiGet<any>('/api/attendance/my?limit=60');
       const records: any[] = attData?.records ?? [];
-
-      // Count days present this month by checkInTime
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const present = records.filter((r: any) => {
@@ -73,7 +53,6 @@ export default function HomeScreen() {
         return d >= monthStart && d <= now;
       }).length;
 
-      // Hours worked today from todayRecord duration field
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayRec = records.find((r: any) => {
@@ -82,9 +61,9 @@ export default function HomeScreen() {
       });
       const hoursToday = todayRec?.duration
         ? Math.round((todayRec.duration / 60) * 10) / 10
-        : null;
+        : 0;
 
-      setQuickStats({ present, leaveBalance: hoursToday ?? 0 });
+      setQuickStats({ present, hoursToday });
     } catch { /* non-critical */ }
   };
 
@@ -125,14 +104,7 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const handleClockAction = () => {
-    const mode = user?.organization?.attendanceMode ?? 'BOTH';
-    if (mode === 'QR_ONLY') {
-      router.push('/(app)/attendance/scan');
-    } else {
-      router.push('/(app)/attendance/gps-checkin');
-    }
-  };
+  const attendanceMode = user?.organization?.attendanceMode ?? 'BOTH';
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -144,8 +116,6 @@ export default function HomeScreen() {
   const todayMidnight = new Date();
   todayMidnight.setHours(0, 0, 0, 0);
 
-  // Only treat as clocked in if the open record is from TODAY
-  // Stale CHECKED_IN records from missed midnight cron are ignored
   const statusRecordIsToday = status?.record?.checkInTime
     ? new Date(status.record.checkInTime) >= todayMidnight
     : false;
@@ -161,223 +131,465 @@ export default function HomeScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.slate900} />
         }
       >
         {/* Header */}
         <View style={s.header}>
           <View style={s.headerTop}>
-            <View>
-              <Text style={s.greeting}>Good {getGreeting()},</Text>
-              <Text style={s.userName}>
-                {user ? `${user.firstName} ${user.lastName}` : '—'}
-              </Text>
-              <Text style={s.orgName}>{orgName}</Text>
+            <View style={s.headerLeft}>
+              <View style={s.headerLogoBox}>
+                <Ionicons name="shield-checkmark" size={16} color={Colors.white} />
+              </View>
+              <View>
+                <Text style={s.headerTitle}>My Attendance</Text>
+                <Text style={s.headerSub}>{user ? `${user.firstName} ${user.lastName}` : '—'}</Text>
+              </View>
             </View>
             <TouchableOpacity
-              style={s.logoutBtn}
+              style={s.headerBtn}
               onPress={handleLogout}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="log-out-outline" size={24} color={Colors.error} />
+              <Ionicons name="log-out-outline" size={18} color={Colors.slate400} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Clock-in card */}
-        {isLoading && !status ? (
-          <View style={s.loadingCard}>
-            <ActivityIndicator color={Colors.primary} size="large" />
-          </View>
-        ) : (
-          <View style={s.clockCard}>
-            {/* Circle */}
-            <View style={[s.circle, isClockedIn ? s.circleGreen : s.circleGray]}>
-              <Text style={s.circleEmoji}>{isClockedIn ? '✅' : '⏸'}</Text>
-              <Text
-                style={[
-                  s.circleStatus,
-                  isClockedIn ? s.circleStatusGreen : s.circleStatusGray,
-                ]}
-              >
-                {isClockedIn ? 'Clocked In' : 'Not Clocked\nIn'}
-              </Text>
-              {isClockedIn && elapsedFormatted ? (
-                <Text style={s.circleElapsed}>{elapsedFormatted}</Text>
-              ) : null}
+        <View style={s.content}>
+          {/* Status Card */}
+          {isLoading && !status ? (
+            <View style={s.loadingCard}>
+              <ActivityIndicator color={Colors.slate900} size="large" />
             </View>
+          ) : (
+            <View style={[s.statusCard, isClockedIn ? s.statusCardActive : s.statusCardInactive]}>
+              {isClockedIn ? (
+                <>
+                  <View style={s.statusIconCircleActive}>
+                    <Ionicons name="checkmark-circle" size={36} color={Colors.white} />
+                  </View>
+                  <Text style={s.statusTextActive}>Clocked In</Text>
+                  <Text style={s.statusSubActive}>
+                    Since {formatTime(checkInTime)}
+                  </Text>
+                  {elapsedFormatted && (
+                    <View style={s.durationPill}>
+                      <Ionicons name="timer-outline" size={16} color={Colors.white} />
+                      <Text style={s.durationText}>{elapsedFormatted}</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  <View style={s.statusIconCircleInactive}>
+                    <Ionicons name="time-outline" size={36} color={Colors.slate400} />
+                  </View>
+                  <Text style={s.statusTextInactive}>Not Clocked In</Text>
+                  <Text style={s.statusSubInactive}>
+                    Tap below to clock in
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
 
-            {/* Times row */}
+          {/* Check-in Methods */}
+          {attendanceComplete ? (
+            <View style={s.clockBtnDone}>
+              <Ionicons name="checkmark-done" size={18} color={Colors.white} />
+              <Text style={s.clockBtnText}>Attendance Complete</Text>
+            </View>
+          ) : attendanceMode === 'BOTH' ? (
+            <View style={s.methodRow}>
+              <TouchableOpacity
+                style={s.methodCard}
+                onPress={() => router.push('/(app)/attendance/scan')}
+                activeOpacity={0.85}
+              >
+                <View style={[s.methodIconWrap, { backgroundColor: Colors.slate100 }]}>
+                  <Ionicons name="qr-code-outline" size={22} color={Colors.slate900} />
+                </View>
+                <Text style={s.methodLabel}>
+                  {isClockedIn ? 'QR Clock Out' : 'QR Scan'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.methodCard}
+                onPress={() => router.push('/(app)/attendance/gps-checkin')}
+                activeOpacity={0.85}
+              >
+                <View style={[s.methodIconWrap, { backgroundColor: '#DCFCE7' }]}>
+                  <Ionicons name="location-outline" size={22} color={Colors.success} />
+                </View>
+                <Text style={s.methodLabel}>
+                  {isClockedIn ? 'GPS Clock Out' : 'GPS Check-in'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[s.clockBtn, isClockedIn ? s.clockBtnOut : s.clockBtnIn]}
+              onPress={() => router.push(
+                attendanceMode === 'QR_ONLY'
+                  ? '/(app)/attendance/scan'
+                  : '/(app)/attendance/gps-checkin'
+              )}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={attendanceMode === 'QR_ONLY' ? 'qr-code-outline' : 'location-outline'}
+                size={20}
+                color={Colors.white}
+              />
+              <Text style={s.clockBtnText}>
+                {isClockedIn ? 'Clock Out' : 'Clock In'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Times Card */}
+          <View style={s.card}>
             <View style={s.timesRow}>
               <View style={s.timeItem}>
-                <Text style={s.timeItemLabel}>Clock In</Text>
-                <Text style={s.timeItemValue}>{formatTime(checkInTime)}</Text>
+                <Text style={s.timeLabel}>Clock In</Text>
+                <Text style={s.timeValue}>{formatTime(checkInTime)}</Text>
               </View>
               <View style={s.timeDivider} />
               <View style={s.timeItem}>
-                <Text style={s.timeItemLabel}>Clock Out</Text>
-                <Text style={s.timeItemValue}>{formatTime(checkOutTime)}</Text>
+                <Text style={s.timeLabel}>Clock Out</Text>
+                <Text style={s.timeValue}>{formatTime(checkOutTime)}</Text>
               </View>
             </View>
-
-            {/* Action button */}
-            {attendanceComplete ? (
-              <View style={[s.clockBtn, s.clockBtnDone]}>
-                <Text style={s.clockBtnText}>Attendance Complete</Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[s.clockBtn, isClockedIn ? s.clockBtnOut : s.clockBtnIn]}
-                onPress={handleClockAction}
-                activeOpacity={0.85}
-              >
-                <Text style={s.clockBtnText}>
-                  {isClockedIn ? '⏹  Clock Out' : '▶  Clock In'}
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
-        )}
 
-        {/* Quick stats */}
-        <View style={s.statsRow}>
-          <StatCard
-            label="This Month"
-            value={quickStats ? String(quickStats.present) : '—'}
-            sub="days present"
-          />
-          <StatCard
-            label="Hours Today"
-            value={quickStats && quickStats.leaveBalance > 0 ? `${quickStats.leaveBalance}h` : '—'}
-            sub="hours worked"
-          />
+          {/* Quick Stats */}
+          <View style={s.statsRow}>
+            <View style={s.statCard}>
+              <View style={s.statIconWrap}>
+                <Ionicons name="calendar-outline" size={16} color={Colors.slate900} />
+              </View>
+              <Text style={s.statValue}>{quickStats ? String(quickStats.present) : '—'}</Text>
+              <Text style={s.statLabel}>Days this month</Text>
+            </View>
+            <View style={s.statCard}>
+              <View style={[s.statIconWrap, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="timer-outline" size={16} color={Colors.success} />
+              </View>
+              <Text style={s.statValue}>
+                {quickStats && quickStats.hoursToday > 0 ? `${quickStats.hoursToday}h` : '—'}
+              </Text>
+              <Text style={s.statLabel}>Hours today</Text>
+            </View>
+          </View>
+
+          {/* Quick Links */}
+          <View style={s.linksGrid}>
+            <TouchableOpacity style={s.linkCard} onPress={() => router.push('/(app)/(tabs)/leaves')}>
+              <View style={[s.linkIconWrap, { backgroundColor: Colors.slate100 }]}>
+                <Ionicons name="calendar" size={18} color={Colors.slate900} />
+              </View>
+              <Text style={s.linkText}>Request Leave</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.linkCard} onPress={() => router.push('/(app)/(tabs)/profile')}>
+              <View style={[s.linkIconWrap, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="person" size={18} color="#2563EB" />
+              </View>
+              <Text style={s.linkText}>My Profile</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ height: 32 }} />
         </View>
-
-        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const CIRCLE_SIZE = 180;
-
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
+
+  // Header
+  header: {
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.slate100,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
   headerTop: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
-  greeting: { fontSize: 14, color: Colors.textSecondary },
-  userName: { fontSize: 22, fontWeight: '700', color: Colors.text, marginTop: 2 },
-  orgName: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
-  logoutBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  headerLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
+    gap: 10,
   },
-  loadingCard: {
-    marginHorizontal: 20,
-    height: 300,
-    backgroundColor: Colors.card,
-    borderRadius: 20,
+  headerLogoBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: Colors.slate900,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clockCard: {
-    marginHorizontal: 20,
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  circle: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    borderWidth: 6,
-  },
-  circleGreen: { backgroundColor: Colors.successLight, borderColor: Colors.success },
-  circleGray: { backgroundColor: Colors.gray100, borderColor: Colors.gray300 },
-  circleEmoji: { fontSize: 32, marginBottom: 4 },
-  circleStatus: {
-    fontSize: 14,
+  headerTitle: {
+    fontSize: 15,
     fontWeight: '700',
-    textAlign: 'center',
-    lineHeight: 18,
+    color: Colors.slate900,
   },
-  circleStatusGreen: { color: Colors.success },
-  circleStatusGray: { color: Colors.gray500 },
-  circleElapsed: {
+  headerSub: {
+    fontSize: 12,
+    color: Colors.slate500,
+    marginTop: 1,
+  },
+  headerBtn: {
+    padding: 8,
+    borderRadius: 10,
+  },
+
+  // Content
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+
+  // Loading
+  loadingCard: {
+    height: 200,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.slate200,
+  },
+
+  // Status Card
+  statusCard: {
+    borderRadius: 14,
+    padding: 32,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  statusCardActive: {
+    backgroundColor: '#16A34A',
+  },
+  statusCardInactive: {
+    backgroundColor: Colors.slate100,
+  },
+  statusIconCircleActive: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  statusIconCircleInactive: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  statusTextActive: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  statusTextInactive: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.slate700,
+  },
+  statusSubActive: {
     fontSize: 13,
-    color: Colors.success,
-    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
+  },
+  statusSubInactive: {
+    fontSize: 13,
+    color: Colors.slate500,
+    marginTop: 4,
+  },
+  durationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  durationText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+
+  // Check-in Methods
+  methodRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  methodCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.slate200,
+    paddingVertical: 18,
+    gap: 10,
+  },
+  methodIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  methodLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.slate900,
+  },
+
+  // Clock Button (single mode)
+  clockBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 12,
+  },
+  clockBtnIn: {
+    backgroundColor: Colors.slate900,
+  },
+  clockBtnOut: {
+    backgroundColor: '#EA580C',
+  },
+  clockBtnDone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 12,
+    backgroundColor: Colors.slate300,
+  },
+  clockBtnText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  // Times Card
+  card: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.slate200,
+    marginTop: 12,
+    overflow: 'hidden',
   },
   timesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    marginBottom: 20,
-    backgroundColor: Colors.gray50,
-    borderRadius: 12,
     padding: 16,
   },
   timeItem: { flex: 1, alignItems: 'center' },
-  timeItemLabel: {
+  timeLabel: {
     fontSize: 12,
-    color: Colors.textMuted,
-    fontWeight: '600',
+    color: Colors.slate500,
+    fontWeight: '500',
     marginBottom: 4,
   },
-  timeItemValue: { fontSize: 18, fontWeight: '700', color: Colors.text },
-  timeDivider: { width: 1, height: 36, backgroundColor: Colors.border },
-  clockBtn: {
-    width: '100%',
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
+  timeValue: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.slate900,
   },
-  clockBtnIn: { backgroundColor: Colors.primary },
-  clockBtnOut: { backgroundColor: Colors.error },
-  clockBtnDone: { backgroundColor: Colors.error, opacity: 0.5 },
-  clockBtnText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
+  timeDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: Colors.slate200,
+  },
+
+  // Stats
   statsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 12,
-    marginTop: 16,
+    gap: 10,
+    marginTop: 12,
   },
   statCard: {
     flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.slate200,
+    padding: 16,
   },
-  statLabel: { fontSize: 12, color: Colors.textMuted, marginBottom: 4 },
-  statValue: { fontSize: 24, fontWeight: '700', color: Colors.text },
-  statSub: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  statIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: Colors.slate100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: Colors.slate900,
+    letterSpacing: -0.5,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.slate500,
+    fontWeight: '500',
+  },
+
+  // Quick Links
+  linksGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  linkCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.slate200,
+    padding: 14,
+  },
+  linkIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.slate700,
+  },
 });
