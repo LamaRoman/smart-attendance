@@ -11,8 +11,6 @@ import { Colors } from '../../../../constants/colors';
 import { apiGet } from '../../../../lib/api';
 import { todayBS } from '../../../../lib/nepali-date';
 
-const ADMIN_PRIMARY = '#7C3AED';
-
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 type EmployeeRecord = {
@@ -67,12 +65,12 @@ function SectionHeader({
 const sh = StyleSheet.create({
   wrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', borderRadius: 12,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: Colors.white, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.slate200,
     borderLeftWidth: 4, padding: 14, marginBottom: 6,
   },
   iconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  label: { flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' },
+  label: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.slate900 },
   badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   badgeText: { fontSize: 13, fontWeight: '700' },
 });
@@ -106,24 +104,24 @@ function EmployeeCard({ record }: { record: EmployeeRecord }) {
 const ec = StyleSheet.create({
   wrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F9FAFB', borderRadius: 10,
+    backgroundColor: Colors.slate50, borderRadius: 10,
     padding: 12, marginBottom: 6,
-    borderWidth: 1, borderColor: '#F3F4F6',
+    borderWidth: 1, borderColor: Colors.slate100,
   },
   avatar: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: ADMIN_PRIMARY, alignItems: 'center',
+    backgroundColor: Colors.slate900, alignItems: 'center',
     justifyContent: 'center', marginRight: 10,
   },
-  avatarText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  avatarText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
   info: { flex: 1 },
-  name: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  sub: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
+  name: { fontSize: 13, fontWeight: '600', color: Colors.slate900 },
+  sub: { fontSize: 11, color: Colors.slate400, marginTop: 1 },
   timeWrap: { alignItems: 'flex-end' },
-  timeLabel: { fontSize: 10, color: '#9CA3AF' },
+  timeLabel: { fontSize: 10, color: Colors.slate400 },
   time: { fontSize: 13, fontWeight: '700', color: '#065F46' },
-  leavePill: { backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  leaveText: { fontSize: 11, fontWeight: '600', color: '#5B21B6' },
+  leavePill: { backgroundColor: Colors.slate100, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  leaveText: { fontSize: 11, fontWeight: '600', color: Colors.slate700 },
 });
 
 export default function AdminDashboard() {
@@ -198,7 +196,7 @@ export default function AdminDashboard() {
     <SafeAreaView style={s.safe}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ADMIN_PRIMARY} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.slate900} />}
       >
         {/* Header */}
         <View style={s.header}>
@@ -226,9 +224,9 @@ export default function AdminDashboard() {
               <Text style={[s.pillNum, { color: '#92400E' }]}>{grouped.late.length}</Text>
               <Text style={[s.pillLabel, { color: '#92400E' }]}>Late</Text>
             </View>
-            <View style={[s.pill, { backgroundColor: '#EDE9FE' }]}>
-              <Text style={[s.pillNum, { color: '#5B21B6' }]}>{grouped.onLeave.length}</Text>
-              <Text style={[s.pillLabel, { color: '#5B21B6' }]}>On Leave</Text>
+            <View style={[s.pill, { backgroundColor: Colors.slate100 }]}>
+              <Text style={[s.pillNum, { color: Colors.slate900 }]}>{grouped.onLeave.length}</Text>
+              <Text style={[s.pillLabel, { color: Colors.slate900 }]}>On Leave</Text>
             </View>
             <View style={[s.pill, { backgroundColor: '#FEE2E2' }]}>
               <Text style={[s.pillNum, { color: '#991B1B' }]}>{grouped.absent.length}</Text>
@@ -245,7 +243,7 @@ export default function AdminDashboard() {
 
         {loading ? (
           <View style={s.loadingBox}>
-            <ActivityIndicator size="large" color={ADMIN_PRIMARY} />
+            <ActivityIndicator size="large" color={Colors.slate900} />
           </View>
         ) : (
           <View style={s.sections}>
@@ -322,15 +320,15 @@ export default function AdminDashboard() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
   headerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  title: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  orgName: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  date: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+  title: { fontSize: 22, fontWeight: '700', color: Colors.slate900 },
+  orgName: { fontSize: 13, color: Colors.slate500, marginTop: 2 },
+  date: { fontSize: 12, color: Colors.slate400, marginTop: 2 },
   logoutBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.slate200,
     alignItems: 'center', justifyContent: 'center',
   },
   pillsRow: { paddingHorizontal: 16, paddingBottom: 16, gap: 8 },
@@ -343,5 +341,5 @@ const s = StyleSheet.create({
   loadingBox: { height: 300, alignItems: 'center', justifyContent: 'center' },
   sections: { paddingHorizontal: 16 },
   gap: { height: 10 },
-  emptyText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 12 },
+  emptyText: { fontSize: 13, color: Colors.slate400, textAlign: 'center', paddingVertical: 12 },
 });

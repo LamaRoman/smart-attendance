@@ -13,10 +13,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { apiGet } from '../../../../lib/api';
-import api from '../../../../lib/api';
 import { Colors } from '../../../../constants/colors';
 import { BS_MONTHS_EN } from '../../../../lib/nepali-date';
 import StatusBadge from '../../../../components/StatusBadge';
+import { TokenStorage } from '../../../../lib/auth';
+
+const API_URL = __DEV__ ? 'http://192.168.1.65:5001' : 'https://api.zentaralabs.com';
 
 interface PayslipDetail {
   id: string;
@@ -91,18 +93,18 @@ export default function PayslipDetailScreen() {
   const handleDownloadPDF = async () => {
     setDownloading(true);
     try {
-      const response = await api.get(`/api/payroll/my-payslip/${id}/pdf`, {
-        responseType: 'arraybuffer',
-      });
-      const base64 = btoa(
-        new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      const token = await TokenStorage.getAccessToken();
       const filename = `payslip-${record?.bsYear}-${record?.bsMonth}.pdf`;
-      const fileUri = FileSystem.documentDirectory + filename;
-      await FileSystem.writeAsStringAsync(fileUri, base64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      await Sharing.shareAsync(fileUri, {
+      const fileUri = (FileSystem.documentDirectory ?? '') + filename;
+      const result = await FileSystem.downloadAsync(
+        `${API_URL}/api/payroll/my-payslip/${id}/pdf`,
+        fileUri,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (result.status !== 200) {
+        throw new Error('Download failed');
+      }
+      await Sharing.shareAsync(result.uri, {
         mimeType: 'application/pdf',
         dialogTitle: `Payslip ${record ? BS_MONTHS_EN[record.bsMonth - 1] + ' ' + record.bsYear : ''}`,
       });

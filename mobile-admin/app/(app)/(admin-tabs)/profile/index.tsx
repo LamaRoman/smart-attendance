@@ -7,9 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, getOrgName } from '../../../../store/auth.store';
 import { useBiometricStore } from '../../../../store/biometricStore';
+import { Colors } from '../../../../constants/colors';
 import { useBiometric } from '../../../../hooks/useBiometric';
 
-const PURPLE = '#7C3AED';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -17,7 +17,7 @@ function InfoRow({ icon, label, value }: { icon: IoniconsName; label: string; va
   return (
     <View style={s.infoRow}>
       <View style={s.infoIcon}>
-        <Ionicons name={icon} size={18} color={PURPLE} />
+        <Ionicons name={icon} size={18} color={Colors.slate900} />
       </View>
       <View style={s.infoContent}>
         <Text style={s.infoLabel}>{label}</Text>
@@ -101,7 +101,7 @@ export default function ProfileScreen() {
           <View style={s.sectionCard}>
             <View style={s.switchRow}>
               <View style={s.infoIcon}>
-                <Ionicons name="finger-print" size={18} color={PURPLE} />
+                <Ionicons name="finger-print" size={18} color={Colors.slate900} />
               </View>
               <View style={s.infoContent}>
                 <Text style={s.infoLabel}>Biometric Lock</Text>
@@ -111,8 +111,8 @@ export default function ProfileScreen() {
                 value={biometricEnabled}
                 onValueChange={handleBiometricToggle}
                 disabled={toggling}
-                trackColor={{ false: '#D1D5DB', true: PURPLE + '60' }}
-                thumbColor={biometricEnabled ? PURPLE : '#F3F4F6'}
+                trackColor={{ false: Colors.slate300, true: Colors.slate900 + '60' }}
+                thumbColor={biometricEnabled ? Colors.slate900 : Colors.slate100}
               />
             </View>
           </View>
@@ -132,52 +132,52 @@ export default function ProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: Colors.slate900 },
   avatarCard: {
-    alignItems: 'center', marginHorizontal: 16, backgroundColor: '#FFFFFF',
+    alignItems: 'center', marginHorizontal: 16, backgroundColor: Colors.white,
     borderRadius: 16, padding: 24, marginBottom: 16,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: Colors.slate200,
   },
   avatarCircle: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: PURPLE, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    backgroundColor: Colors.slate900, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  avatarText: { color: '#FFFFFF', fontWeight: '700', fontSize: 28 },
-  name: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  avatarText: { color: Colors.white, fontWeight: '700', fontSize: 28 },
+  name: { fontSize: 20, fontWeight: '700', color: Colors.slate900, marginBottom: 6 },
   rolePill: {
-    backgroundColor: '#EDE9FE', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, marginBottom: 4,
+    backgroundColor: Colors.slate100, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, marginBottom: 4,
   },
-  roleText: { color: '#5B21B6', fontSize: 12, fontWeight: '700' },
-  org: { fontSize: 13, color: '#6B7280', marginTop: 4 },
+  roleText: { color: Colors.slate700, fontSize: 12, fontWeight: '700' },
+  org: { fontSize: 13, color: Colors.slate500, marginTop: 4 },
   section: { marginBottom: 16 },
   sectionTitle: {
-    fontSize: 13, fontWeight: '700', color: '#9CA3AF',
+    fontSize: 13, fontWeight: '700', color: Colors.slate400,
     textTransform: 'uppercase', letterSpacing: 0.5,
     paddingHorizontal: 20, marginBottom: 8,
   },
   sectionCard: {
-    marginHorizontal: 16, backgroundColor: '#FFFFFF',
-    borderRadius: 14, borderWidth: 1, borderColor: '#E5E7EB',
+    marginHorizontal: 16, backgroundColor: Colors.white,
+    borderRadius: 14, borderWidth: 1, borderColor: Colors.slate200,
     overflow: 'hidden',
   },
   infoRow: { flexDirection: 'row', alignItems: 'center', padding: 14 },
   infoIcon: {
     width: 34, height: 34, borderRadius: 10,
-    backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center', marginRight: 12,
+    backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
   infoContent: { flex: 1 },
-  infoLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
-  infoValue: { fontSize: 15, color: '#111827', fontWeight: '500', marginTop: 1 },
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginLeft: 60 },
+  infoLabel: { fontSize: 12, color: Colors.slate400, fontWeight: '600' },
+  infoValue: { fontSize: 15, color: Colors.slate900, fontWeight: '500', marginTop: 1 },
+  divider: { height: 1, backgroundColor: Colors.slate100, marginLeft: 60 },
   switchRow: { flexDirection: 'row', alignItems: 'center', padding: 14 },
-  switchSub: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
+  switchSub: { fontSize: 11, color: Colors.slate400, marginTop: 1 },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     marginHorizontal: 16, backgroundColor: '#FEE2E2',
     borderRadius: 12, paddingVertical: 14, gap: 8, marginTop: 8,
   },
   logoutText: { fontSize: 16, fontWeight: '700', color: '#EF4444' },
-  version: { textAlign: 'center', fontSize: 12, color: '#D1D5DB', marginTop: 20 },
+  version: { textAlign: 'center', fontSize: 12, color: Colors.slate300, marginTop: 20 },
 });

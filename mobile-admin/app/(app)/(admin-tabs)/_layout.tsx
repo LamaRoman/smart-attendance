@@ -1,20 +1,18 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-const ADMIN_PRIMARY = '#7C3AED';
-const ADMIN_INACTIVE = '#374151';
+import { Colors } from '../../../constants/colors';
 
 export default function AdminTabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: ADMIN_PRIMARY,
-        tabBarInactiveTintColor: ADMIN_INACTIVE,
+        tabBarActiveTintColor: Colors.slate900,
+        tabBarInactiveTintColor: Colors.slate400,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#D1D5DB',
+          backgroundColor: Colors.white,
+          borderTopColor: Colors.slate200,
           borderTopWidth: 1,
           paddingBottom: Platform.OS === 'ios' ? 24 : 10,
           paddingTop: 10,

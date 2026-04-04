@@ -7,8 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../../../../lib/api';
+import { Colors } from '../../../../constants/colors';
 
-const PURPLE = '#7C3AED';
 
 type Employee = {
   id: string;
@@ -62,12 +62,12 @@ export default function EmployeesScreen() {
 
       {loading ? (
         <View style={s.loadingBox}>
-          <ActivityIndicator size="large" color={PURPLE} />
+          <ActivityIndicator size="large" color={Colors.slate900} />
         </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PURPLE} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.slate900} />}
           contentContainerStyle={s.list}
         >
           {employees.length === 0 ? (
@@ -82,7 +82,7 @@ export default function EmployeesScreen() {
               const isActive = memberStatus === 'ACTIVE';
               return (
                 <View key={emp.id} style={s.card}>
-                  <View style={[s.avatar, { backgroundColor: isActive ? PURPLE : '#D1D5DB' }]}>
+                  <View style={[s.avatar, { backgroundColor: isActive ? Colors.slate900 : Colors.slate300 }]}>
                     <Text style={s.avatarText}>{name.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={s.info}>
@@ -99,7 +99,7 @@ export default function EmployeesScreen() {
                       </View>
                     </View>
                   </View>
-                  <View style={[s.statusDot, { backgroundColor: isActive ? '#16A34A' : '#9CA3AF' }]} />
+                  <View style={[s.statusDot, { backgroundColor: isActive ? '#16A34A' : Colors.slate400 }]} />
                 </View>
               );
             })
@@ -112,31 +112,31 @@ export default function EmployeesScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
-  title: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  title: { fontSize: 22, fontWeight: '700', color: Colors.slate900 },
+  subtitle: { fontSize: 13, color: Colors.slate500, marginTop: 2 },
   loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
   list: { paddingHorizontal: 16 },
   emptyBox: { alignItems: 'center', paddingTop: 80 },
-  emptyText: { fontSize: 14, color: '#9CA3AF', marginTop: 12 },
+  emptyText: { fontSize: 14, color: Colors.slate400, marginTop: 12 },
   card: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14,
-    marginBottom: 8, borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: Colors.white, borderRadius: 14, padding: 14,
+    marginBottom: 8, borderWidth: 1, borderColor: Colors.slate200,
   },
   avatar: {
     width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  avatarText: { color: '#FFFFFF', fontWeight: '700', fontSize: 17 },
+  avatarText: { color: Colors.white, fontWeight: '700', fontSize: 17 },
   info: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  email: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  name: { fontSize: 15, fontWeight: '600', color: Colors.slate900 },
+  email: { fontSize: 12, color: Colors.slate500, marginTop: 2 },
   metaRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
   metaPill: {
-    backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6,
+    backgroundColor: Colors.slate100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6,
   },
-  metaText: { fontSize: 10, fontWeight: '600', color: '#6B7280' },
+  metaText: { fontSize: 10, fontWeight: '600', color: Colors.slate500 },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 8 },
 });

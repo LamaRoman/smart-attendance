@@ -13,10 +13,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { apiGet } from '../../../../lib/api';
-import api from '../../../../lib/api';
 import { Colors } from '../../../../constants/colors';
 import { BS_MONTHS_EN } from '../../../../lib/nepali-date';
 import StatusBadge from '../../../../components/StatusBadge';
+import { TokenStorage } from '../../../../lib/auth';
+
+const API_URL = __DEV__ ? 'http://192.168.1.65:5001' : 'https://api.zentaralabs.com';
 
 interface PayslipRecord {
   id: string;
@@ -45,21 +47,18 @@ function PayslipRow({ item }: { item: PayslipRecord }) {
   const handleDownloadPDF = async () => {
     setDownloading(true);
     try {
-      const response = await api.get(`/api/payroll/my-payslip/${item.id}/pdf`, {
-        responseType: 'arraybuffer',
-      });
-      const bytes = new Uint8Array(response.data);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64 = btoa(binary);
+      const token = await TokenStorage.getAccessToken();
       const filename = `payslip-${item.bsYear}-${item.bsMonth}.pdf`;
       const fileUri = (FileSystem.documentDirectory ?? '') + filename;
-      await FileSystem.writeAsStringAsync(fileUri, base64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      await Sharing.shareAsync(fileUri, {
+      const result = await FileSystem.downloadAsync(
+        `${API_URL}/api/payroll/my-payslip/${item.id}/pdf`,
+        fileUri,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (result.status !== 200) {
+        throw new Error('Download failed');
+      }
+      await Sharing.shareAsync(result.uri, {
         mimeType: 'application/pdf',
         dialogTitle: `Payslip ${BS_MONTHS_EN[item.bsMonth - 1]} ${item.bsYear}`,
       });

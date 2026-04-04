@@ -8,8 +8,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../../../../lib/api';
 import { todayBS, BS_MONTHS_EN } from '../../../../lib/nepali-date';
-
-const PURPLE = '#7C3AED';
+import { Colors } from '../../../../constants/colors';
 
 type AttRecord = {
   id: string;
@@ -35,7 +34,7 @@ function statusColor(status: string, isLate: boolean) {
   if (status === 'CHECKED_IN') return { bg: '#D1FAE5', text: '#065F46', label: 'Working' };
   if (status === 'CHECKED_OUT') return { bg: '#DBEAFE', text: '#1E40AF', label: 'Completed' };
   if (status === 'AUTO_CLOSED') return { bg: '#FEE2E2', text: '#991B1B', label: 'Auto-Closed' };
-  return { bg: '#F3F4F6', text: '#6B7280', label: status };
+  return { bg: Colors.slate100, text: Colors.slate500, label: status };
 }
 
 export default function AttendanceScreen() {
@@ -103,12 +102,12 @@ export default function AttendanceScreen() {
 
       {loading ? (
         <View style={s.loadingBox}>
-          <ActivityIndicator size="large" color={PURPLE} />
+          <ActivityIndicator size="large" color={Colors.slate900} />
         </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PURPLE} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.slate900} />}
           contentContainerStyle={s.list}
         >
           {records.length === 0 ? (
@@ -124,7 +123,7 @@ export default function AttendanceScreen() {
               return (
                 <View key={r.id} style={s.card}>
                   <View style={s.cardTop}>
-                    <View style={[s.avatar, { backgroundColor: PURPLE }]}>
+                    <View style={[s.avatar, { backgroundColor: Colors.slate900 }]}>
                       <Text style={s.avatarText}>{name.charAt(0).toUpperCase()}</Text>
                     </View>
                     <View style={s.cardInfo}>
@@ -167,10 +166,10 @@ export default function AttendanceScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
-  title: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  title: { fontSize: 22, fontWeight: '700', color: Colors.slate900 },
+  subtitle: { fontSize: 13, color: Colors.slate500, marginTop: 2 },
   summaryRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 },
   summaryCard: { flex: 1, borderRadius: 12, padding: 12, alignItems: 'center' },
   summaryNum: { fontSize: 22, fontWeight: '700' },
@@ -178,28 +177,28 @@ const s = StyleSheet.create({
   loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
   list: { paddingHorizontal: 16 },
   emptyBox: { alignItems: 'center', paddingTop: 80 },
-  emptyText: { fontSize: 14, color: '#9CA3AF', marginTop: 12 },
+  emptyText: { fontSize: 14, color: Colors.slate400, marginTop: 12 },
   card: {
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16,
-    marginBottom: 10, borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: Colors.white, borderRadius: 14, padding: 16,
+    marginBottom: 10, borderWidth: 1, borderColor: Colors.slate200,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   avatar: {
     width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  avatarText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  avatarText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
   cardInfo: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  cardEmpId: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  cardName: { fontSize: 15, fontWeight: '600', color: Colors.slate900 },
+  cardEmpId: { fontSize: 12, color: Colors.slate400, marginTop: 1 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontSize: 11, fontWeight: '700' },
   cardTimes: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F9FAFB', borderRadius: 10, padding: 12,
+    backgroundColor: Colors.slate50, borderRadius: 10, padding: 12,
   },
   timeBlock: { flex: 1, alignItems: 'center' },
-  timeLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
-  timeVal: { fontSize: 15, fontWeight: '700', color: '#111827', marginTop: 2 },
-  timeDivider: { width: 1, height: 28, backgroundColor: '#E5E7EB' },
+  timeLabel: { fontSize: 11, color: Colors.slate400, fontWeight: '600' },
+  timeVal: { fontSize: 15, fontWeight: '700', color: Colors.slate900, marginTop: 2 },
+  timeDivider: { width: 1, height: 28, backgroundColor: Colors.slate200 },
 });

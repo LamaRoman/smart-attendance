@@ -13,9 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth.store';
+import { Colors } from '../../constants/colors';
 
-const ADMIN_PRIMARY = '#7C3AED';
-const ADMIN_PRIMARY_LIGHT = '#EDE9FE';
+
+
 
 export default function LoginScreen() {
   const { login, error, clearError, isLoading } = useAuthStore();
@@ -61,7 +62,7 @@ export default function LoginScreen() {
             </View>
             <Text style={s.appName}>Attend  Xpress</Text>
             <View style={s.portalBadge}>
-              <Ionicons name="shield-outline" size={12} color={ADMIN_PRIMARY} />
+              <Ionicons name="shield-outline" size={12} color={Colors.slate900} />
               <Text style={s.portalText}>Admin Portal</Text>
             </View>
           </View>
@@ -150,7 +151,7 @@ export default function LoginScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
@@ -170,29 +171,29 @@ const s = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 16,
-    backgroundColor: ADMIN_PRIMARY,
+    backgroundColor: Colors.slate900,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: ADMIN_PRIMARY,
+    shadowColor: Colors.slate900,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  logoA: { color: '#FFFFFF', fontSize: 38, fontWeight: '700' },
-  logoX: { fontSize: 32, fontWeight: '700', color: '#111827', marginLeft: 6 },
-  appName: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 10, letterSpacing: 0.5 },
+  logoA: { color: Colors.white, fontSize: 38, fontWeight: '700' },
+  logoX: { fontSize: 32, fontWeight: '700', color: Colors.slate900, marginLeft: 6 },
+  appName: { fontSize: 24, fontWeight: '700', color: Colors.slate900, marginBottom: 10, letterSpacing: 0.5 },
   portalBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: ADMIN_PRIMARY_LIGHT,
+    backgroundColor: Colors.slate100,
     paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: 20,
   },
-  portalText: { fontSize: 12, fontWeight: '600', color: ADMIN_PRIMARY },
+  portalText: { fontSize: 12, fontWeight: '600', color: Colors.slate900 },
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
@@ -201,8 +202,8 @@ const s = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  cardTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  cardSubtitle: { fontSize: 14, color: '#6B7280', marginBottom: 20 },
+  cardTitle: { fontSize: 20, fontWeight: '700', color: Colors.slate900, marginBottom: 4 },
+  cardSubtitle: { fontSize: 14, color: Colors.slate500, marginBottom: 20 },
 
   // Error
   errorBanner: {
@@ -219,16 +220,16 @@ const s = StyleSheet.create({
 
   // Fields
   fieldGroup: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  label: { fontSize: 14, fontWeight: '600', color: Colors.slate700, marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.slate200,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
+    color: Colors.slate900,
+    backgroundColor: Colors.white,
   },
   passwordRow: { position: 'relative' },
   passwordInput: { paddingRight: 48 },
@@ -242,19 +243,19 @@ const s = StyleSheet.create({
 
   // Button
   btn: {
-    backgroundColor: ADMIN_PRIMARY,
+    backgroundColor: Colors.slate900,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  btnText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
 
   footer: {
     textAlign: 'center',
     marginTop: 24,
     fontSize: 13,
-    color: '#9CA3AF',
+    color: Colors.slate400,
   },
 });
