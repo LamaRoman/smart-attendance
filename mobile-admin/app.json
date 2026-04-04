@@ -12,7 +12,7 @@
       "backgroundColor": "#F9FAFB"
     },
     "ios": {
-      "bundleIdentifier": "com.yourcompany.attendxpress.admin",
+      "bundleIdentifier": "com.zentaralabs.attendxpress.admin",
       "supportsTablet": false
     },
     "android": {
@@ -20,7 +20,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F9FAFB"
       },
-      "package": "com.yourcompany.attendxpress.admin",
+      "package": "com.zentaralabs.attendxpress.admin",
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",

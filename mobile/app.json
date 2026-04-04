@@ -13,14 +13,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourcompany.attendxpress"
+      "bundleIdentifier": "com.zentaralabs.attendxpress"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2563EB"
       },
-      "package": "com.yourcompany.attendxpress",
+      "package": "com.zentaralabs.attendxpress",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",

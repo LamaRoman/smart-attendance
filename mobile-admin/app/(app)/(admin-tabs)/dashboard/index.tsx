@@ -147,8 +147,16 @@ export default function AdminDashboard() {
         apiGet<any>('/api/leaves?status=PENDING&limit=1'),
       ]);
 
-      const records: EmployeeRecord[] = attData.status === 'fulfilled'
+      const rawRecords: EmployeeRecord[] = attData.status === 'fulfilled'
         ? (attData.value?.records ?? attData.value ?? []) : [];
+
+      // Extra safety: only keep records where checkInTime is actually today
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const records = rawRecords.filter((r) => {
+        if (!r.checkInTime) return true; // keep leave/absent placeholders
+        return new Date(r.checkInTime) >= todayStart;
+      });
 
       const pending = leaveData.status === 'fulfilled'
         ? (leaveData.value?.total ?? leaveData.value?.count ?? 0) : 0;
