@@ -205,9 +205,9 @@ export default function ProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: Colors.text },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
+  header: { paddingHorizontal: 20, paddingVertical: 12, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.slate100 },
+  headerTitle: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
   body: { padding: 16 },
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginLeft: 4 },
@@ -219,7 +219,7 @@ const s = StyleSheet.create({
   field: { marginBottom: 14 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: Colors.gray700, marginBottom: 6 },
   fieldInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: Colors.text, backgroundColor: Colors.white },
-  btn: { backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
+  btn: { backgroundColor: Colors.slate900, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
   btnText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
   logoutBtn: { borderWidth: 1, borderColor: Colors.error, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   logoutText: { color: Colors.error, fontSize: 15, fontWeight: '700' },

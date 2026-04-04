@@ -447,6 +447,90 @@ export class AttendanceService {
     return { ...result, message };
   }
 
+  /**
+   * Authenticated GPS check-in from mobile app.
+   * Employee is identified via Bearer token — no PIN needed.
+   * Shares all validation (office hours, cooldown, auto-close) via performClockActionSafe.
+   */
+  async mobileCheckinAuth(
+    input: { latitude: number; longitude: number },
+    currentUser: JWTPayload,
+    ipAddress?: string,
+    userAgent?: string
+  ) {
+    if (!currentUser.membershipId || !currentUser.organizationId) {
+      throw new NotFoundError('Active membership not found');
+    }
+
+    // Geofence check
+    const org = await prisma.organization.findUnique({
+      where: { id: currentUser.organizationId },
+      select: {
+        geofenceEnabled: true,
+        officeLat: true,
+        officeLng: true,
+        geofenceRadius: true,
+      },
+    });
+
+    if (org) {
+      try {
+        validateGeofence(org, {
+          latitude: input.latitude,
+          longitude: input.longitude,
+        });
+      } catch (err) {
+        await this.logAudit({
+          userId: currentUser.userId,
+          organizationId: currentUser.organizationId,
+          action: 'FAILED',
+          method: 'MOBILE_CHECKIN',
+          success: false,
+          failureReason: 'OUTSIDE_GEOFENCE',
+          ipAddress,
+          userAgent,
+          latitude: input.latitude,
+          longitude: input.longitude,
+        });
+        throw err;
+      }
+    }
+
+    const result = await this.performClockActionSafe(
+      currentUser.membershipId,
+      currentUser.organizationId,
+      'MOBILE_CHECKIN'
+    );
+
+    if (result.action === 'CLOCK_IN') {
+      this.checkAndNotifyLateArrival(
+        currentUser.membershipId,
+        currentUser.organizationId,
+        result.record.checkInTime,
+        result.record.id
+      ).catch((err) => log.error({ err }, 'Late arrival check failed'));
+    }
+
+    await this.logAudit({
+      userId: currentUser.userId,
+      organizationId: currentUser.organizationId,
+      action: result.action,
+      method: 'MOBILE_CHECKIN',
+      success: true,
+      ipAddress,
+      userAgent,
+      latitude: input.latitude,
+      longitude: input.longitude,
+    });
+
+    const message =
+      result.action === 'CLOCK_IN'
+        ? `Clocked in at ${formatTimeNPT(result.record.checkInTime)}`
+        : `Clocked out. Duration: ${result.record.duration} minutes`;
+
+    return { ...result, message };
+  }
+
   // ======== Admin manual operations ========
 
   async manualAttendance(input: ManualAttendanceInput, currentUser: JWTPayload) {

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../../../lib/api';
 import { todayBS, BS_MONTHS_EN } from '../../../lib/nepali-date';
 import StatusBadge, { AttendanceStatus } from '../../../components/StatusBadge';
@@ -105,7 +106,7 @@ function RecordRow({ item }: { item: AttendanceRecord }) {
     return (
       <View style={[styles.row, { opacity: 0.4 }]}>
         <View style={styles.dayBadge}><Text style={styles.dayNum}>{day}</Text></View>
-        <Text style={{ fontSize: 14, color: Colors.textSecondary, fontStyle: 'italic' }}>
+        <Text style={{ fontSize: 14, color: Colors.slate500, fontStyle: 'italic' }}>
           {item.isHoliday ? 'Holiday' : 'Weekend'}
         </Text>
       </View>
@@ -126,7 +127,7 @@ function RecordRow({ item }: { item: AttendanceRecord }) {
           {item.status && <StatusBadge status={item.status} size="sm" />}
         </View>
         {item.durationMinutes ? (
-          <Text style={{ fontSize: 12, color: Colors.textMuted, marginTop: 2 }}>
+          <Text style={{ fontSize: 12, color: Colors.slate400, marginTop: 2 }}>
             {formatDuration(item.durationMinutes)}
           </Text>
         ) : null}
@@ -181,7 +182,7 @@ export default function AttendanceScreen() {
             { label: 'Present', val: data.present, color: Colors.success },
             { label: 'Late', val: data.late, color: Colors.warning },
             { label: 'Absent', val: data.absent, color: Colors.error },
-            { label: 'Total', val: formatTotalHours(data.totalHoursMinutes), color: Colors.primary },
+            { label: 'Total', val: formatTotalHours(data.totalHoursMinutes), color: Colors.slate900 },
           ].map(({ label, val, color }) => (
             <View key={label} style={styles.sumCell}>
               <Text style={[styles.sumVal, { color }]}>{val}</Text>
@@ -191,21 +192,18 @@ export default function AttendanceScreen() {
         </View>
       )}
 
-      {/* Quick-access buttons to scanner / GPS */}
+      {/* Quick-access GPS check-in */}
       <View style={styles.actionRow}>
-        <TouchableOpacity style={[styles.actionChip, { backgroundColor: Colors.primaryLight }]}
-          onPress={() => router.push('/(app)/attendance/scan')}>
-          <Text style={[styles.actionChipText, { color: Colors.primary }]}>📷  QR Check-in</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionChip, { backgroundColor: Colors.successLight }]}
+        <TouchableOpacity style={styles.actionChip}
           onPress={() => router.push('/(app)/attendance/gps-checkin')}>
-          <Text style={[styles.actionChipText, { color: Colors.success }]}>📍  GPS Check-in</Text>
+          <Ionicons name="location-outline" size={16} color={Colors.success} />
+          <Text style={styles.actionChipText}>GPS Check-in</Text>
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={Colors.primary} size="large" /></View>
+        <View style={styles.center}><ActivityIndicator color={Colors.slate900} size="large" /></View>
       ) : error ? (
         <View style={styles.center}>
           <Text style={{ color: Colors.error, marginBottom: 12 }}>{error}</Text>
@@ -216,14 +214,14 @@ export default function AttendanceScreen() {
       ) : !data?.records?.length ? (
         <View style={styles.center}>
           <Text style={{ fontSize: 40, marginBottom: 12 }}>📭</Text>
-          <Text style={{ color: Colors.textSecondary }}>No records for this month.</Text>
+          <Text style={{ color: Colors.slate500 }}>No records for this month.</Text>
         </View>
       ) : (
         <FlatList
           data={data.records}
           keyExtractor={item => item.id}
           renderItem={({ item }) => <RecordRow item={item} />}
-          ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: Colors.gray100, marginLeft: 72 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: Colors.slate100, marginLeft: 72 }} />}
           contentContainerStyle={{ paddingVertical: 8 }}
           showsVerticalScrollIndicator={false}
         />
@@ -241,42 +239,42 @@ export default function AttendanceScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border, paddingHorizontal: 8, paddingVertical: 10 },
+  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.slate100, paddingHorizontal: 8, paddingVertical: 10 },
   navBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  navArrowTxt: { fontSize: 28, color: Colors.primary, lineHeight: 32 },
+  navArrowTxt: { fontSize: 28, color: Colors.slate900, lineHeight: 32 },
   navLabel: {},
-  navLabelTxt: { fontSize: 17, fontWeight: '700', color: Colors.text },
-  summaryBar: { flexDirection: 'row', backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  navLabelTxt: { fontSize: 17, fontWeight: '700', color: Colors.slate900 },
+  summaryBar: { flexDirection: 'row', backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.slate100 },
   sumCell: { flex: 1, alignItems: 'center', paddingVertical: 10 },
   sumVal: { fontSize: 18, fontWeight: '700' },
-  sumLbl: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  actionRow: { flexDirection: 'row', gap: 10, padding: 12 },
-  actionChip: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  actionChipText: { fontSize: 13, fontWeight: '700' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.card },
-  dayBadge: { width: 44, height: 44, borderRadius: 10, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  sumLbl: { fontSize: 11, color: Colors.slate400, marginTop: 2 },
+  actionRow: { padding: 12 },
+  actionChip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, paddingVertical: 10, backgroundColor: Colors.successLight },
+  actionChipText: { fontSize: 13, fontWeight: '700', color: Colors.success },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.white },
+  dayBadge: { width: 44, height: 44, borderRadius: 10, backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' },
   dayBadgeAbsent: { backgroundColor: Colors.errorLight },
-  dayNum: { fontSize: 16, fontWeight: '700', color: Colors.primary },
-  timeRange: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  retryBtn: { backgroundColor: Colors.primary, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
+  dayNum: { fontSize: 16, fontWeight: '700', color: Colors.slate900 },
+  timeRange: { fontSize: 14, fontWeight: '600', color: Colors.slate900 },
+  retryBtn: { backgroundColor: Colors.slate900, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
 
   // Picker
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
+  sheet: { backgroundColor: Colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  sheetTitle: { fontSize: 17, fontWeight: '700', color: Colors.text },
-  sheetClose: { fontSize: 18, color: Colors.textSecondary },
+  sheetTitle: { fontSize: 17, fontWeight: '700', color: Colors.slate900 },
+  sheetClose: { fontSize: 18, color: Colors.slate500 },
   yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   yearBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  yearArrow: { fontSize: 28, color: Colors.primary },
-  yearText: { fontSize: 20, fontWeight: '700', color: Colors.text, width: 80, textAlign: 'center' },
+  yearArrow: { fontSize: 28, color: Colors.slate900 },
+  yearText: { fontSize: 20, fontWeight: '700', color: Colors.slate900, width: 80, textAlign: 'center' },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  mCell: { width: '23%', paddingVertical: 12, alignItems: 'center', borderRadius: 10, backgroundColor: Colors.gray100 },
-  mCellSel: { backgroundColor: Colors.primary },
+  mCell: { width: '23%', paddingVertical: 12, alignItems: 'center', borderRadius: 10, backgroundColor: Colors.slate100 },
+  mCellSel: { backgroundColor: Colors.slate900 },
   mCellOff: { opacity: 0.35 },
-  mText: { fontSize: 13, fontWeight: '600', color: Colors.gray700 },
+  mText: { fontSize: 13, fontWeight: '600', color: Colors.slate700 },
   mTextSel: { color: Colors.white },
-  mTextOff: { color: Colors.gray400 },
+  mTextOff: { color: Colors.slate400 },
 });

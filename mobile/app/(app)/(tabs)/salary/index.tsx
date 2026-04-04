@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { apiGet } from '../../../../lib/api';
@@ -47,21 +48,17 @@ function PayslipRow({ item }: { item: PayslipRecord }) {
       const response = await api.get(`/api/payroll/my-payslip/${item.id}/pdf`, {
         responseType: 'arraybuffer',
       });
-
       const bytes = new Uint8Array(response.data);
       let binary = '';
       for (let i = 0; i < bytes.byteLength; i++) {
         binary += String.fromCharCode(bytes[i]);
       }
       const base64 = btoa(binary);
-
       const filename = `payslip-${item.bsYear}-${item.bsMonth}.pdf`;
       const fileUri = (FileSystem.documentDirectory ?? '') + filename;
-
       await FileSystem.writeAsStringAsync(fileUri, base64, {
         encoding: FileSystem.EncodingType.Base64,
       });
-
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/pdf',
         dialogTitle: `Payslip ${BS_MONTHS_EN[item.bsMonth - 1]} ${item.bsYear}`,
@@ -84,8 +81,13 @@ function PayslipRow({ item }: { item: PayslipRecord }) {
       </View>
 
       <View style={s.netRow}>
-        <Text style={s.netLabel}>Net Salary</Text>
-        <Text style={s.netAmount}>{formatNPR(item.netSalary)}</Text>
+        <View style={s.netIconWrap}>
+          <Ionicons name="wallet-outline" size={18} color={Colors.slate900} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.netLabel}>Net Salary</Text>
+          <Text style={s.netAmount}>{formatNPR(item.netSalary)}</Text>
+        </View>
       </View>
 
       <View style={s.statsRow}>
@@ -93,14 +95,17 @@ function PayslipRow({ item }: { item: PayslipRecord }) {
           <Text style={s.statVal}>{item.daysPresent}</Text>
           <Text style={s.statLbl}>Present</Text>
         </View>
+        <View style={s.statDivider} />
         <View style={s.statItem}>
           <Text style={s.statVal}>{item.daysAbsent}</Text>
           <Text style={s.statLbl}>Absent</Text>
         </View>
+        <View style={s.statDivider} />
         <View style={s.statItem}>
           <Text style={s.statVal}>{formatNPR(item.grossSalary)}</Text>
           <Text style={s.statLbl}>Gross</Text>
         </View>
+        <View style={s.statDivider} />
         <View style={s.statItem}>
           <Text style={[s.statVal, { color: Colors.error }]}>{formatNPR(item.totalDeductions)}</Text>
           <Text style={s.statLbl}>Deductions</Text>
@@ -113,9 +118,12 @@ function PayslipRow({ item }: { item: PayslipRecord }) {
         disabled={downloading}
       >
         {downloading ? (
-          <ActivityIndicator color={Colors.primary} size="small" />
+          <ActivityIndicator color={Colors.slate900} size="small" />
         ) : (
-          <Text style={s.pdfBtnText}>📄 View Payslip PDF</Text>
+          <>
+            <Ionicons name="document-text-outline" size={16} color={Colors.slate900} />
+            <Text style={s.pdfBtnText}>View Payslip PDF</Text>
+          </>
         )}
       </TouchableOpacity>
     </View>
@@ -145,19 +153,25 @@ export default function SalaryScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>Salary History</Text>
+        <View style={s.headerLeft}>
+          <View style={s.headerLogoBox}>
+            <Ionicons name="wallet-outline" size={16} color={Colors.white} />
+          </View>
+          <Text style={s.headerTitle}>Salary History</Text>
+        </View>
       </View>
-
       {loading ? (
-        <View style={s.center}><ActivityIndicator color={Colors.primary} size="large" /></View>
+        <View style={s.center}><ActivityIndicator color={Colors.slate900} size="large" /></View>
       ) : error ? (
         <View style={s.center}>
-          <Text style={{ color: Colors.error, marginBottom: 12 }}>{error}</Text>
+          <Ionicons name="alert-circle-outline" size={48} color={Colors.slate300} />
+          <Text style={s.errorText}>{error}</Text>
         </View>
       ) : records.length === 0 ? (
         <View style={s.center}>
-          <Text style={{ fontSize: 48, marginBottom: 12 }}>💰</Text>
-          <Text style={{ color: Colors.textSecondary }}>No salary records found.</Text>
+          <Ionicons name="receipt-outline" size={48} color={Colors.slate300} />
+          <Text style={s.emptyText}>No salary records found</Text>
+          <Text style={s.emptySubtext}>Payslips will appear here once processed</Text>
         </View>
       ) : (
         <FlatList
@@ -173,21 +187,49 @@ export default function SalaryScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  header: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: Colors.text },
-  card: { backgroundColor: Colors.card, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
+  header: {
+    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.slate100,
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerLogoBox: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: Colors.slate900, alignItems: 'center', justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
+  errorText: { fontSize: 14, color: Colors.error, marginTop: 8 },
+  emptyText: { fontSize: 15, fontWeight: '600', color: Colors.slate500, marginTop: 8 },
+  emptySubtext: { fontSize: 13, color: Colors.slate400 },
+  card: {
+    backgroundColor: Colors.white, borderRadius: 14, padding: 16,
+    marginBottom: 12, borderWidth: 1, borderColor: Colors.slate200,
+  },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  monthLabel: { fontSize: 17, fontWeight: '700', color: Colors.text },
-  orgName: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
-  netRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Colors.primaryLight, borderRadius: 10, padding: 12, marginBottom: 12 },
-  netLabel: { fontSize: 13, fontWeight: '600', color: Colors.primary },
-  netAmount: { fontSize: 20, fontWeight: '700', color: Colors.primary },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  statItem: { alignItems: 'center' },
-  statVal: { fontSize: 14, fontWeight: '700', color: Colors.text },
-  statLbl: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  pdfBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: Colors.primary },
-  pdfBtnText: { fontSize: 14, fontWeight: '600', color: Colors.primary },
+  monthLabel: { fontSize: 17, fontWeight: '700', color: Colors.slate900 },
+  orgName: { fontSize: 12, color: Colors.slate400, marginTop: 2 },
+  netRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.slate100, borderRadius: 10, padding: 12, marginBottom: 12,
+  },
+  netIconWrap: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center',
+  },
+  netLabel: { fontSize: 12, fontWeight: '500', color: Colors.slate500 },
+  netAmount: { fontSize: 20, fontWeight: '700', color: Colors.slate900 },
+  statsRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: Colors.slate50, borderRadius: 10, padding: 12, marginBottom: 12,
+  },
+  statItem: { flex: 1, alignItems: 'center' },
+  statDivider: { width: 1, height: 28, backgroundColor: Colors.slate200 },
+  statVal: { fontSize: 13, fontWeight: '700', color: Colors.slate900 },
+  statLbl: { fontSize: 11, color: Colors.slate400, marginTop: 2 },
+  pdfBtn: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
+    paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: Colors.slate200,
+  },
+  pdfBtnText: { fontSize: 14, fontWeight: '600', color: Colors.slate900 },
 });

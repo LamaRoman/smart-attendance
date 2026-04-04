@@ -116,7 +116,7 @@ export default function PayslipDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={s.safe}>
-        <View style={s.center}><ActivityIndicator color={Colors.primary} size="large" /></View>
+        <View style={s.center}><ActivityIndicator color={Colors.slate900} size="large" /></View>
       </SafeAreaView>
     );
   }
@@ -124,7 +124,7 @@ export default function PayslipDetailScreen() {
   if (!record) {
     return (
       <SafeAreaView style={s.safe}>
-        <View style={s.center}><Text style={{ color: Colors.textSecondary }}>Payslip not found.</Text></View>
+        <View style={s.center}><Text style={{ color: Colors.slate500 }}>Payslip not found.</Text></View>
       </SafeAreaView>
     );
   }
@@ -219,34 +219,34 @@ export default function PayslipDetailScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: Colors.slate50 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.slate100 },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  backArrow: { fontSize: 28, color: Colors.primary, lineHeight: 32 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: Colors.text },
-  topCard: { margin: 16, backgroundColor: Colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.border },
-  orgName: { fontSize: 13, color: Colors.textMuted, fontWeight: '600' },
-  periodLabel: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  netCard: { marginHorizontal: 16, backgroundColor: Colors.primary, borderRadius: 14, padding: 20, alignItems: 'center', marginBottom: 16 },
-  netLabel: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 4 },
+  backArrow: { fontSize: 28, color: Colors.slate900, lineHeight: 32 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: Colors.slate900 },
+  topCard: { margin: 16, backgroundColor: Colors.white, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.slate200 },
+  orgName: { fontSize: 13, color: Colors.slate400, fontWeight: '600' },
+  periodLabel: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
+  netCard: { marginHorizontal: 16, backgroundColor: Colors.slate900, borderRadius: 14, padding: 20, alignItems: 'center', marginBottom: 16 },
+  netLabel: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
   netAmount: { fontSize: 32, fontWeight: '700', color: Colors.white },
-  section: { marginHorizontal: 16, backgroundColor: Colors.card, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: Colors.textSecondary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  section: { marginHorizontal: 16, backgroundColor: Colors.white, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.slate200 },
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.slate400, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
   attendanceRow: { flexDirection: 'row', justifyContent: 'space-around' },
   attItem: { alignItems: 'center' },
-  attVal: { fontSize: 22, fontWeight: '700', color: Colors.text },
-  attLbl: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  attVal: { fontSize: 22, fontWeight: '700', color: Colors.slate900 },
+  attLbl: { fontSize: 12, color: Colors.slate400, marginTop: 2 },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   rowHighlight: { paddingTop: 10 },
-  rowLabel: { fontSize: 14, color: Colors.text },
-  rowLabelBold: { fontWeight: '700' },
-  rowAmount: { fontSize: 14, color: Colors.text },
+  rowLabel: { fontSize: 14, color: Colors.slate700 },
+  rowLabelBold: { fontWeight: '700', color: Colors.slate900 },
+  rowAmount: { fontSize: 14, color: Colors.slate900 },
   rowAmountBold: { fontWeight: '700', fontSize: 15 },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 6 },
+  divider: { height: 1, backgroundColor: Colors.slate200, marginVertical: 6 },
   netSection: { backgroundColor: Colors.successLight, borderColor: '#BBF7D0', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   netSectionLabel: { fontSize: 16, fontWeight: '700', color: Colors.success },
   netSectionAmount: { fontSize: 20, fontWeight: '700', color: Colors.success },
-  pdfBtn: { marginHorizontal: 16, marginTop: 8, backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
+  pdfBtn: { marginHorizontal: 16, marginTop: 8, backgroundColor: Colors.slate900, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   pdfBtnText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
 });

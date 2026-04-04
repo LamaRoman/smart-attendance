@@ -18,7 +18,6 @@ import {
   AuthRequest,
 } from '../middleware/auth';
 import { scanRateLimiter } from '../middleware/rateLimiter';
-import { adToBS } from '../lib/nepali-date';
 import prisma from '../lib/prisma';
 
 const router = Router();
@@ -126,135 +125,14 @@ router.post(
         return res.status(400).json({ error: { message: 'latitude and longitude are required' } });
       }
 
-      // Get membership + org settings for geofence check
-      const membership = await prisma.orgMembership.findUnique({
-        where: { id: req.user!.membershipId },
-        include: {
-          organization: {
-            select: {
-              id: true,
-              attendanceMode: true,
-              geofenceEnabled: true,
-              officeLat: true,
-              officeLng: true,
-              geofenceRadius: true,
-            },
-          },
-        },
-      });
+      const result = await attendanceService.mobileCheckinAuth(
+        { latitude, longitude },
+        req.user!,
+        req.ip || undefined,
+        req.get('user-agent') || undefined
+      );
 
-      if (!membership) {
-        return res.status(404).json({ error: { message: 'Membership not found' } });
-      }
-
-      const org = membership.organization;
-
-      // Geofence check if enabled
-      if (org.geofenceEnabled && org.officeLat && org.officeLng) {
-        const R = 6371000;
-        const toRad = (v: number) => (v * Math.PI) / 180;
-        const dLat = toRad(latitude - org.officeLat);
-        const dLng = toRad(longitude - org.officeLng);
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos(toRad(org.officeLat)) *
-            Math.cos(toRad(latitude)) *
-            Math.sin(dLng / 2) *
-            Math.sin(dLng / 2);
-        const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        if (distance > org.geofenceRadius) {
-          return res.status(400).json({
-            error: {
-              message: `You are ${Math.round(distance)}m away from the office. Must be within ${org.geofenceRadius}m.`,
-              code: 'OUTSIDE_GEOFENCE',
-            },
-          });
-        }
-      }
-
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const now = new Date();
-
-      // Step 1 — Check if currently CHECKED_IN → allow clock out immediately
-      const openRecord = await prisma.attendanceRecord.findFirst({
-        where: {
-          membershipId: req.user!.membershipId,
-          checkInTime: { gte: todayStart },
-          status: 'CHECKED_IN',
-        },
-        orderBy: { checkInTime: 'desc' },
-      });
-
-      if (openRecord) {
-        // Clock out
-        const duration = Math.floor(
-          (now.getTime() - new Date(openRecord.checkInTime!).getTime()) / 60000
-        );
-        await prisma.attendanceRecord.update({
-          where: { id: openRecord.id },
-          data: {
-            checkOutTime: now,
-            checkOutMethod: 'MOBILE_CHECKIN',
-            status: 'CHECKED_OUT',
-            duration,
-          },
-        });
-        return res.json({
-          data: {
-            action: 'CLOCK_OUT',
-            message: `Clocked out at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-            time: now.toISOString(),
-            recordId: openRecord.id,
-            duration,
-          },
-        });
-      }
-
-      // Step 2 — Not currently clocked in
-      // Block new clock-in if already completed today (once in once out rule)
-      const completedToday = await prisma.attendanceRecord.findFirst({
-        where: {
-          membershipId: req.user!.membershipId,
-          checkInTime: { gte: todayStart },
-          status: 'CHECKED_OUT',
-        },
-      });
-
-      if (completedToday) {
-        return res.status(400).json({
-          error: {
-            message: 'Attendance already recorded for today.',
-            code: 'ALREADY_RECORDED',
-          },
-        });
-      }
-
-      // Step 3 — No record today at all → clock in with BS date fields
-      const bs = adToBS(now);
-      const record = await prisma.attendanceRecord.create({
-        data: {
-          membershipId: req.user!.membershipId,
-          organizationId: org.id,
-          checkInTime: now,
-          checkInMethod: 'MOBILE_CHECKIN',
-          status: 'CHECKED_IN',
-          bsYear: bs.year,
-          bsMonth: bs.month,
-          bsDay: bs.day,
-        },
-      });
-
-      return res.json({
-        data: {
-          action: 'CLOCK_IN',
-          message: `Clocked in at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-          time: now.toISOString(),
-          recordId: record.id,
-        },
-      });
-
+      return res.json({ data: result });
     } catch (error) {
       next(error);
     }

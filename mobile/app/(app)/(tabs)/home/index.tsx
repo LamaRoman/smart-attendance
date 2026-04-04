@@ -104,8 +104,6 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const attendanceMode = user?.organization?.attendanceMode ?? 'BOTH';
-
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -194,54 +192,19 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Check-in Methods */}
+          {/* Check-in Button */}
           {attendanceComplete ? (
             <View style={s.clockBtnDone}>
               <Ionicons name="checkmark-done" size={18} color={Colors.white} />
               <Text style={s.clockBtnText}>Attendance Complete</Text>
             </View>
-          ) : attendanceMode === 'BOTH' ? (
-            <View style={s.methodRow}>
-              <TouchableOpacity
-                style={s.methodCard}
-                onPress={() => router.push('/(app)/attendance/scan')}
-                activeOpacity={0.85}
-              >
-                <View style={[s.methodIconWrap, { backgroundColor: Colors.slate100 }]}>
-                  <Ionicons name="qr-code-outline" size={22} color={Colors.slate900} />
-                </View>
-                <Text style={s.methodLabel}>
-                  {isClockedIn ? 'QR Clock Out' : 'QR Scan'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.methodCard}
-                onPress={() => router.push('/(app)/attendance/gps-checkin')}
-                activeOpacity={0.85}
-              >
-                <View style={[s.methodIconWrap, { backgroundColor: '#DCFCE7' }]}>
-                  <Ionicons name="location-outline" size={22} color={Colors.success} />
-                </View>
-                <Text style={s.methodLabel}>
-                  {isClockedIn ? 'GPS Clock Out' : 'GPS Check-in'}
-                </Text>
-              </TouchableOpacity>
-            </View>
           ) : (
             <TouchableOpacity
               style={[s.clockBtn, isClockedIn ? s.clockBtnOut : s.clockBtnIn]}
-              onPress={() => router.push(
-                attendanceMode === 'QR_ONLY'
-                  ? '/(app)/attendance/scan'
-                  : '/(app)/attendance/gps-checkin'
-              )}
+              onPress={() => router.push('/(app)/attendance/gps-checkin')}
               activeOpacity={0.85}
             >
-              <Ionicons
-                name={attendanceMode === 'QR_ONLY' ? 'qr-code-outline' : 'location-outline'}
-                size={20}
-                color={Colors.white}
-              />
+              <Ionicons name="location-outline" size={20} color={Colors.white} />
               <Text style={s.clockBtnText}>
                 {isClockedIn ? 'Clock Out' : 'Clock In'}
               </Text>
@@ -434,36 +397,7 @@ const s = StyleSheet.create({
     color: Colors.white,
   },
 
-  // Check-in Methods
-  methodRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  methodCard: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.slate200,
-    paddingVertical: 18,
-    gap: 10,
-  },
-  methodIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  methodLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.slate900,
-  },
-
-  // Clock Button (single mode)
+  // Clock Button
   clockBtn: {
     flexDirection: 'row',
     alignItems: 'center',
