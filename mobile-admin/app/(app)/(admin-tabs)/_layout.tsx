@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const ADMIN_PRIMARY = '#7C3AED';
-const ADMIN_INACTIVE = '#9CA3AF';
+const ADMIN_INACTIVE = '#6B7280';
 
 export default function AdminTabsLayout() {
   return (

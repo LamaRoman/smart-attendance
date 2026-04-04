@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
   RefreshControl, ActivityIndicator, TouchableOpacity, Alert,
@@ -6,166 +6,57 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore, getOrgName } from '../../../../store/auth.store';
-import { Colors } from '../../../../constants/colors';
-import { apiGet } from '../../../../lib/api';
-import { todayBS } from '../../../../lib/nepali-date';
+import { apiGet, apiPut } from '../../../../lib/api';
 
-const ADMIN_PRIMARY = '#7C3AED';
+const PURPLE = '#7C3AED';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-
-type EmployeeRecord = {
+type LeaveRequest = {
   id: string;
-  userId: string;
-  checkInTime: string | null;
-  checkOutTime: string | null;
-  isLate: boolean;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  reason: string | null;
+  status: string;
   leaveType?: { name: string } | null;
   user?: {
     firstName: string;
     lastName: string;
     employeeId?: string;
   };
+  createdAt: string;
 };
 
-type GroupedData = {
-  clockedIn: EmployeeRecord[];
-  late: EmployeeRecord[];
-  onLeave: EmployeeRecord[];
-  absent: EmployeeRecord[];
-};
-
-function formatTime(iso: string | null | undefined) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function statusStyle(status: string) {
+  if (status === 'PENDING') return { bg: '#FEF3C7', text: '#92400E' };
+  if (status === 'APPROVED') return { bg: '#D1FAE5', text: '#065F46' };
+  if (status === 'REJECTED') return { bg: '#FEE2E2', text: '#991B1B' };
+  return { bg: '#F3F4F6', text: '#6B7280' };
 }
 
-function SectionHeader({
-  label, count, icon, color, expanded, onToggle,
-}: {
-  label: string; count: number; icon: IoniconsName;
-  color: string; expanded: boolean; onToggle: () => void;
-}) {
-  return (
-    <TouchableOpacity style={[sh.wrap, { borderLeftColor: color }]} onPress={onToggle} activeOpacity={0.8}>
-      <View style={[sh.iconWrap, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={18} color={color} />
-      </View>
-      <Text style={sh.label}>{label}</Text>
-      <View style={[sh.badge, { backgroundColor: color + '20' }]}>
-        <Text style={[sh.badgeText, { color }]}>{count}</Text>
-      </View>
-      <Ionicons
-        name={expanded ? 'chevron-up' : 'chevron-down'}
-        size={16} color="#9CA3AF" style={{ marginLeft: 6 }}
-      />
-    </TouchableOpacity>
-  );
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-const sh = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', borderRadius: 12,
-    borderWidth: 1, borderColor: '#E5E7EB',
-    borderLeftWidth: 4, padding: 14, marginBottom: 6,
-  },
-  iconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  label: { flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' },
-  badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  badgeText: { fontSize: 13, fontWeight: '700' },
-});
-
-function EmployeeCard({ record }: { record: EmployeeRecord }) {
-  const name = `${record.user?.firstName ?? ''} ${record.user?.lastName ?? ''}`.trim() || '—';
-  const empId = record.user?.employeeId ?? '—';
-  return (
-    <View style={ec.wrap}>
-      <View style={ec.avatar}>
-        <Text style={ec.avatarText}>{name.charAt(0).toUpperCase()}</Text>
-      </View>
-      <View style={ec.info}>
-        <Text style={ec.name}>{name}</Text>
-        <Text style={ec.sub}>{empId}</Text>
-      </View>
-      {record.checkInTime ? (
-        <View style={ec.timeWrap}>
-          <Text style={ec.timeLabel}>In</Text>
-          <Text style={ec.time}>{formatTime(record.checkInTime)}</Text>
-        </View>
-      ) : record.leaveType ? (
-        <View style={ec.leavePill}>
-          <Text style={ec.leaveText}>{record.leaveType.name}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-const ec = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F9FAFB', borderRadius: 10,
-    padding: 12, marginBottom: 6,
-    borderWidth: 1, borderColor: '#F3F4F6',
-  },
-  avatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: ADMIN_PRIMARY, alignItems: 'center',
-    justifyContent: 'center', marginRight: 10,
-  },
-  avatarText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-  info: { flex: 1 },
-  name: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  sub: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
-  timeWrap: { alignItems: 'flex-end' },
-  timeLabel: { fontSize: 10, color: '#9CA3AF' },
-  time: { fontSize: 13, fontWeight: '700', color: '#065F46' },
-  leavePill: { backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  leaveText: { fontSize: 11, fontWeight: '600', color: '#5B21B6' },
-});
-
-export default function AdminDashboard() {
-  const { user, logout } = useAuthStore();
-  const orgName = getOrgName(user);
-  const [refreshing, setRefreshing] = useState(false);
+export default function LeavesScreen() {
+  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pendingLeaves, setPendingLeaves] = useState(0);
-  const [grouped, setGrouped] = useState<GroupedData>({
-    clockedIn: [], late: [], onLeave: [], absent: [],
-  });
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
-    clockedIn: true, late: true, onLeave: false, absent: false,
-  });
+  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<'PENDING' | 'ALL'>('PENDING');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
-      const today = todayBS();
-      const [attData, leaveData] = await Promise.allSettled([
-        apiGet<any>(`/api/attendance?bsYear=${today.year}&bsMonth=${today.month}&bsDay=${today.day}`),
-        apiGet<any>('/api/leaves?status=PENDING&limit=1'),
-      ]);
-
-      const records: EmployeeRecord[] = attData.status === 'fulfilled'
-        ? (attData.value?.records ?? attData.value ?? []) : [];
-
-      const pending = leaveData.status === 'fulfilled'
-        ? (leaveData.value?.total ?? leaveData.value?.count ?? 0) : 0;
-
-      setPendingLeaves(pending);
-      setGrouped({
-        clockedIn: records.filter(r => r.checkInTime && !r.isLate),
-        late: records.filter(r => r.isLate),
-        onLeave: records.filter(r => !r.checkInTime && r.leaveType),
-        absent: records.filter(r => !r.checkInTime && !r.leaveType && !r.isLate),
-      });
-    } catch { /* non-critical */ }
+      const params = filter === 'PENDING' ? '?status=PENDING&limit=50' : '?limit=50';
+      const data = await apiGet<any>(`/api/leaves${params}`);
+      setLeaves(data?.records ?? data?.leaves ?? data ?? []);
+    } catch { /* ignore */ }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, []);
-  useFocusEffect(useCallback(() => { fetchData(); }, []));
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
+    fetchData();
+  }, [filter]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -173,167 +64,193 @@ export default function AdminDashboard() {
     setRefreshing(false);
   };
 
-  const toggle = (key: string) =>
-    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
-    ]);
+  const handleAction = (id: string, action: 'APPROVED' | 'REJECTED') => {
+    const label = action === 'APPROVED' ? 'Approve' : 'Reject';
+    Alert.alert(
+      `${label} Leave`,
+      `Are you sure you want to ${label.toLowerCase()} this leave request?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: label,
+          style: action === 'REJECTED' ? 'destructive' : 'default',
+          onPress: async () => {
+            setActionLoading(id);
+            try {
+              await apiPut(`/api/leaves/${id}/status`, { status: action });
+              await fetchData();
+            } catch {
+              Alert.alert('Error', `Failed to ${label.toLowerCase()} leave request.`);
+            }
+            setActionLoading(null);
+          },
+        },
+      ]
+    );
   };
 
-  const today = todayBS();
-  const total = grouped.clockedIn.length + grouped.late.length + grouped.onLeave.length + grouped.absent.length;
+  const pendingCount = leaves.filter(l => l.status === 'PENDING').length;
 
   return (
     <SafeAreaView style={s.safe}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ADMIN_PRIMARY} />}
-      >
-        {/* Header */}
-        <View style={s.header}>
-          <View style={s.headerTop}>
-            <View>
-              <Text style={s.title}>Dashboard</Text>
-              <Text style={s.orgName}>{orgName}</Text>
-              <Text style={s.date}>{today.year}/{today.month}/{today.day} BS</Text>
-            </View>
-            <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="log-out-outline" size={24} color="#EF4444" />
-            </TouchableOpacity>
-          </View>
+      <View style={s.header}>
+        <Text style={s.title}>Leave Requests</Text>
+        <Text style={s.subtitle}>
+          {filter === 'PENDING' ? `${pendingCount} pending` : `${leaves.length} total`}
+        </Text>
+      </View>
+
+      {/* Filter toggle */}
+      <View style={s.filterRow}>
+        <TouchableOpacity
+          style={[s.filterBtn, filter === 'PENDING' && s.filterActive]}
+          onPress={() => setFilter('PENDING')}
+        >
+          <Text style={[s.filterText, filter === 'PENDING' && s.filterTextActive]}>Pending</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.filterBtn, filter === 'ALL' && s.filterActive]}
+          onPress={() => setFilter('ALL')}
+        >
+          <Text style={[s.filterText, filter === 'ALL' && s.filterTextActive]}>All</Text>
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={s.loadingBox}>
+          <ActivityIndicator size="large" color={PURPLE} />
         </View>
-
-        {/* Summary pills */}
-        {!loading && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pillsRow}>
-            <View style={[s.pill, { backgroundColor: '#D1FAE5' }]}>
-              <Text style={[s.pillNum, { color: '#065F46' }]}>{grouped.clockedIn.length}</Text>
-              <Text style={[s.pillLabel, { color: '#065F46' }]}>On Time</Text>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PURPLE} />}
+          contentContainerStyle={s.list}
+        >
+          {leaves.length === 0 ? (
+            <View style={s.emptyBox}>
+              <Ionicons name="checkmark-done-circle-outline" size={48} color="#D1D5DB" />
+              <Text style={s.emptyText}>
+                {filter === 'PENDING' ? 'No pending leave requests' : 'No leave requests found'}
+              </Text>
             </View>
-            <View style={[s.pill, { backgroundColor: '#FEF3C7' }]}>
-              <Text style={[s.pillNum, { color: '#92400E' }]}>{grouped.late.length}</Text>
-              <Text style={[s.pillLabel, { color: '#92400E' }]}>Late</Text>
-            </View>
-            <View style={[s.pill, { backgroundColor: '#EDE9FE' }]}>
-              <Text style={[s.pillNum, { color: '#5B21B6' }]}>{grouped.onLeave.length}</Text>
-              <Text style={[s.pillLabel, { color: '#5B21B6' }]}>On Leave</Text>
-            </View>
-            <View style={[s.pill, { backgroundColor: '#FEE2E2' }]}>
-              <Text style={[s.pillNum, { color: '#991B1B' }]}>{grouped.absent.length}</Text>
-              <Text style={[s.pillLabel, { color: '#991B1B' }]}>Absent</Text>
-            </View>
-            {pendingLeaves > 0 && (
-              <View style={[s.pill, { backgroundColor: '#FFF7ED' }]}>
-                <Text style={[s.pillNum, { color: '#C2410C' }]}>{pendingLeaves}</Text>
-                <Text style={[s.pillLabel, { color: '#C2410C' }]}>Pending</Text>
-              </View>
-            )}
-          </ScrollView>
-        )}
+          ) : (
+            leaves.map((leave) => {
+              const name = `${leave.user?.firstName ?? ''} ${leave.user?.lastName ?? ''}`.trim() || '—';
+              const ss = statusStyle(leave.status);
+              const isPending = leave.status === 'PENDING';
+              const isActioning = actionLoading === leave.id;
+              return (
+                <View key={leave.id} style={s.card}>
+                  <View style={s.cardTop}>
+                    <View style={[s.avatar, { backgroundColor: PURPLE }]}>
+                      <Text style={s.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={s.cardInfo}>
+                      <Text style={s.cardName}>{name}</Text>
+                      <Text style={s.cardType}>{leave.leaveType?.name ?? 'Leave'}</Text>
+                    </View>
+                    <View style={[s.statusPill, { backgroundColor: ss.bg }]}>
+                      <Text style={[s.statusText, { color: ss.text }]}>{leave.status}</Text>
+                    </View>
+                  </View>
 
-        {loading ? (
-          <View style={s.loadingBox}>
-            <ActivityIndicator size="large" color={ADMIN_PRIMARY} />
-          </View>
-        ) : (
-          <View style={s.sections}>
+                  <View style={s.detailRow}>
+                    <Ionicons name="calendar-outline" size={14} color="#9CA3AF" />
+                    <Text style={s.detailText}>
+                      {formatDate(leave.startDate)} — {formatDate(leave.endDate)} ({leave.totalDays}d)
+                    </Text>
+                  </View>
 
-            {/* Clocked In */}
-            <SectionHeader
-              label="Clocked In" count={grouped.clockedIn.length}
-              icon="checkmark-circle" color="#10B981"
-              expanded={expanded.clockedIn}
-              onToggle={() => toggle('clockedIn')}
-            />
-            {expanded.clockedIn && grouped.clockedIn.map(r => (
-              <EmployeeCard key={r.id} record={r} />
-            ))}
-            {expanded.clockedIn && grouped.clockedIn.length === 0 && (
-              <Text style={s.emptyText}>No employees clocked in yet</Text>
-            )}
+                  {leave.reason ? (
+                    <View style={s.detailRow}>
+                      <Ionicons name="chatbubble-outline" size={14} color="#9CA3AF" />
+                      <Text style={s.detailText} numberOfLines={2}>{leave.reason}</Text>
+                    </View>
+                  ) : null}
 
-            <View style={s.gap} />
-
-            {/* Late */}
-            <SectionHeader
-              label="Late Arrivals" count={grouped.late.length}
-              icon="time" color="#F59E0B"
-              expanded={expanded.late}
-              onToggle={() => toggle('late')}
-            />
-            {expanded.late && grouped.late.map(r => (
-              <EmployeeCard key={r.id} record={r} />
-            ))}
-            {expanded.late && grouped.late.length === 0 && (
-              <Text style={s.emptyText}>No late arrivals today</Text>
-            )}
-
-            <View style={s.gap} />
-
-            {/* On Leave */}
-            <SectionHeader
-              label="On Leave" count={grouped.onLeave.length}
-              icon="calendar" color="#8B5CF6"
-              expanded={expanded.onLeave}
-              onToggle={() => toggle('onLeave')}
-            />
-            {expanded.onLeave && grouped.onLeave.map(r => (
-              <EmployeeCard key={r.id} record={r} />
-            ))}
-            {expanded.onLeave && grouped.onLeave.length === 0 && (
-              <Text style={s.emptyText}>No one on leave today</Text>
-            )}
-
-            <View style={s.gap} />
-
-            {/* Absent */}
-            <SectionHeader
-              label="Absent" count={grouped.absent.length}
-              icon="close-circle" color="#EF4444"
-              expanded={expanded.absent}
-              onToggle={() => toggle('absent')}
-            />
-            {expanded.absent && grouped.absent.map(r => (
-              <EmployeeCard key={r.id} record={r} />
-            ))}
-            {expanded.absent && grouped.absent.length === 0 && (
-              <Text style={s.emptyText}>No absences today</Text>
-            )}
-
-          </View>
-        )}
-
-        <View style={{ height: 32 }} />
-      </ScrollView>
+                  {isPending && (
+                    <View style={s.actionRow}>
+                      <TouchableOpacity
+                        style={[s.actionBtn, s.rejectBtn]}
+                        onPress={() => handleAction(leave.id, 'REJECTED')}
+                        disabled={isActioning}
+                      >
+                        {isActioning ? (
+                          <ActivityIndicator size="small" color="#991B1B" />
+                        ) : (
+                          <>
+                            <Ionicons name="close" size={16} color="#991B1B" />
+                            <Text style={[s.actionText, { color: '#991B1B' }]}>Reject</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[s.actionBtn, s.approveBtn]}
+                        onPress={() => handleAction(leave.id, 'APPROVED')}
+                        disabled={isActioning}
+                      >
+                        {isActioning ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                            <Text style={[s.actionText, { color: '#FFFFFF' }]}>Approve</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
-  headerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  orgName: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  date: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
-  logoutBtn: {
+  subtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  filterRow: {
+    flexDirection: 'row', marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: '#F3F4F6', borderRadius: 10, padding: 3,
+  },
+  filterBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  filterActive: { backgroundColor: PURPLE },
+  filterText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  filterTextActive: { color: '#FFFFFF' },
+  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
+  list: { paddingHorizontal: 16 },
+  emptyBox: { alignItems: 'center', paddingTop: 80 },
+  emptyText: { fontSize: 14, color: '#9CA3AF', marginTop: 12 },
+  card: {
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16,
+    marginBottom: 10, borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  avatar: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB',
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  pillsRow: { paddingHorizontal: 16, paddingBottom: 16, gap: 8 },
-  pill: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 12, alignItems: 'center', minWidth: 70,
+  avatarText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  cardInfo: { flex: 1 },
+  cardName: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  cardType: { fontSize: 12, color: '#7C3AED', fontWeight: '600', marginTop: 1 },
+  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusText: { fontSize: 11, fontWeight: '700' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  detailText: { fontSize: 13, color: '#6B7280', flex: 1 },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  actionBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 10, borderRadius: 10, gap: 4,
   },
-  pillNum: { fontSize: 20, fontWeight: '700' },
-  pillLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-  loadingBox: { height: 300, alignItems: 'center', justifyContent: 'center' },
-  sections: { paddingHorizontal: 16 },
-  gap: { height: 10 },
-  emptyText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 12 },
+  rejectBtn: { backgroundColor: '#FEE2E2' },
+  approveBtn: { backgroundColor: '#16A34A' },
+  actionText: { fontSize: 14, fontWeight: '700' },
 });

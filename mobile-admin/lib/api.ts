@@ -119,6 +119,9 @@ export const apiGet = <T>(url: string, params?: object) =>
 export const apiPost = <T>(url: string, body?: object) =>
   api.post<{ data: T }>(url, body).then((r) => r.data.data);
 
+export const apiPut = <T>(url: string, body?: object) =>
+  api.put<{ data: T }>(url, body).then((r) => r.data.data);
+
 export const apiDelete = <T>(url: string) =>
   api.delete<{ data: T }>(url).then((r) => r.data.data);
 
