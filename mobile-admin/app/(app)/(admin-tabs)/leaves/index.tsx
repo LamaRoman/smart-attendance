@@ -8,6 +8,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet, apiPut } from '../../../../lib/api';
 import { Colors } from '../../../../constants/colors';
+import { BS_MONTHS_EN } from '../../../../lib/nepali-date';
 
 
 type LeaveRequest = {
@@ -15,9 +16,17 @@ type LeaveRequest = {
   startDate: string;
   endDate: string;
   totalDays: number;
+  durationDays?: number;
   reason: string | null;
   status: string;
+  type?: string;
   leaveType?: { name: string } | null;
+  bsStartYear?: number | null;
+  bsStartMonth?: number | null;
+  bsStartDay?: number | null;
+  bsEndYear?: number | null;
+  bsEndMonth?: number | null;
+  bsEndDay?: number | null;
   user?: {
     firstName: string;
     lastName: string;
@@ -33,8 +42,9 @@ function statusStyle(status: string) {
   return { bg: Colors.slate100, text: Colors.slate500 };
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+function formatBSDate(y?: number | null, m?: number | null, d?: number | null): string {
+  if (!y || !m || !d) return '—';
+  return `${d} ${BS_MONTHS_EN[m - 1]} ${y}`;
 }
 
 export default function LeavesScreen() {
@@ -48,9 +58,13 @@ export default function LeavesScreen() {
     try {
       const params = filter === 'PENDING' ? '?status=PENDING&limit=50' : '?limit=50';
       const data = await apiGet<any>(`/api/leaves${params}`);
-      setLeaves(data?.records ?? data?.leaves ?? data ?? []);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+      const items = data?.leaves ?? data?.records ?? (Array.isArray(data) ? data : []);
+      setLeaves(items);
+    } catch (err: any) {
+      console.error('Leaves fetch error:', err?.response?.data ?? err?.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useFocusEffect(useCallback(() => {
@@ -139,6 +153,8 @@ export default function LeavesScreen() {
               const ss = statusStyle(leave.status);
               const isPending = leave.status === 'PENDING';
               const isActioning = actionLoading === leave.id;
+              const days = leave.durationDays ?? leave.totalDays;
+              const typeName = leave.leaveType?.name ?? leave.type ?? 'Leave';
               return (
                 <View key={leave.id} style={s.card}>
                   <View style={s.cardTop}>
@@ -147,7 +163,7 @@ export default function LeavesScreen() {
                     </View>
                     <View style={s.cardInfo}>
                       <Text style={s.cardName}>{name}</Text>
-                      <Text style={s.cardType}>{leave.leaveType?.name ?? 'Leave'}</Text>
+                      <Text style={s.cardType}>{typeName}</Text>
                     </View>
                     <View style={[s.statusPill, { backgroundColor: ss.bg }]}>
                       <Text style={[s.statusText, { color: ss.text }]}>{leave.status}</Text>
@@ -157,7 +173,7 @@ export default function LeavesScreen() {
                   <View style={s.detailRow}>
                     <Ionicons name="calendar-outline" size={14} color="#9CA3AF" />
                     <Text style={s.detailText}>
-                      {formatDate(leave.startDate)} — {formatDate(leave.endDate)} ({leave.totalDays}d)
+                      {formatBSDate(leave.bsStartYear, leave.bsStartMonth, leave.bsStartDay)} — {formatBSDate(leave.bsEndYear, leave.bsEndMonth, leave.bsEndDay)} ({days}d)
                     </Text>
                   </View>
 

@@ -9,29 +9,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, getOrgName } from '../../../../store/auth.store';
 import { Colors } from '../../../../constants/colors';
 import { apiGet } from '../../../../lib/api';
-import { todayBS } from '../../../../lib/nepali-date';
+import { todayBS, BS_MONTHS_EN } from '../../../../lib/nepali-date';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 type EmployeeRecord = {
   id: string;
-  userId: string;
   checkInTime: string | null;
   checkOutTime: string | null;
   isLate: boolean;
   leaveType?: { name: string } | null;
-  user?: {
-    firstName: string;
-    lastName: string;
-    employeeId?: string;
-  };
-};
-
-type GroupedData = {
-  clockedIn: EmployeeRecord[];
-  late: EmployeeRecord[];
-  onLeave: EmployeeRecord[];
-  absent: EmployeeRecord[];
+  user?: { firstName: string; lastName: string; employeeId?: string };
 };
 
 function formatTime(iso: string | null | undefined) {
@@ -39,105 +27,17 @@ function formatTime(iso: string | null | undefined) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function SectionHeader({
-  label, count, icon, color, expanded, onToggle,
-}: {
-  label: string; count: number; icon: IoniconsName;
-  color: string; expanded: boolean; onToggle: () => void;
-}) {
-  return (
-    <TouchableOpacity style={[sh.wrap, { borderLeftColor: color }]} onPress={onToggle} activeOpacity={0.8}>
-      <View style={[sh.iconWrap, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={18} color={color} />
-      </View>
-      <Text style={sh.label}>{label}</Text>
-      <View style={[sh.badge, { backgroundColor: color + '20' }]}>
-        <Text style={[sh.badgeText, { color }]}>{count}</Text>
-      </View>
-      <Ionicons
-        name={expanded ? 'chevron-up' : 'chevron-down'}
-        size={16} color="#9CA3AF" style={{ marginLeft: 6 }}
-      />
-    </TouchableOpacity>
-  );
-}
-
-const sh = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.white, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.slate200,
-    borderLeftWidth: 4, padding: 14, marginBottom: 6,
-  },
-  iconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  label: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.slate900 },
-  badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  badgeText: { fontSize: 13, fontWeight: '700' },
-});
-
-function EmployeeCard({ record }: { record: EmployeeRecord }) {
-  const name = `${record.user?.firstName ?? ''} ${record.user?.lastName ?? ''}`.trim() || '—';
-  const empId = record.user?.employeeId ?? '—';
-  return (
-    <View style={ec.wrap}>
-      <View style={ec.avatar}>
-        <Text style={ec.avatarText}>{name.charAt(0).toUpperCase()}</Text>
-      </View>
-      <View style={ec.info}>
-        <Text style={ec.name}>{name}</Text>
-        <Text style={ec.sub}>{empId}</Text>
-      </View>
-      {record.checkInTime ? (
-        <View style={ec.timeWrap}>
-          <Text style={ec.timeLabel}>In</Text>
-          <Text style={ec.time}>{formatTime(record.checkInTime)}</Text>
-        </View>
-      ) : record.leaveType ? (
-        <View style={ec.leavePill}>
-          <Text style={ec.leaveText}>{record.leaveType.name}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-const ec = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.slate50, borderRadius: 10,
-    padding: 12, marginBottom: 6,
-    borderWidth: 1, borderColor: Colors.slate100,
-  },
-  avatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.slate900, alignItems: 'center',
-    justifyContent: 'center', marginRight: 10,
-  },
-  avatarText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
-  info: { flex: 1 },
-  name: { fontSize: 13, fontWeight: '600', color: Colors.slate900 },
-  sub: { fontSize: 11, color: Colors.slate400, marginTop: 1 },
-  timeWrap: { alignItems: 'flex-end' },
-  timeLabel: { fontSize: 10, color: Colors.slate400 },
-  time: { fontSize: 13, fontWeight: '700', color: '#065F46' },
-  leavePill: { backgroundColor: Colors.slate100, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  leaveText: { fontSize: 11, fontWeight: '600', color: Colors.slate700 },
-});
-
 export default function AdminDashboard() {
   const { user, logout } = useAuthStore();
   const orgName = getOrgName(user);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [pendingLeaves, setPendingLeaves] = useState(0);
-  const [grouped, setGrouped] = useState<GroupedData>({
-    clockedIn: [], late: [], onLeave: [], absent: [],
-  });
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
-    clockedIn: true, late: true, onLeave: false, absent: false,
-  });
+  const [records, setRecords] = useState<EmployeeRecord[]>([]);
 
   const fetchData = async () => {
+    setError('');
     try {
       const today = todayBS();
       const [attData, leaveData] = await Promise.allSettled([
@@ -148,26 +48,24 @@ export default function AdminDashboard() {
       const rawRecords: EmployeeRecord[] = attData.status === 'fulfilled'
         ? (attData.value?.records ?? attData.value ?? []) : [];
 
-      // Extra safety: only keep records where checkInTime is actually today
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      const records = rawRecords.filter((r) => {
-        if (!r.checkInTime) return true; // keep leave/absent placeholders
+      setRecords(rawRecords.filter((r) => {
+        if (!r.checkInTime) return true;
         return new Date(r.checkInTime) >= todayStart;
-      });
+      }));
 
-      const pending = leaveData.status === 'fulfilled'
-        ? (leaveData.value?.total ?? leaveData.value?.count ?? 0) : 0;
-
-      setPendingLeaves(pending);
-      setGrouped({
-        clockedIn: records.filter(r => r.checkInTime && !r.isLate),
-        late: records.filter(r => r.isLate),
-        onLeave: records.filter(r => !r.checkInTime && r.leaveType),
-        absent: records.filter(r => !r.checkInTime && !r.leaveType && !r.isLate),
-      });
-    } catch { /* non-critical */ }
-    finally { setLoading(false); }
+      setPendingLeaves(
+        leaveData.status === 'fulfilled'
+          ? (leaveData.value?.pagination?.total ?? leaveData.value?.total ?? 0)
+          : 0
+      );
+    } catch (err: any) {
+      console.error('Dashboard fetch error:', err?.response?.data ?? err?.message);
+      setError(err?.response?.data?.error?.message ?? 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -179,9 +77,6 @@ export default function AdminDashboard() {
     setRefreshing(false);
   };
 
-  const toggle = (key: string) =>
-    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -190,7 +85,18 @@ export default function AdminDashboard() {
   };
 
   const today = todayBS();
-  const total = grouped.clockedIn.length + grouped.late.length + grouped.onLeave.length + grouped.absent.length;
+  const dateStr = `${today.day} ${BS_MONTHS_EN[today.month - 1]} ${today.year}`;
+
+  const onTime = records.filter(r => r.checkInTime && !r.isLate).length;
+  const late = records.filter(r => r.isLate).length;
+  const onLeave = records.filter(r => !r.checkInTime && r.leaveType).length;
+  const absent = records.filter(r => !r.checkInTime && !r.leaveType && !r.isLate).length;
+
+  // Recent activity — last 5 clock-ins
+  const recentClockIns = records
+    .filter(r => r.checkInTime)
+    .sort((a, b) => new Date(b.checkInTime!).getTime() - new Date(a.checkInTime!).getTime())
+    .slice(0, 5);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -200,119 +106,96 @@ export default function AdminDashboard() {
       >
         {/* Header */}
         <View style={s.header}>
-          <View style={s.headerTop}>
-            <View>
-              <Text style={s.title}>Dashboard</Text>
-              <Text style={s.orgName}>{orgName}</Text>
-              <Text style={s.date}>{today.year}/{today.month}/{today.day} BS</Text>
+          <View style={s.headerRow}>
+            <View style={s.logoBox}>
+              <Ionicons name="shield-checkmark" size={16} color={Colors.white} />
             </View>
-            <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="log-out-outline" size={24} color="#EF4444" />
-            </TouchableOpacity>
+            <View>
+              <Text style={s.headerTitle}>{orgName}</Text>
+              <Text style={s.headerDate}>{dateStr} BS</Text>
+            </View>
           </View>
+          <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={18} color={Colors.slate400} />
+          </TouchableOpacity>
         </View>
 
-        {/* Summary pills */}
-        {!loading && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pillsRow}>
-            <View style={[s.pill, { backgroundColor: '#D1FAE5' }]}>
-              <Text style={[s.pillNum, { color: '#065F46' }]}>{grouped.clockedIn.length}</Text>
-              <Text style={[s.pillLabel, { color: '#065F46' }]}>On Time</Text>
+        <View style={s.content}>
+          {loading ? (
+            <View style={s.loadingBox}>
+              <ActivityIndicator size="large" color={Colors.slate900} />
             </View>
-            <View style={[s.pill, { backgroundColor: '#FEF3C7' }]}>
-              <Text style={[s.pillNum, { color: '#92400E' }]}>{grouped.late.length}</Text>
-              <Text style={[s.pillLabel, { color: '#92400E' }]}>Late</Text>
+          ) : error ? (
+            <View style={s.errorBox}>
+              <Ionicons name="alert-circle-outline" size={40} color={Colors.slate300} />
+              <Text style={s.errorText}>{error}</Text>
+              <TouchableOpacity style={s.retryBtn} onPress={fetchData}>
+                <Text style={s.retryText}>Retry</Text>
+              </TouchableOpacity>
             </View>
-            <View style={[s.pill, { backgroundColor: Colors.slate100 }]}>
-              <Text style={[s.pillNum, { color: Colors.slate900 }]}>{grouped.onLeave.length}</Text>
-              <Text style={[s.pillLabel, { color: Colors.slate900 }]}>On Leave</Text>
-            </View>
-            <View style={[s.pill, { backgroundColor: '#FEE2E2' }]}>
-              <Text style={[s.pillNum, { color: '#991B1B' }]}>{grouped.absent.length}</Text>
-              <Text style={[s.pillLabel, { color: '#991B1B' }]}>Absent</Text>
-            </View>
-            {pendingLeaves > 0 && (
-              <View style={[s.pill, { backgroundColor: '#FFF7ED' }]}>
-                <Text style={[s.pillNum, { color: '#C2410C' }]}>{pendingLeaves}</Text>
-                <Text style={[s.pillLabel, { color: '#C2410C' }]}>Pending</Text>
+          ) : (
+            <>
+              {/* Stats row */}
+              <View style={s.statsRow}>
+                <View style={s.statCard}>
+                  <Text style={[s.statNum, { color: '#065F46' }]}>{onTime}</Text>
+                  <Text style={s.statLabel}>On Time</Text>
+                </View>
+                <View style={s.statCard}>
+                  <Text style={[s.statNum, { color: '#92400E' }]}>{late}</Text>
+                  <Text style={s.statLabel}>Late</Text>
+                </View>
+                <View style={s.statCard}>
+                  <Text style={[s.statNum, { color: '#5B21B6' }]}>{onLeave}</Text>
+                  <Text style={s.statLabel}>Leave</Text>
+                </View>
+                <View style={s.statCard}>
+                  <Text style={[s.statNum, { color: '#991B1B' }]}>{absent}</Text>
+                  <Text style={s.statLabel}>Absent</Text>
+                </View>
               </View>
-            )}
-          </ScrollView>
-        )}
 
-        {loading ? (
-          <View style={s.loadingBox}>
-            <ActivityIndicator size="large" color={Colors.slate900} />
-          </View>
-        ) : (
-          <View style={s.sections}>
+              {/* Pending leaves banner */}
+              {pendingLeaves > 0 && (
+                <View style={s.pendingBanner}>
+                  <Ionicons name="alert-circle" size={18} color="#EA580C" />
+                  <Text style={s.pendingText}>
+                    {pendingLeaves} leave request{pendingLeaves > 1 ? 's' : ''} pending
+                  </Text>
+                </View>
+              )}
 
-            {/* Clocked In */}
-            <SectionHeader
-              label="Clocked In" count={grouped.clockedIn.length}
-              icon="checkmark-circle" color="#10B981"
-              expanded={expanded.clockedIn}
-              onToggle={() => toggle('clockedIn')}
-            />
-            {expanded.clockedIn && grouped.clockedIn.map(r => (
-              <EmployeeCard key={r.id} record={r} />
-            ))}
-            {expanded.clockedIn && grouped.clockedIn.length === 0 && (
-              <Text style={s.emptyText}>No employees clocked in yet</Text>
-            )}
-
-            <View style={s.gap} />
-
-            {/* Late */}
-            <SectionHeader
-              label="Late Arrivals" count={grouped.late.length}
-              icon="time" color="#F59E0B"
-              expanded={expanded.late}
-              onToggle={() => toggle('late')}
-            />
-            {expanded.late && grouped.late.map(r => (
-              <EmployeeCard key={r.id} record={r} />
-            ))}
-            {expanded.late && grouped.late.length === 0 && (
-              <Text style={s.emptyText}>No late arrivals today</Text>
-            )}
-
-            <View style={s.gap} />
-
-            {/* On Leave */}
-            <SectionHeader
-              label="On Leave" count={grouped.onLeave.length}
-              icon="calendar" color="#8B5CF6"
-              expanded={expanded.onLeave}
-              onToggle={() => toggle('onLeave')}
-            />
-            {expanded.onLeave && grouped.onLeave.map(r => (
-              <EmployeeCard key={r.id} record={r} />
-            ))}
-            {expanded.onLeave && grouped.onLeave.length === 0 && (
-              <Text style={s.emptyText}>No one on leave today</Text>
-            )}
-
-            <View style={s.gap} />
-
-            {/* Absent */}
-            <SectionHeader
-              label="Absent" count={grouped.absent.length}
-              icon="close-circle" color="#EF4444"
-              expanded={expanded.absent}
-              onToggle={() => toggle('absent')}
-            />
-            {expanded.absent && grouped.absent.map(r => (
-              <EmployeeCard key={r.id} record={r} />
-            ))}
-            {expanded.absent && grouped.absent.length === 0 && (
-              <Text style={s.emptyText}>No absences today</Text>
-            )}
-
-          </View>
-        )}
-
+              {/* Recent activity */}
+              <Text style={s.sectionTitle}>Recent Activity</Text>
+              {recentClockIns.length === 0 ? (
+                <View style={s.emptyCard}>
+                  <Text style={s.emptyText}>No clock-ins yet today</Text>
+                </View>
+              ) : (
+                <View style={s.activityCard}>
+                  {recentClockIns.map((r, i) => {
+                    const name = `${r.user?.firstName ?? ''} ${r.user?.lastName ?? ''}`.trim() || '—';
+                    return (
+                      <View key={r.id} style={[s.actRow, i < recentClockIns.length - 1 && s.actRowBorder]}>
+                        <View style={[s.actAvatar, r.isLate && { backgroundColor: '#F59E0B' }]}>
+                          <Text style={s.actAvatarText}>{name.charAt(0).toUpperCase()}</Text>
+                        </View>
+                        <View style={s.actInfo}>
+                          <Text style={s.actName}>{name}</Text>
+                          <Text style={s.actSub}>{r.user?.employeeId ?? '—'}</Text>
+                        </View>
+                        <View style={s.actTimeWrap}>
+                          <Text style={s.actTime}>{formatTime(r.checkInTime)}</Text>
+                          {r.isLate && <Text style={s.actLate}>Late</Text>}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </>
+          )}
+        </View>
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
@@ -321,25 +204,64 @@ export default function AdminDashboard() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.slate50 },
-  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
-  headerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  title: { fontSize: 22, fontWeight: '700', color: Colors.slate900 },
-  orgName: { fontSize: 13, color: Colors.slate500, marginTop: 2 },
-  date: { fontSize: 12, color: Colors.slate400, marginTop: 2 },
-  logoutBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.slate200,
-    alignItems: 'center', justifyContent: 'center',
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.slate100,
+    paddingHorizontal: 16, paddingVertical: 12,
   },
-  pillsRow: { paddingHorizontal: 16, paddingBottom: 16, gap: 8 },
-  pill: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 12, alignItems: 'center', minWidth: 70,
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoBox: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: Colors.slate900, alignItems: 'center', justifyContent: 'center',
   },
-  pillNum: { fontSize: 20, fontWeight: '700' },
-  pillLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-  loadingBox: { height: 300, alignItems: 'center', justifyContent: 'center' },
-  sections: { paddingHorizontal: 16 },
-  gap: { height: 10 },
-  emptyText: { fontSize: 13, color: Colors.slate400, textAlign: 'center', paddingVertical: 12 },
+  headerTitle: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
+  headerDate: { fontSize: 12, color: Colors.slate500, marginTop: 1 },
+  logoutBtn: { padding: 8, borderRadius: 10 },
+  content: { padding: 16 },
+  loadingBox: { height: 200, alignItems: 'center', justifyContent: 'center' },
+  errorBox: { alignItems: 'center', paddingTop: 60, gap: 8 },
+  errorText: { fontSize: 14, color: Colors.slate500 },
+  retryBtn: { backgroundColor: Colors.slate900, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8, marginTop: 8 },
+  retryText: { color: Colors.white, fontWeight: '600', fontSize: 13 },
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  statCard: {
+    flex: 1, backgroundColor: Colors.white, borderRadius: 12,
+    padding: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: Colors.slate200,
+  },
+  statNum: { fontSize: 24, fontWeight: '700' },
+  statLabel: { fontSize: 11, fontWeight: '600', color: Colors.slate400, marginTop: 2 },
+  pendingBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FFF7ED', borderRadius: 10, padding: 12,
+    borderWidth: 1, borderColor: '#FED7AA', marginBottom: 16,
+  },
+  pendingText: { fontSize: 13, fontWeight: '600', color: '#EA580C' },
+  sectionTitle: {
+    fontSize: 13, fontWeight: '700', color: Colors.slate400,
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginTop: 4,
+  },
+  emptyCard: {
+    backgroundColor: Colors.white, borderRadius: 14, padding: 32,
+    alignItems: 'center', borderWidth: 1, borderColor: Colors.slate200,
+  },
+  emptyText: { fontSize: 14, color: Colors.slate400 },
+  activityCard: {
+    backgroundColor: Colors.white, borderRadius: 14,
+    borderWidth: 1, borderColor: Colors.slate200, overflow: 'hidden',
+  },
+  actRow: { flexDirection: 'row', alignItems: 'center', padding: 14 },
+  actRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.slate100 },
+  actAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.slate900, alignItems: 'center',
+    justifyContent: 'center', marginRight: 10,
+  },
+  actAvatarText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
+  actInfo: { flex: 1 },
+  actName: { fontSize: 14, fontWeight: '600', color: Colors.slate900 },
+  actSub: { fontSize: 11, color: Colors.slate400, marginTop: 1 },
+  actTimeWrap: { alignItems: 'flex-end' },
+  actTime: { fontSize: 14, fontWeight: '700', color: Colors.slate900 },
+  actLate: { fontSize: 10, fontWeight: '700', color: '#F59E0B', marginTop: 2 },
 });
