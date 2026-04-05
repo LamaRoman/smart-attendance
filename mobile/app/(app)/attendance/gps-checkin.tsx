@@ -198,16 +198,16 @@ export default function GPSCheckinScreen() {
             style={[
               styles.actionBtn,
               isClockedIn ? styles.actionBtnOut : styles.actionBtnIn,
-              screenState === 'error' && !permissionDenied && styles.actionBtnRetry,
+              screenState === 'error' && !coords && geofenceEnabled && !permissionDenied && styles.actionBtnRetry,
             ]}
             onPress={
-              screenState === 'error' && !permissionDenied ? getLocation : handleCheckInOut
+              screenState === 'error' && !coords && geofenceEnabled && !permissionDenied ? getLocation : handleCheckInOut
             }
             disabled={geofenceEnabled && !coords && screenState !== 'error'}
             activeOpacity={0.85}
           >
             <Text style={styles.actionBtnText}>
-              {screenState === 'error' && !permissionDenied
+              {screenState === 'error' && !coords && geofenceEnabled && !permissionDenied
                 ? '↻ Retry'
                 : isClockedIn
                 ? '⏹  Clock Out'
