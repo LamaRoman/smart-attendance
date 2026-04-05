@@ -281,9 +281,10 @@ model UserSession {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tokenHash String   @unique // SHA-256 hash of the JWT
-  isValid   Boolean  @default(true)
-  expiresAt DateTime
+  tokenHash        String   @unique // SHA-256 hash of the JWT access token
+  refreshTokenHash String?  @unique // SHA-256 hash of the refresh token
+  isValid          Boolean  @default(true)
+  expiresAt        DateTime
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -291,6 +292,7 @@ model UserSession {
 
   @@index([userId])
   @@index([tokenHash])
+  @@index([refreshTokenHash])
   @@index([expiresAt])
   @@index([userId, isValid])
   @@map("user_sessions")

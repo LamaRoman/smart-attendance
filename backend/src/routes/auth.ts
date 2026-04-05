@@ -1,5 +1,4 @@
 ﻿import { Router, Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import { authService } from '../services/auth.service';
 import { validate } from '../middleware/validate';
 import { loginSchema } from '../schemas/auth.schema';
@@ -21,18 +20,12 @@ const COOKIE_OPTIONS = {
 // POST /api/auth/login
 router.post('/login', authRateLimiter, validate(loginSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { user, token } = await authService.login(req.body);
+    const { user, token, refreshToken } = await authService.login(req.body);
 
-    // Web: set httpOnly cookie (unchanged)
+    // Web: set httpOnly cookie
     res.cookie('token', token, COOKIE_OPTIONS);
 
-    // Mobile: also return tokens in response body
-    const refreshToken = jwt.sign(
-      { accessToken: token },
-      process.env.REFRESH_TOKEN_SECRET!,
-      { expiresIn: '7d' }
-    );
-
+    // Mobile + Web: return tokens in response body
     res.json({ data: { user, accessToken: token, refreshToken } });
   } catch (error) {
     next(error);
@@ -44,12 +37,12 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
-      res.status(400).json({ message: 'Refresh token required' }); return;
+      res.status(400).json({ error: { message: 'Refresh token required' } }); return;
     }
-    const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!) as { accessToken: string };
-    res.json({ data: { accessToken: payload.accessToken } });
+    const result = await authService.refreshAccessToken(refreshToken);
+    res.json({ data: { accessToken: result.accessToken } });
   } catch {
-    res.status(401).json({ message: 'Invalid or expired refresh token' });
+    res.status(401).json({ error: { message: 'Invalid or expired refresh token' } });
   }
 });
 

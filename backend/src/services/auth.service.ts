@@ -1,4 +1,5 @@
-﻿import prisma from '../lib/prisma';
+﻿import crypto from 'crypto';
+import prisma from '../lib/prisma';
 import { generateToken, hashToken, getTokenExpiration, JWTPayload } from '../lib/jwt';
 import { verifyPassword } from '../lib/password';
 import { AuthenticationError } from '../lib/errors';
@@ -98,11 +99,15 @@ export class AuthService {
       membershipId,
     });
 
-    // Store session in DB
+    // Step 4: Generate a proper refresh token (random string, stored in DB)
+    const refreshToken = crypto.randomBytes(48).toString('hex');
+
+    // Store session with both access and refresh token hashes
     await prisma.userSession.create({
       data: {
         userId: user.id,
         tokenHash: hashToken(token),
+        refreshTokenHash: hashToken(refreshToken),
         expiresAt: getTokenExpiration(),
       },
     });
@@ -120,6 +125,7 @@ export class AuthService {
         organizationName,
       },
       token,
+      refreshToken,
     };
   }
 
@@ -128,11 +134,95 @@ export class AuthService {
    */
   async logout(token: string) {
     const deleted = await prisma.userSession.deleteMany({
-      where: { tokenHash: hashToken(token) },
+      where: {
+        OR: [
+          { tokenHash: hashToken(token) },
+          { refreshTokenHash: hashToken(token) },
+        ],
+      },
     });
 
     log.info({ sessionsRemoved: deleted.count }, 'User logged out');
     return { message: 'Logged out successfully' };
+  }
+
+  /**
+   * Refresh access token using a valid refresh token.
+   *
+   * Flow:
+   * 1. Find session by refreshTokenHash
+   * 2. Verify session is valid and not expired
+   * 3. Look up user + membership to build a fresh JWT payload
+   * 4. Generate a new access token and update the session
+   */
+  async refreshAccessToken(refreshToken: string) {
+    const refreshHash = hashToken(refreshToken);
+
+    // Find session by refresh token hash — use select (not include) for type safety
+    const session = await prisma.userSession.findFirst({
+      where: {
+        refreshTokenHash: refreshHash,
+        isValid: true,
+      },
+      select: {
+        id: true,
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            isActive: true,
+            memberships: {
+              where: { isActive: true, leftAt: null, deletedAt: null },
+              select: {
+                id: true,
+                role: true,
+                organizationId: true,
+              },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+
+    if (!session) {
+      throw new AuthenticationError('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
+    }
+
+    if (!session.user.isActive) {
+      await prisma.userSession.update({ where: { id: session.id }, data: { isValid: false } });
+      throw new AuthenticationError('Account is inactive');
+    }
+
+    // Build JWT payload from current user state
+    const membership = session.user.memberships[0] ?? null;
+    const effectiveRole = session.user.role === 'SUPER_ADMIN'
+      ? 'SUPER_ADMIN'
+      : (membership?.role ?? session.user.role);
+
+    const newAccessToken = generateToken({
+      userId: session.user.id,
+      id: session.user.id,
+      email: session.user.email,
+      role: effectiveRole,
+      organizationId: membership?.organizationId ?? null,
+      membershipId: membership?.id ?? null,
+    });
+
+    // Update session with new access token hash and extend expiry
+    await prisma.userSession.update({
+      where: { id: session.id },
+      data: {
+        tokenHash: hashToken(newAccessToken),
+        expiresAt: getTokenExpiration(),
+      },
+    });
+
+    log.info({ userId: session.user.id }, 'Access token refreshed');
+
+    return { accessToken: newAccessToken };
   }
 
   /**
