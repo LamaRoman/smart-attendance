@@ -121,12 +121,12 @@ router.post(
 
       const { latitude, longitude } = req.body;
 
-      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-        return res.status(400).json({ error: { message: 'latitude and longitude are required' } });
-      }
+      // Coordinates are optional — service will enforce when geofence is enabled
+      const lat = typeof latitude === 'number' ? latitude : undefined;
+      const lng = typeof longitude === 'number' ? longitude : undefined;
 
       const result = await attendanceService.mobileCheckinAuth(
-        { latitude, longitude },
+        { latitude: lat, longitude: lng },
         req.user!,
         req.ip || undefined,
         req.get('user-agent') || undefined

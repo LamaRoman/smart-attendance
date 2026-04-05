@@ -196,6 +196,7 @@ export class AuthService {
             staticQREnabled: true,
             rotatingQREnabled: true,
             attendanceMode:true,
+            geofenceEnabled: true,
           },
         },
       },

@@ -7,11 +7,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { apiGet } from '../../../../lib/api';
 import { Colors } from '../../../../constants/colors';
 import { BS_MONTHS_EN } from '../../../../lib/nepali-date';
@@ -102,12 +104,21 @@ export default function PayslipDetailScreen() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (result.status !== 200) {
-        throw new Error('Download failed');
+        throw new Error(`Download failed (status ${result.status})`);
       }
-      await Sharing.shareAsync(result.uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: `Payslip ${record ? BS_MONTHS_EN[record.bsMonth - 1] + ' ' + record.bsYear : ''}`,
-      });
+      if (Platform.OS === 'android') {
+        const contentUri = await FileSystem.getContentUriAsync(result.uri);
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: contentUri,
+          flags: 1,
+          type: 'application/pdf',
+        });
+      } else {
+        await Sharing.shareAsync(result.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Payslip ${record ? BS_MONTHS_EN[record.bsMonth - 1] + ' ' + record.bsYear : ''}`,
+        });
+      }
     } catch {
       Alert.alert('Error', 'Failed to download payslip PDF.');
     } finally {

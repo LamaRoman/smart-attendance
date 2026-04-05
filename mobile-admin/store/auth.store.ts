@@ -56,6 +56,15 @@ export const useAuthStore = create<AuthState>((set, get) => {
         }
         const { apiGet } = await import('../lib/api');
         const data = await apiGet<{ user: User }>('/api/auth/me');
+
+        // Only allow admin roles in this app
+        const ADMIN_ROLES = ['ORG_ADMIN', 'SUPER_ADMIN'];
+        if (!ADMIN_ROLES.includes(data.user.role)) {
+          await TokenStorage.clearTokens();
+          set({ user: null, isAuthenticated: false, isLoading: false });
+          return;
+        }
+
         set({ user: data.user, isAuthenticated: true, isLoading: false });
       } catch {
         await TokenStorage.clearTokens();
@@ -71,6 +80,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
           accessToken: string;
           refreshToken: string;
         }>('/api/auth/login', { email, password });
+
+        // Only allow admin roles in this app
+        const ADMIN_ROLES = ['ORG_ADMIN', 'SUPER_ADMIN'];
+        if (!ADMIN_ROLES.includes(data.user.role)) {
+          await TokenStorage.clearTokens();
+          set({ error: 'This app is for administrators only. Please use the Employee app to sign in.' });
+          return;
+        }
 
         await TokenStorage.setTokens(data.accessToken, data.refreshToken);
         set({ user: data.user, isAuthenticated: true });

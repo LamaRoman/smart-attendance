@@ -453,7 +453,7 @@ export class AttendanceService {
    * Shares all validation (office hours, cooldown, auto-close) via performClockActionSafe.
    */
   async mobileCheckinAuth(
-    input: { latitude: number; longitude: number },
+    input: { latitude?: number; longitude?: number },
     currentUser: JWTPayload,
     ipAddress?: string,
     userAgent?: string
@@ -462,7 +462,7 @@ export class AttendanceService {
       throw new NotFoundError('Active membership not found');
     }
 
-    // Geofence check
+    // Geofence check — validateGeofence passes immediately when geofenceEnabled=false
     const org = await prisma.organization.findUnique({
       where: { id: currentUser.organizationId },
       select: {
@@ -476,8 +476,8 @@ export class AttendanceService {
     if (org) {
       try {
         validateGeofence(org, {
-          latitude: input.latitude,
-          longitude: input.longitude,
+          latitude: input.latitude ?? null,
+          longitude: input.longitude ?? null,
         });
       } catch (err) {
         await this.logAudit({

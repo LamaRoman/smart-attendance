@@ -845,9 +845,7 @@ export default function OrgSettingsPage() {
                     );
                   })}
                 </div>
-                {(formData.attendanceMode === 'MOBILE_ONLY' || formData.attendanceMode === 'BOTH') && !formData.geofenceEnabled && (
-                  <p className="mt-2 text-xs text-amber-600 font-medium">⚠ {isNepali ? 'मोबाइल चेक-इनको लागि जियोफेन्सिङ सक्रिय हुनुपर्छ' : 'Geofencing must be enabled for mobile check-in'}</p>
-                )}
+
               </div>
 
               {formData.geofenceEnabled && (

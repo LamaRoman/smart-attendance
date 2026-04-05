@@ -21,6 +21,7 @@ export interface User {
     name: string;
     slug: string | null;
     attendanceMode?: string;
+    geofenceEnabled?: boolean;
   } | null;
 }
 
@@ -56,6 +57,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
         }
         const { apiGet } = await import('../lib/api');
         const data = await apiGet<{ user: User }>('/api/auth/me');
+
+        // Only allow EMPLOYEE role in this app
+        if (data.user.role !== 'EMPLOYEE') {
+          await TokenStorage.clearTokens();
+          set({ user: null, isAuthenticated: false, isLoading: false });
+          return;
+        }
+
         set({ user: data.user, isAuthenticated: true, isLoading: false });
       } catch {
         await TokenStorage.clearTokens();
@@ -72,8 +81,19 @@ export const useAuthStore = create<AuthState>((set, get) => {
           refreshToken: string;
         }>('/api/auth/login', { email, password });
 
+        // Only allow EMPLOYEE role in this app
+        if (data.user.role !== 'EMPLOYEE') {
+          await TokenStorage.clearTokens();
+          set({ error: 'This app is for employees only. Please use the Admin app to sign in.' });
+          return;
+        }
+
         await TokenStorage.setTokens(data.accessToken, data.refreshToken);
-        set({ user: data.user, isAuthenticated: true });
+
+        // Login response is flat (no org details) — fetch full profile
+        const { apiGet } = await import('../lib/api');
+        const meData = await apiGet<{ user: User }>('/api/auth/me');
+        set({ user: meData.user, isAuthenticated: true });
       } catch (err: unknown) {
         const message =
           (err as any)?.response?.data?.error?.message ??

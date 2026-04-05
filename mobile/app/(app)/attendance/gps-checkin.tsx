@@ -19,8 +19,9 @@ type ScreenState = 'idle' | 'locating' | 'ready' | 'submitting' | 'success' | 'e
 export default function GPSCheckinScreen() {
   const router = useRouter();
   const { status, fetchStatus } = useAttendanceStore();
-  const { org } = useAuthStore();
+  const { user } = useAuthStore();
   const isClockedIn = status?.isClockedIn ?? false;
+  const geofenceEnabled = user?.organization?.geofenceEnabled ?? true;
 
   const [screenState, setScreenState] = useState<ScreenState>('idle');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -29,7 +30,12 @@ export default function GPSCheckinScreen() {
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
-    getLocation();
+    if (geofenceEnabled) {
+      getLocation();
+    } else {
+      // Geofence off — no GPS needed, ready to clock in immediately
+      setScreenState('ready');
+    }
   }, []);
 
   const getLocation = async () => {
@@ -39,8 +45,13 @@ export default function GPSCheckinScreen() {
     const { status: perm } = await Location.requestForegroundPermissionsAsync();
     if (perm !== 'granted') {
       setPermissionDenied(true);
-      setScreenState('error');
-      setMessage('Location permission denied. Please enable it in Settings.');
+      if (geofenceEnabled) {
+        setScreenState('error');
+        setMessage('Location permission denied. Please enable it in Settings.');
+      } else {
+        // Geofence off — allow check-in without location
+        setScreenState('ready');
+      }
       return;
     }
 
@@ -52,19 +63,29 @@ export default function GPSCheckinScreen() {
       setAccuracy(Math.round(loc.coords.accuracy ?? 0));
       setScreenState('ready');
     } catch {
-      setScreenState('error');
-      setMessage('Could not get your location. Make sure GPS is enabled.');
+      if (geofenceEnabled) {
+        setScreenState('error');
+        setMessage('Could not get your location. Make sure GPS is enabled.');
+      } else {
+        // Geofence off — allow check-in without location
+        setScreenState('ready');
+      }
     }
   };
 
   const handleCheckInOut = async () => {
-    if (!coords) return;
+    if (geofenceEnabled && !coords) return;
     setScreenState('submitting');
 
     try {
+      const body: Record<string, number> = {};
+      if (coords) {
+        body.latitude = coords.lat;
+        body.longitude = coords.lng;
+      }
       const result = await apiPost<{ message: string; time: string; action: string }>(
         '/api/attendance/mobile-checkin-auth',
-        { latitude: coords.lat, longitude: coords.lng }
+        body
       );
       setMessage(
         result.message ??
@@ -142,10 +163,10 @@ export default function GPSCheckinScreen() {
         )}
 
         {/* Org info */}
-        {org && (
+        {user?.organization && (
           <View style={styles.orgCard}>
             <Text style={styles.orgCardLabel}>Workplace</Text>
-            <Text style={styles.orgCardName}>{(org as any).name}</Text>
+            <Text style={styles.orgCardName}>{user.organization.name}</Text>
           </View>
         )}
 
@@ -165,7 +186,7 @@ export default function GPSCheckinScreen() {
         )}
 
         {/* Permission denied */}
-        {permissionDenied && (
+        {permissionDenied && geofenceEnabled && (
           <Text style={styles.permDeniedText}>
             Open your device Settings → Privacy → Location to enable access.
           </Text>
@@ -182,7 +203,7 @@ export default function GPSCheckinScreen() {
             onPress={
               screenState === 'error' && !permissionDenied ? getLocation : handleCheckInOut
             }
-            disabled={!coords && screenState !== 'error'}
+            disabled={geofenceEnabled && !coords && screenState !== 'error'}
             activeOpacity={0.85}
           >
             <Text style={styles.actionBtnText}>
