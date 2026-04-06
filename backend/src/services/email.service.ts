@@ -1,11 +1,12 @@
 ﻿import { Resend } from 'resend';
 import { createLogger } from '../logger';
+import { config } from '../config';
 const log = createLogger('email-service');
-const resend = new Resend(process.env.RESEND_API_KEY || '');
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@zentaralabs.com';
+const resend = new Resend(config.RESEND_API_KEY || '');
+const FROM_EMAIL = config.RESEND_FROM_EMAIL;
 const APP_NAME = 'Smart Attendance';
 function isConfigured(): boolean {
-  const key = process.env.RESEND_API_KEY;
+  const key = config.RESEND_API_KEY;
   return !!key && !key.startsWith('re_your');
 }
 // ============================================================

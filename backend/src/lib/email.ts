@@ -1,15 +1,15 @@
 import { Resend } from 'resend';
 import { createLogger } from '../logger';
+import { config } from '../config';
 
 const log = createLogger('email');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(config.RESEND_API_KEY);
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@zentaralabs.com';
+const FROM_EMAIL = config.RESEND_FROM_EMAIL;
 
 export async function sendPasswordResetEmail(to: string, resetToken: string) {
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-  const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+  const resetLink = `${config.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
   try {
     await resend.emails.send({

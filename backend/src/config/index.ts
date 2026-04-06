@@ -24,6 +24,16 @@ const envSchema = z.object({
 
   // Calendarific API (optional -- holiday sync)
   CALENDARIFIC_API_KEY: z.string().optional(),
+
+  // AWS S3 (optional -- document storage)
+  AWS_REGION: z.string().default('ap-south-1'),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  AWS_S3_BUCKET: z.string().default('smart-hr-documents'),
+
+  // Email (optional -- password reset, notifications)
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().default('noreply@zentaralabs.com'),
 });
 
 function loadConfig() {
