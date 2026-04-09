@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/auth.store';
 
 export default function RootLayout() {
@@ -27,9 +28,9 @@ export default function RootLayout() {
   }, [isAuthenticated, isLoading, segments]);
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }} />
-    </>
+    </SafeAreaProvider>
   );
 }

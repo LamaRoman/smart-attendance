@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { attendanceService } from '../services/attendance.service';
+import { runAutoClose } from '../jobs/midnight-autoclose.job';
 import { validate } from '../middleware/validate';
 import {
   scanPublicSchema,
@@ -444,5 +445,15 @@ router.get(
     }
   }
 );
+
+// POST /api/attendance/auto-close — Admin trigger for stale record cleanup
+router.post('/auto-close', authenticate, requireOrgAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await runAutoClose('api');
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;
