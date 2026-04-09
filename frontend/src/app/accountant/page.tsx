@@ -18,7 +18,7 @@ export default function AccountantDashboard() {
   useEffect(() => {
     async function fetchPending() {
       try {
-        const res = await api.get('/api/attendance?status=AUTO_CLOSED&limit=50&offset=0');
+        const res = await api.get('/api/v1/attendance?status=AUTO_CLOSED&limit=50&offset=0');
         const records = (res.data as any)?.records || [];
         const unreviewed = records.filter((r: any) => !r.reviewedByAccountant);
         setAutoClosedCount(unreviewed.length);

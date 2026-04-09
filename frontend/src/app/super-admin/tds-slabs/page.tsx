@@ -56,7 +56,7 @@ export default function TDSSlabsPage() {
 
   const loadSlabs = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/api/super-admin/tds-slabs');
+    const res = await api.get('/api/v1/super-admin/tds-slabs');
     if (res.data) setConfig(res.data as TDSConfig);
     setLoading(false);
   }, []);
@@ -67,7 +67,7 @@ useEffect(() => {
   const handleSave = async () => {
     setSaving(true);
     setError('');
-    const res = await api.put('/api/super-admin/tds-slabs', config);
+    const res = await api.put('/api/v1/super-admin/tds-slabs', config);
     if (res.error) {
       setError(res.error.message);
     } else {

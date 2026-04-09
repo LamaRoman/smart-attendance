@@ -89,7 +89,7 @@ export default function SuperAdminSubscriptionsPage() {
     else nextVal = null;
     const overrideKey = 'override' + featureKey.charAt(0).toUpperCase() + featureKey.slice(1);
     setOverrideLoading(orgId + featureKey);
-    const res = await api.patch('/api/super-admin/subscriptions/' + orgId + '/feature-overrides', { [overrideKey]: nextVal });
+    const res = await api.patch('/api/v1/super-admin/subscriptions/' + orgId + '/feature-overrides', { [overrideKey]: nextVal });
     setOverrideLoading('');
     if (res.error) { flash(res.error.message, true); }
     else { flash('Override updated'); loadSubs(); }
@@ -107,8 +107,8 @@ export default function SuperAdminSubscriptionsPage() {
     }, {} as Record<string, null>);
 
     const [priceRes, overrideRes] = await Promise.all([
-      api.patch(`/api/super-admin/subscriptions/${orgId}/override-pricing`, { customPricePerEmployee: null }),
-      api.patch(`/api/super-admin/subscriptions/${orgId}/feature-overrides`, allNullOverrides),
+      api.patch(`/api/v1/super-admin/subscriptions/${orgId}/override-pricing`, { customPricePerEmployee: null }),
+      api.patch(`/api/v1/super-admin/subscriptions/${orgId}/feature-overrides`, allNullOverrides),
     ]);
 
     setActionLoading('');
@@ -135,7 +135,7 @@ export default function SuperAdminSubscriptionsPage() {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (statusFilter) params.set('status', statusFilter);
-    const res = await api.get(`/api/super-admin/subscriptions?${params}`);
+    const res = await api.get(`/api/v1/super-admin/subscriptions?${params}`);
     if (res.data) {
       const d = res.data as { subscriptions: OrgSub[]; pagination: Pagination };
       setSubs(d.subscriptions);
@@ -152,8 +152,8 @@ export default function SuperAdminSubscriptionsPage() {
   const doAction = async (orgId: string, method: 'post' | 'patch', path: string, body: object, label: string) => {
     setActionLoading(orgId + path);
     const res = method === 'post'
-      ? await api.post(`/api/super-admin/subscriptions/${orgId}/${path}`, body)
-      : await api.patch(`/api/super-admin/subscriptions/${orgId}/${path}`, body);
+      ? await api.post(`/api/v1/super-admin/subscriptions/${orgId}/${path}`, body)
+      : await api.patch(`/api/v1/super-admin/subscriptions/${orgId}/${path}`, body);
     setActionLoading('');
     if (res.error) { flash(res.error.message, true); return false; }
     flash(label); loadSubs(); return true;
@@ -161,7 +161,7 @@ export default function SuperAdminSubscriptionsPage() {
 
   const runTrialJob = async () => {
     setActionLoading('trial-job');
-    const res = await api.post('/api/super-admin/subscriptions/run-trial-job', {});
+    const res = await api.post('/api/v1/super-admin/subscriptions/run-trial-job', {});
     setActionLoading('');
     if (res.error) flash(res.error.message, true);
     else flash('Trial expiry job completed');

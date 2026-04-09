@@ -225,7 +225,7 @@ export default function SuperAdminHolidaysPage() {
   }, [user, isLoading, isSuperAdmin, router]);
 
   const loadHolidays = useCallback(async () => {
-    const res = await api.get(`/api/master-holidays?bsYear=${selectedYear}`);
+    const res = await api.get(`/api/v1/master-holidays?bsYear=${selectedYear}`);
     if (res.data) {
       const d = res.data as { holidays: MasterHoliday[]; importStats: ImportStat[] };
       setHolidays(d.holidays || []);
@@ -243,7 +243,7 @@ export default function SuperAdminHolidaysPage() {
   const handleSyncYear = async (year: number) => {
     setLoading(true);
     setError('');
-    const res = await api.post('/api/master-holidays/sync', { bsYear: year });
+    const res = await api.post('/api/v1/master-holidays/sync', { bsYear: year });
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -263,7 +263,7 @@ export default function SuperAdminHolidaysPage() {
     }
     setLoading(true);
     setError('');
-    const res = await api.post('/api/master-holidays', createForm);
+    const res = await api.post('/api/v1/master-holidays', createForm);
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -285,7 +285,7 @@ export default function SuperAdminHolidaysPage() {
   };
 
   const toggleHolidayStatus = async (id: string, currentStatus: boolean) => {
-    const res = await api.put(`/api/master-holidays/${id}`, { isActive: !currentStatus });
+    const res = await api.put(`/api/v1/master-holidays/${id}`, { isActive: !currentStatus });
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -299,7 +299,7 @@ export default function SuperAdminHolidaysPage() {
 
   const deleteHoliday = async (id: string, name: string) => {
     if (!confirm(`Delete "${name}"? This will NOT delete it from organizations that already imported it.`)) return;
-    const res = await api.delete(`/api/master-holidays/${id}`);
+    const res = await api.delete(`/api/v1/master-holidays/${id}`);
     if (res.error) {
       setError(res.error.message);
     } else {

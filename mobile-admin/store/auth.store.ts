@@ -55,7 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
           return;
         }
         const { apiGet } = await import('../lib/api');
-        const data = await apiGet<{ user: User }>('/api/auth/me');
+        const data = await apiGet<{ user: User }>('/api/v1/auth/me');
 
         // Only allow admin roles in this app
         const ADMIN_ROLES = ['ORG_ADMIN', 'SUPER_ADMIN'];
@@ -79,7 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
           user: User;
           accessToken: string;
           refreshToken: string;
-        }>('/api/auth/login', { email, password });
+        }>('/api/v1/auth/login', { email, password });
 
         // Only allow admin roles in this app
         const ADMIN_ROLES = ['ORG_ADMIN', 'SUPER_ADMIN'];
@@ -102,7 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     logout: async () => {
       try {
-        await apiPost('/api/auth/logout');
+        await apiPost('/api/v1/auth/logout');
       } catch {
         // ignore
       } finally {

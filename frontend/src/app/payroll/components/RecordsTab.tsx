@@ -76,7 +76,7 @@ export default function RecordsTab({
     setAuditLogs([]);
     setAuditError('');
     setAuditLoading(true);
-    const res = await api.get(`/api/payroll/records/${record.id}/audit`);
+    const res = await api.get(`/api/v1/payroll/records/${record.id}/audit`);
     setAuditLoading(false);
     if (res.error) {
       setAuditError(res.error.message);
@@ -87,7 +87,7 @@ export default function RecordsTab({
 
   const handleBankCsv = async () => {
     const res = await fetch(
-      `${API_BASE}/api/payroll/export/bank-sheet?bsYear=${recYear}&bsMonth=${recMonth}`,
+      `${API_BASE}/api/v1/payroll/export/bank-sheet?bsYear=${recYear}&bsMonth=${recMonth}`,
       { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
     );
     if (!res.ok) return;
@@ -101,7 +101,7 @@ export default function RecordsTab({
   };
 const handleDetailedCsv = async () => {
     const res = await fetch(
-      `${API_BASE}/api/payroll/export/detailed?bsYear=${recYear}&bsMonth=${recMonth}`,
+      `${API_BASE}/api/v1/payroll/export/detailed?bsYear=${recYear}&bsMonth=${recMonth}`,
       { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
     );
     if (!res.ok) return;

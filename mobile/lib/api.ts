@@ -14,12 +14,16 @@ const api: AxiosInstance = axios.create({
   },
 });
 
-// ─── Request interceptor — attach Bearer token ───────────────────────────────
+// ─── Request interceptor — attach Bearer token + v1 prefix ──────────────────
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const token = await TokenStorage.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Upgrade /api/ → /api/v1/
+    if (config.url && config.url.startsWith('/api/') && !config.url.startsWith('/api/v1/')) {
+      config.url = config.url.replace('/api/', '/api/v1/');
     }
     return config;
   },
@@ -79,7 +83,7 @@ api.interceptors.response.use(
         throw new Error('No refresh token available');
       }
 
-      const response = await axios.post(`${BASE_URL}/api/auth/refresh`, { refreshToken });
+      const response = await axios.post(`${BASE_URL}/api/v1/auth/refresh`, { refreshToken });
       const { accessToken } = response.data.data;
 
       await TokenStorage.setAccessToken(accessToken);

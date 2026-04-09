@@ -37,7 +37,7 @@ export default function MultiMonthTab({
 
   const handleCsvExport = async () => {
     const res = await fetch(
-      `${API_BASE}/api/payroll/multi-month/export?fromBsYear=${multiFromYear}&fromBsMonth=${multiFromMonth}&toBsYear=${multiToYear}&toBsMonth=${multiToMonth}`,
+      `${API_BASE}/api/v1/payroll/multi-month/export?fromBsYear=${multiFromYear}&fromBsMonth=${multiFromMonth}&toBsYear=${multiToYear}&toBsMonth=${multiToMonth}`,
       { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
     );
     const blob = await res.blob();

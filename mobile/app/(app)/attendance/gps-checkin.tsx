@@ -84,7 +84,7 @@ export default function GPSCheckinScreen() {
         body.longitude = coords.lng;
       }
       const result = await apiPost<{ message: string; time: string; action: string }>(
-        '/api/attendance/mobile-checkin-auth',
+        '/api/v1/attendance/mobile-checkin-auth',
         body
       );
       setMessage(

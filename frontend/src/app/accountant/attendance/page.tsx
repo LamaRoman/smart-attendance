@@ -53,7 +53,7 @@ export default function AccountantAttendancePage() {
 
   const loadRecords = useCallback(async (date: string) => {
     setLoading(true);
-    const res = await api.get('/api/attendance?date=' + date);
+    const res = await api.get('/api/v1/attendance?date=' + date);
     if (res.data) {
       setRecords((res.data as { records: AttendanceRecord[] }).records);
       setLastRefreshed(new Date());
@@ -117,7 +117,7 @@ export default function AccountantAttendancePage() {
       return;
     }
     setEditSaving(true);
-    const res = await api.put('/api/attendance/' + editRecord.id + '/edit', {
+    const res = await api.put('/api/v1/attendance/' + editRecord.id + '/edit', {
       checkOutTime: new Date(editForm.checkOutTime).toISOString(),
       note: editForm.note,
     });
@@ -134,7 +134,7 @@ export default function AccountantAttendancePage() {
 
   const acknowledgeRecord = async (id: string) => {
     setAcknowledgingId(id);
-    const res = await api.put('/api/attendance/' + id + '/acknowledge', {});
+    const res = await api.put('/api/v1/attendance/' + id + '/acknowledge', {});
     setAcknowledgingId(null);
     if (res.error) {
       setError(res.error.message);
@@ -157,7 +157,7 @@ export default function AccountantAttendancePage() {
     setBulkAcknowledging(true);
     let successCount = 0;
     for (const r of unreviewed) {
-      const res = await api.put('/api/attendance/' + r.id + '/acknowledge', {});
+      const res = await api.put('/api/v1/attendance/' + r.id + '/acknowledge', {});
       if (!res.error) successCount++;
     }
     setBulkAcknowledging(false);

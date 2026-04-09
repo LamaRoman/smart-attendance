@@ -49,7 +49,7 @@ export default function NotificationBell() {
   }, []);
 
   const loadUnreadCount = async () => {
-    const res = await api.get('/api/notifications/count');
+    const res = await api.get('/api/v1/notifications/count');
     if (res.data) {
       setUnreadCount((res.data as any).count);
     }
@@ -57,7 +57,7 @@ export default function NotificationBell() {
 
   const loadNotifications = async () => {
     setLoading(true);
-    const res = await api.get('/api/notifications/unread');
+    const res = await api.get('/api/v1/notifications/unread');
     if (res.data) {
       setNotifications(res.data as any);
     }
@@ -65,19 +65,19 @@ export default function NotificationBell() {
   };
 
   const markAsRead = async (id: string) => {
-    await api.put(`/api/notifications/${id}/read`);
+    await api.put(`/api/v1/notifications/${id}/read`);
     setNotifications(prev => prev.filter(n => n.id !== id));
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   const markAllAsRead = async () => {
-    await api.put('/api/notifications/read-all');
+    await api.put('/api/v1/notifications/read-all');
     setNotifications([]);
     setUnreadCount(0);
   };
 
   const deleteNotification = async (id: string) => {
-    await api.delete(`/api/notifications/${id}`);
+    await api.delete(`/api/v1/notifications/${id}`);
     setNotifications(prev => prev.filter(n => n.id !== id));
     setUnreadCount(prev => Math.max(0, prev - 1));
   };

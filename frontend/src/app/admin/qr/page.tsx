@@ -84,7 +84,7 @@ export default function AdminQRPage() {
   }, [user]);
 
   const loadQR = async () => {
-    const res = await api.get('/api/qr/active');
+    const res = await api.get('/api/v1/qr/active');
     if (res.data) setQrData(res.data as QRData);
   };
 
@@ -92,7 +92,7 @@ export default function AdminQRPage() {
   const handleExpire = useCallback(async () => {
     if (!qrData || qrData.qrCode.expiresAt === null) return;
     setGenerating(true);
-    const res = await api.post('/api/qr/generate');
+    const res = await api.post('/api/v1/qr/generate');
     if (res.data) {
       setQrData(res.data as QRData);
       setSuccess(isNp ? 'QR कोड स्वतः नवीकरण भयो' : 'QR code auto-renewed');
@@ -119,7 +119,7 @@ export default function AdminQRPage() {
   const generateStaticQR = async () => {
     setGenerating(true);
     setError('');
-    const res = await api.post('/api/qr/generate-static');
+    const res = await api.post('/api/v1/qr/generate-static');
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -134,7 +134,7 @@ export default function AdminQRPage() {
     if (!confirm(isNp ? 'पुरानो QR कोड रद्द हुनेछ। नयाँ बनाउने?' : 'Old QR will be revoked. Generate new one?')) return;
     setGenerating(true);
     setError('');
-    const res = await api.post('/api/qr/regenerate-static');
+    const res = await api.post('/api/v1/qr/regenerate-static');
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -148,7 +148,7 @@ export default function AdminQRPage() {
   const generateRotatingQR = async () => {
     setGenerating(true);
     setError('');
-    const res = await api.post('/api/qr/generate');
+    const res = await api.post('/api/v1/qr/generate');
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -161,7 +161,7 @@ export default function AdminQRPage() {
 
   const revokeQR = async () => {
     if (!confirm(isNp ? 'सबै सक्रिय QR कोड रद्द गर्ने?' : 'Revoke all active QR codes?')) return;
-    const res = await api.post('/api/qr/revoke');
+    const res = await api.post('/api/v1/qr/revoke');
     if (res.error) {
       setError(res.error.message);
     } else {

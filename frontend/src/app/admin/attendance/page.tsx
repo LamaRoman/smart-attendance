@@ -71,7 +71,7 @@ export default function AdminAttendancePage() {
 
   const loadRecords = useCallback(async (date: string) => {
     setLoading(true);
-    const res = await api.get('/api/attendance?date=' + date);
+    const res = await api.get('/api/v1/attendance?date=' + date);
     if (res.data) {
       setRecords((res.data as { records: AttendanceRecord[] }).records);
       setLastRefreshed(new Date());
@@ -80,7 +80,7 @@ export default function AdminAttendancePage() {
   }, []);
 
   const loadEmployees = useCallback(async () => {
-    const res = await api.get('/api/users');
+    const res = await api.get('/api/v1/users');
     if (res.data && Array.isArray(res.data)) {
       setEmployees((res.data as any[]).filter((u) => u.role === 'EMPLOYEE' && u.isActive));
     }
@@ -159,7 +159,7 @@ export default function AdminAttendancePage() {
     if (editForm.checkOutTime) {
       body.checkOutTime = new Date(editForm.checkOutTime).toISOString();
     }
-    const res = await api.put('/api/attendance/' + editRecord.id + '/edit', body);
+    const res = await api.put('/api/v1/attendance/' + editRecord.id + '/edit', body);
     setEditSaving(false);
     if (res.error) {
       setError(res.error.message);
@@ -191,7 +191,7 @@ export default function AdminAttendancePage() {
     const checkOutTime = markForm.checkOutTime
       ? new Date(markForm.date + 'T' + markForm.checkOutTime + ':00').toISOString()
       : undefined;
-    const res = await api.post('/api/attendance/mark-present', {
+    const res = await api.post('/api/v1/attendance/mark-present', {
       userId: markForm.userId, date: markForm.date, checkInTime, checkOutTime, note: markForm.note,
     });
     setMarkSaving(false);

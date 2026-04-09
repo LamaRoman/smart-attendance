@@ -131,7 +131,7 @@ export default function LeavesScreen() {
     setBalanceLoading(true);
     try {
       const today = todayBS();
-      const data = await apiGet<BalanceData | null>(`/api/leave-balance/my?bsYear=${today.year}`);
+      const data = await apiGet<BalanceData | null>(`/api/v1/leave-balance/my?bsYear=${today.year}`);
       setBalance(data ?? null);
     } catch (err: any) {
       if (err?.response?.status === 403) setFeatureDisabled(true);
@@ -142,7 +142,7 @@ export default function LeavesScreen() {
     setLoading(true);
     try {
       const params = status !== 'ALL' ? `?status=${status}&limit=50` : '?limit=50';
-      const data = await apiGet<any>(`/api/leaves/my${params}`);
+      const data = await apiGet<any>(`/api/v1/leaves/my${params}`);
       setLeaves(Array.isArray(data) ? data : data.leaves ?? []);
     } catch (err: any) {
       if (err?.response?.status === 403) setFeatureDisabled(true);
@@ -158,7 +158,7 @@ export default function LeavesScreen() {
       {
         text: 'Yes, Cancel', style: 'destructive',
         onPress: async () => {
-          try { await apiDelete(`/api/leaves/${id}`); loadLeaves(filter); loadBalance(); }
+          try { await apiDelete(`/api/v1/leaves/${id}`); loadLeaves(filter); loadBalance(); }
           catch { Alert.alert('Error', 'Failed to cancel.'); }
         },
       },

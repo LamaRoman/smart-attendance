@@ -17,7 +17,7 @@ export default function ShortCheckinPage() {
 
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/api/attendance/org-slug/${slug}`);
+        const res = await fetch(`${API_URL}/api/v1/attendance/org-slug/${slug}`);
         if (!res.ok) {
           setError(true);
           return;

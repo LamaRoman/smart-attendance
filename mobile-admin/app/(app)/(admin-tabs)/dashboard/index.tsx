@@ -41,8 +41,8 @@ export default function AdminDashboard() {
     try {
       const today = todayBS();
       const [attData, leaveData] = await Promise.allSettled([
-        apiGet<any>(`/api/attendance?bsYear=${today.year}&bsMonth=${today.month}&bsDay=${today.day}`),
-        apiGet<any>('/api/leaves?status=PENDING&limit=1'),
+        apiGet<any>(`/api/v1/attendance?bsYear=${today.year}&bsMonth=${today.month}&bsDay=${today.day}`),
+        apiGet<any>('/api/v1/leaves?status=PENDING&limit=1'),
       ]);
 
       const rawRecords: EmployeeRecord[] = attData.status === 'fulfilled'

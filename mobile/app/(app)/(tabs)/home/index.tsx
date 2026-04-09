@@ -43,7 +43,7 @@ export default function HomeScreen() {
 
   const fetchQuickStats = async () => {
     try {
-      const attData = await apiGet<any>('/api/attendance/my?limit=60');
+      const attData = await apiGet<any>('/api/v1/attendance/my?limit=60');
       const records: any[] = attData?.records ?? [];
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -69,7 +69,7 @@ export default function HomeScreen() {
 
   const fetchTodayRecord = async () => {
     try {
-      const data = await apiGet<any>('/api/attendance/my?limit=5');
+      const data = await apiGet<any>('/api/v1/attendance/my?limit=5');
       const records = data?.records ?? [];
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);

@@ -80,7 +80,7 @@ export default function PayslipDetailScreen() {
     const load = async () => {
       try {
         // Get from list since there's no single-record endpoint
-        const records = await apiGet<PayslipDetail[]>('/api/payroll/my-payslips');
+        const records = await apiGet<PayslipDetail[]>('/api/v1/payroll/my-payslips');
         const found = Array.isArray(records) ? records.find((r: any) => r.id === id) : null;
         if (found) setRecord(found as any);
       } catch {
@@ -99,7 +99,7 @@ export default function PayslipDetailScreen() {
       const filename = `payslip-${record?.bsYear}-${record?.bsMonth}.pdf`;
       const fileUri = (FileSystem.documentDirectory ?? '') + filename;
       const result = await FileSystem.downloadAsync(
-        `${API_URL}/api/payroll/my-payslip/${id}/pdf`,
+        `${API_URL}/api/v1/payroll/my-payslip/${id}/pdf`,
         fileUri,
         { headers: { Authorization: `Bearer ${token}` } }
       );

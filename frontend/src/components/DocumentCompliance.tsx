@@ -43,7 +43,7 @@ export default function DocumentCompliance({ language = 'ENGLISH' }: DocumentCom
   const fetchCompliance = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/org/document-compliance`, { credentials: "include" });
+      const res = await fetch(`${API_URL}/api/v1/org/document-compliance`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load");
       const data = await res.json();
       setRequiredTypes(data.requiredTypes ?? []);

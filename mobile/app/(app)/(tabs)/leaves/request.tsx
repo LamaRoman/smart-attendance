@@ -183,7 +183,7 @@ export default function LeaveRequestScreen() {
   const [myBalance, setMyBalance] = useState<LeaveBalance | null>(null);
 
   useEffect(() => {
-    apiGet<LeaveBalance>(`/api/leave-balance/my?bsYear=${today.year}`)
+    apiGet<LeaveBalance>(`/api/v1/leave-balance/my?bsYear=${today.year}`)
       .then(data => setMyBalance(data))
       .catch(() => {});
   }, []);
@@ -220,7 +220,7 @@ export default function LeaveRequestScreen() {
 
     setSubmitting(true);
     try {
-      await apiPost('/api/leaves', {
+      await apiPost('/api/v1/leaves', {
         type: leaveType,
         startDate: startAD.toISOString().split('T')[0],
         endDate: endAD.toISOString().split('T')[0],

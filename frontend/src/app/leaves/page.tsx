@@ -107,7 +107,7 @@ export default function LeavePage() {
   // ── Loaders ───────────────────────────────────────────────────────────────────
   const loadMyLeaves = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/api/leaves/my?limit=50');
+    const res = await api.get('/api/v1/leaves/my?limit=50');
     if (res.data) {
       setMyLeaves((res.data as any).leaves);
       setLastRefreshed(new Date());
@@ -124,7 +124,7 @@ export default function LeavePage() {
     if (filterBsYear)           params.set('bsYear', filterBsYear);
     if (filterBsMonth)          params.set('bsMonth', filterBsMonth);
 
-    const res = await api.get(`/api/leaves?${params.toString()}`);
+    const res = await api.get(`/api/v1/leaves?${params.toString()}`);
     if (res.data) {
       setLeaves((res.data as any).leaves);
       setLastRefreshed(new Date());
@@ -134,20 +134,20 @@ export default function LeavePage() {
 
   const loadOrgSettings = useCallback(async () => {
     if (!isAdmin) return;
-    const res = await api.get('/api/org-settings');
+    const res = await api.get('/api/v1/org-settings');
     if (res.data) setLeaveBalanceEnabled((res.data as any).leaveBalanceEnabled ?? false);
   }, [isAdmin]);
 
   const loadBalances = useCallback(async () => {
     setBalanceLoading(true);
-    const res = await api.get(`/api/leave-balance?bsYear=${balanceYear}`);
+    const res = await api.get(`/api/v1/leave-balance?bsYear=${balanceYear}`);
     if (!res.error) setBalances((res.data as any) || []);
     setBalanceLoading(false);
   }, [balanceYear]);
 
   const loadMyBalance = useCallback(async () => {
     if (!user || isStaff) return;
-    const res = await api.get(`/api/leave-balance/my?bsYear=${CURRENT_BS_YEAR}`);
+    const res = await api.get(`/api/v1/leave-balance/my?bsYear=${CURRENT_BS_YEAR}`);
     if (!res.error && res.data) setMyBalance(res.data as LeaveBalance);
   }, [user, isStaff]);
 
@@ -155,7 +155,7 @@ export default function LeavePage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const checkRes = await api.get(isStaff ? '/api/leaves?limit=1' : '/api/leaves/my?limit=1');
+      const checkRes = await api.get(isStaff ? '/api/v1/leaves?limit=1' : '/api/v1/leaves/my?limit=1');
       if (
         checkRes.error?.code === 'FEATURE_NOT_AVAILABLE' ||
         checkRes.error?.code === 'NO_SUBSCRIPTION' ||
@@ -179,7 +179,7 @@ export default function LeavePage() {
     }
     setLoading(true);
     setError('');
-    const res = await api.post('/api/leaves', formData);
+    const res = await api.post('/api/v1/leaves', formData);
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -194,7 +194,7 @@ export default function LeavePage() {
 
   const handleCancel = async (leaveId: string) => {
     if (!confirm(isNepali ? 'के तपाईं यो बिदा अनुरोध रद्द गर्न चाहनुहुन्छ?' : 'Cancel this leave request?')) return;
-    const res = await api.delete(`/api/leaves/${leaveId}`);
+    const res = await api.delete(`/api/v1/leaves/${leaveId}`);
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -205,7 +205,7 @@ export default function LeavePage() {
   };
 
   const handleStatusUpdate = async (leaveId: string, status: 'APPROVED' | 'REJECTED', message?: string) => {
-    const res = await api.put(`/api/leaves/${leaveId}/status`, {
+    const res = await api.put(`/api/v1/leaves/${leaveId}/status`, {
       status,
       ...(message ? { rejectionMessage: message } : {}),
     });
@@ -223,7 +223,7 @@ export default function LeavePage() {
   };
 
   const handleInitialize = async (dryRun: boolean) => {
-    const res = await api.post('/api/leave-balance/initialize', { bsYear: balanceYear, dryRun });
+    const res = await api.post('/api/v1/leave-balance/initialize', { bsYear: balanceYear, dryRun });
     if (res.error) {
       setError(res.error.message);
       return null;
@@ -243,7 +243,7 @@ export default function LeavePage() {
 
   const handleAdjust = async (adjustments: Record<string, number>, note: string) => {
     if (!adjustingBalance) return;
-    const res = await api.put(`/api/leave-balance/${adjustingBalance.membershipId}/adjust`, {
+    const res = await api.put(`/api/v1/leave-balance/${adjustingBalance.membershipId}/adjust`, {
       bsYear: balanceYear,
       note,
       ...adjustments,

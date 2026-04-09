@@ -96,7 +96,7 @@ export default function QRScannerScreen() {
       }
 
       const result = await apiPost<{ message: string; time: string }>(
-        '/api/attendance/scan',
+        '/api/v1/attendance/scan',
         { qrPayload, latitude, longitude, accuracy }
       );
 

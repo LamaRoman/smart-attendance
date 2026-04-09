@@ -118,7 +118,7 @@ export default function PayrollPage() {
     if (tab === 'settings') {
       loadSettings();
       if (!tdsSlabs) {
-        api.get('/api/payroll/tds-slabs').then((res) => {
+        api.get('/api/v1/payroll/tds-slabs').then((res) => {
           if (res.data) setTdsSlabs(res.data);
         });
       }
@@ -150,7 +150,7 @@ export default function PayrollPage() {
   // ── API helpers ──
 
   const loadSettings = useCallback(async () => {
-    const res = await api.get('/api/payroll/settings');
+    const res = await api.get('/api/v1/payroll/settings');
     if (res.data) {
       const d = res.data as any;
       const employees: any[] = Array.isArray(d) ? d : (d.employees || []);
@@ -164,7 +164,7 @@ export default function PayrollPage() {
 
   const loadRecords = useCallback(async () => {
     setLoadingRecords(true);
-    const res = await api.get(`/api/payroll/records?bsYear=${recYear}&bsMonth=${recMonth}`);
+    const res = await api.get(`/api/v1/payroll/records?bsYear=${recYear}&bsMonth=${recMonth}`);
     if (res.data) {
       setRecords((res.data as any).records || []);
       setLastRefreshed(new Date());
@@ -174,7 +174,7 @@ export default function PayrollPage() {
 
   const loadAnnualData = async () => {
     setLoadingAnnual(true);
-    const res = await api.get(`/api/payroll/annual-report?bsYear=${annualYear}`);
+    const res = await api.get(`/api/v1/payroll/annual-report?bsYear=${annualYear}`);
     if (res.data) setAnnualData(res.data);
     setLoadingAnnual(false);
     setLastRefreshed(new Date());
@@ -183,7 +183,7 @@ export default function PayrollPage() {
   const loadMultiMonthData = async () => {
     setLoadingMultiMonth(true);
     const res = await api.get(
-      `/api/payroll/multi-month?fromBsYear=${multiFromYear}&fromBsMonth=${multiFromMonth}&toBsYear=${multiToYear}&toBsMonth=${multiToMonth}`,
+      `/api/v1/payroll/multi-month?fromBsYear=${multiFromYear}&fromBsMonth=${multiFromMonth}&toBsYear=${multiToYear}&toBsMonth=${multiToMonth}`,
     );
     if (res.error) setError(res.error.message);
     else setMultiMonthData(res.data);
@@ -202,7 +202,7 @@ export default function PayrollPage() {
       if (!confirm(msg)) return;
     }
     setSaving(true); setError('');
-    const res = await api.put(`/api/payroll/settings/${selectedUser}`, form);
+    const res = await api.put(`/api/v1/payroll/settings/${selectedUser}`, form);
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -216,7 +216,7 @@ export default function PayrollPage() {
 
   const generatePayroll = async (overtimeOverrides: Record<string, number> = {}, reason?: string) => {
     setGenerating(true); setError('');
-    const res = await api.post('/api/payroll/generate', {
+    const res = await api.post('/api/v1/payroll/generate', {
       bsYear: genYear,
       bsMonth: genMonth,
       overtimeOverrides: Object.keys(overtimeOverrides).length > 0 ? overtimeOverrides : undefined,
@@ -237,7 +237,7 @@ export default function PayrollPage() {
   };
 
   const bulkUpdateStatus = async (status: string) => {
-    const res = await api.put('/api/payroll/records/bulk-status', { bsYear: recYear, bsMonth: recMonth, status });
+    const res = await api.put('/api/v1/payroll/records/bulk-status', { bsYear: recYear, bsMonth: recMonth, status });
     if (res.error) { setError(res.error.message); return; }
     loadRecords();
     setSuccess(isNp ? 'स्थिति अपडेट गरियो' : 'Status updated');

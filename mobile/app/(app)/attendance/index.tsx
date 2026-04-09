@@ -150,7 +150,7 @@ export default function AttendanceScreen() {
   const load = useCallback(async (y: number, m: number) => {
     setLoading(true); setError('');
     try {
-      const result = await apiGet<AttendanceSummary>(`/api/attendance/my?bsYear=${y}&bsMonth=${m}`);
+      const result = await apiGet<AttendanceSummary>(`/api/v1/attendance/my?bsYear=${y}&bsMonth=${m}`);
       setData(result);
     } catch { setError('Failed to load. Tap to retry.'); }
     finally { setLoading(false); }

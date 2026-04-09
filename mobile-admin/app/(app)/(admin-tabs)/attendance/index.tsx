@@ -44,7 +44,7 @@ export default function AttendanceScreen() {
     try {
       const today = todayBS();
       const data = await apiGet<any>(
-        `/api/attendance?bsYear=${today.year}&bsMonth=${today.month}&bsDay=${today.day}&limit=50`
+        `/api/v1/attendance?bsYear=${today.year}&bsMonth=${today.month}&bsDay=${today.day}&limit=50`
       );
       // Backend returns { records: [...], pagination: {...} } or just array
       let recs: AttRecord[] = [];

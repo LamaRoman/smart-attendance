@@ -35,7 +35,7 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
   fetchStatus: async () => {
     set({ isLoading: true, error: null });
     try {
-      const data = await apiGet<AttendanceStatus>('/api/attendance/status');
+      const data = await apiGet<AttendanceStatus>('/api/v1/attendance/status');
       set({ status: data, isLoading: false, lastFetched: new Date() });
     } catch (err: unknown) {
       const message =

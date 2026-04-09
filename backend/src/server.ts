@@ -103,13 +103,13 @@ app.use((req, res, next) => {
 //
 // Exemptions:
 //   - GET/HEAD/OPTIONS (safe methods)
-//   - /api/attendance/scan-public  (unauthenticated QR scan)
-//   - /api/attendance/mobile-checkin (unauthenticated GPS check-in)
+//   - /api/v1/attendance/scan-public  (unauthenticated QR scan)
+//   - /api/v1/attendance/mobile-checkin (unauthenticated GPS check-in)
 // ============================================================
 const CSRF_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const CSRF_EXEMPT_PATHS = new Set([
-  '/api/attendance/scan-public',
-  '/api/attendance/mobile-checkin',
+  '/api/v1/attendance/scan-public',
+  '/api/v1/attendance/mobile-checkin',
 ]);
 
 app.use((req, res, next) => {
@@ -162,36 +162,38 @@ app.use((req, res, next) => {
 });
 
 // ============================================================
-// Routes
+// API v1 Router — all routes consolidated
 // ============================================================
-app.use('/api/auth', authRoutes);
-app.use('/api', documentTypeRoutes);
-app.use('/api', documentRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/qr', qrRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/payroll', employeePayrollRouter);
-app.use('/api/payroll', payrollRoutes);
-app.use('/api/holidays', holidayRoutes);
-app.use('/api/master-holidays', masterHolidayRoutes);
-app.use('/api/config', configRoutes);
-app.use('/api/nepali-date', nepaliDateRoutes);
-app.use('/api/org-settings', orgSettingsRoutes);
-app.use('/api/leaves', leaveRoutes);
-app.use('/api/leave-balance', leaveBalanceRoutes);
-app.use('/api/super-admin', superAdminRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/super-admin/subscriptions', superAdminSubscriptionRouter);
-app.use('/api/super-admin/platform-config', platformConfigRouter);
-app.use('/api/super-admin/plans', superAdminPlansRouter);
+const v1Router = express.Router();
 
-// Enhanced health check -- includes DB connectivity
-app.get('/api/health', async (req, res) => {
+v1Router.use('/auth', authRoutes);
+v1Router.use('/', documentTypeRoutes);
+v1Router.use('/', documentRoutes);
+v1Router.use('/users', userRoutes);
+v1Router.use('/qr', qrRoutes);
+v1Router.use('/attendance', attendanceRoutes);
+v1Router.use('/reports', reportsRoutes);
+v1Router.use('/payroll', employeePayrollRouter);
+v1Router.use('/payroll', payrollRoutes);
+v1Router.use('/holidays', holidayRoutes);
+v1Router.use('/master-holidays', masterHolidayRoutes);
+v1Router.use('/config', configRoutes);
+v1Router.use('/nepali-date', nepaliDateRoutes);
+v1Router.use('/org-settings', orgSettingsRoutes);
+v1Router.use('/leaves', leaveRoutes);
+v1Router.use('/leave-balance', leaveBalanceRoutes);
+v1Router.use('/super-admin', superAdminRoutes);
+v1Router.use('/notifications', notificationRoutes);
+v1Router.use('/super-admin/subscriptions', superAdminSubscriptionRouter);
+v1Router.use('/super-admin/platform-config', platformConfigRouter);
+v1Router.use('/super-admin/plans', superAdminPlansRouter);
+
+v1Router.get('/health', async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     res.json({
       status: 'ok',
+      version: 'v1',
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
       database: 'connected',
@@ -199,11 +201,21 @@ app.get('/api/health', async (req, res) => {
   } catch {
     res.status(503).json({
       status: 'degraded',
+      version: 'v1',
       timestamp: new Date().toISOString(),
       database: 'disconnected',
     });
   }
 });
+
+// Version header middleware
+const versionHeader = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  res.setHeader('X-API-Version', 'v1');
+  next();
+};
+
+// Versioned API mount
+app.use('/api/v1', versionHeader, v1Router);
 
 // ============================================================
 // Error Handler (must be last)

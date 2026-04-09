@@ -74,9 +74,9 @@ export default function SuperAdminPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     const [orgsRes, statsRes, holidaysRes] = await Promise.all([
-      api.get('/api/super-admin/organizations'),
-      api.get('/api/super-admin/stats'),
-      api.get('/api/master-holidays?bsYear=2082'),
+      api.get('/api/v1/super-admin/organizations'),
+      api.get('/api/v1/super-admin/stats'),
+      api.get('/api/v1/master-holidays?bsYear=2082'),
     ]);
     if (orgsRes.data) {
       const d = orgsRes.data as Record<string, unknown>;
@@ -119,7 +119,7 @@ export default function SuperAdminPage() {
       setError('Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number'); return;
     }
     setLoading(true); setError('');
-    const res = await api.post('/api/super-admin/organizations', createForm);
+    const res = await api.post('/api/v1/super-admin/organizations', createForm);
     if (res.error) { setError(res.error.message); }
     else {
       setSuccess('Organization created successfully');
@@ -132,20 +132,20 @@ export default function SuperAdminPage() {
   };
 
   const toggleOrgStatus = async (orgId: string) => {
-    const res = await api.patch('/api/super-admin/organizations/' + orgId + '/toggle-status');
+    const res = await api.patch('/api/v1/super-admin/organizations/' + orgId + '/toggle-status');
     if (res.error) { setError(res.error.message); }
     else { loadData(); setSuccess('Organization status updated'); setTimeout(() => setSuccess(''), 3000); }
   };
 
   const toggleOrgFeature = async (orgId: string, field: string, current: boolean) => {
-    const res = await api.patch(`/api/super-admin/organizations/${orgId}`, { [field]: !current });
+    const res = await api.patch(`/api/v1/super-admin/organizations/${orgId}`, { [field]: !current });
     if (res.error) { setError(res.error.message); }
     else { loadData(); setSuccess('Feature updated'); setTimeout(() => setSuccess(''), 3000); }
   };
 
   const deleteOrg = async (orgId: string, orgName: string) => {
     if (!confirm('Delete "' + orgName + '"? This cannot be undone.')) return;
-    const res = await api.delete('/api/super-admin/organizations/' + orgId);
+    const res = await api.delete('/api/v1/super-admin/organizations/' + orgId);
     if (res.error) { setError(res.error.message); }
     else { setSuccess('Organization deleted'); loadData(); setTimeout(() => setSuccess(''), 3000); }
   };

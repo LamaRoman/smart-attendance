@@ -112,8 +112,8 @@ export default function PayPage() {
     (async () => {
       setFetching(true);
       const [usersRes, subRes] = await Promise.all([
-        api.get('/api/users'),
-        api.get('/api/org-settings/subscription'),
+        api.get('/api/v1/users'),
+        api.get('/api/v1/org-settings/subscription'),
       ]);
       if (usersRes.error) {
         setFetchError(usersRes.error.message);

@@ -89,7 +89,7 @@ export default function UserDetailPage() {
   const fetchUser = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/api/users');
+      const res = await api.get('/api/v1/users');
       if (res.error) throw new Error(res.error.message);
       const users = (res.data as UserData[]) || [];
       const found = users.find((u) => u.id === userId);

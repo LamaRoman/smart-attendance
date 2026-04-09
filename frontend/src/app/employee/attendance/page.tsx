@@ -72,7 +72,7 @@ export default function EmployeeAttendancePage() {
     setError('');
     try {
       const res = await api.get(
-        `/api/attendance/my?bsYear=${selectedYear}&bsMonth=${selectedMonth}&limit=50&offset=0`
+        `/api/v1/attendance/my?bsYear=${selectedYear}&bsMonth=${selectedMonth}&limit=50&offset=0`
       );
       if (res.error) throw new Error(res.error.message);
       setData(res.data as AttendanceData);

@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const res = await api.get('/api/auth/me');
+      const res = await api.get('/api/v1/auth/me');
       if (res.data) {
         const data = res.data as { user: User };
         setUser(data.user);
@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const res = await api.post('/api/auth/login', { email, password });
+    const res = await api.post('/api/v1/auth/login', { email, password });
 
     if (res.error) {
       throw new Error(res.error.message || 'Login failed');
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
 
     // Fetch full profile (includes organization + plan features)
-    const meRes = await api.get('/api/auth/me');
+    const meRes = await api.get('/api/v1/auth/me');
     if (meRes.data) {
       const meData = meRes.data as { user: User };
       setUser(meData.user);
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await api.post('/api/auth/logout').catch(() => {});
+    await api.post('/api/v1/auth/logout').catch(() => {});
     setUser(null);
     router.push('/login');
   };

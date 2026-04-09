@@ -77,7 +77,7 @@ function ScanPageContent() {
         setStep('processing');
         try {
           const qrPayload = JSON.stringify({ token, signature });
-          const response = await fetch(`${API_URL}/api/attendance/scan-public`, {
+          const response = await fetch(`${API_URL}/api/v1/attendance/scan-public`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

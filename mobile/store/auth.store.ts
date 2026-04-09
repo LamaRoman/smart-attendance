@@ -56,7 +56,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
           return;
         }
         const { apiGet } = await import('../lib/api');
-        const data = await apiGet<{ user: User }>('/api/auth/me');
+        const data = await apiGet<{ user: User }>('/api/v1/auth/me');
 
         // Only allow EMPLOYEE role in this app
         if (data.user.role !== 'EMPLOYEE') {
@@ -79,7 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
           user: User;
           accessToken: string;
           refreshToken: string;
-        }>('/api/auth/login', { email, password });
+        }>('/api/v1/auth/login', { email, password });
 
         // Only allow EMPLOYEE role in this app
         if (data.user.role !== 'EMPLOYEE') {
@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
         // Login response is flat (no org details) — fetch full profile
         const { apiGet } = await import('../lib/api');
-        const meData = await apiGet<{ user: User }>('/api/auth/me');
+        const meData = await apiGet<{ user: User }>('/api/v1/auth/me');
         set({ user: meData.user, isAuthenticated: true });
       } catch (err: unknown) {
         const message =
@@ -105,7 +105,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     logout: async () => {
       try {
-        await apiPost('/api/auth/logout');
+        await apiPost('/api/v1/auth/logout');
       } catch {
         // ignore
       } finally {

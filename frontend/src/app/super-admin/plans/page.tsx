@@ -85,7 +85,7 @@ export default function PlansPage() {
 
   const loadPlans = async () => {
     setLoading(true);
-    const res = await api.get('/api/super-admin/plans');
+    const res = await api.get('/api/v1/super-admin/plans');
     if (res.data) setPlans(res.data as Plan[]);
     setLoading(false);
   };
@@ -109,7 +109,7 @@ export default function PlansPage() {
   const saveTier = async (tier: string) => {
     if (!changes[tier]) return;
     setSaving(tier);
-    const res = await api.patch('/api/super-admin/plans/' + tier + '/features', changes[tier]);
+    const res = await api.patch('/api/v1/super-admin/plans/' + tier + '/features', changes[tier]);
     setSaving('');
     if (res.error) { showError(res.error.message); return; }
     showSuccess(tier + ' features updated');
@@ -121,7 +121,7 @@ export default function PlansPage() {
     const val = Number(priceInput[tier]);
     if (!priceInput[tier] || isNaN(val) || val < 0) return;
     setPriceSaving(tier);
-    const res = await api.patch('/api/super-admin/plans/' + tier + '/price', { pricePerEmployee: val });
+    const res = await api.patch('/api/v1/super-admin/plans/' + tier + '/price', { pricePerEmployee: val });
     setPriceSaving('');
     if (res.error) { showError(res.error.message); return; }
     showSuccess(tier + ' price updated to Rs. ' + val);
@@ -134,7 +134,7 @@ export default function PlansPage() {
     const val = raw === '' ? null : Number(raw);
     if (val !== null && (isNaN(val) || val < 0)) return;
     setSetupFeeSaving(tier);
-    const res = await api.patch('/api/super-admin/plans/' + tier + '/setup-fee', { defaultSetupFee: val });
+    const res = await api.patch('/api/v1/super-admin/plans/' + tier + '/setup-fee', { defaultSetupFee: val });
     setSetupFeeSaving('');
     if (res.error) { showError(res.error.message); return; }
     showSuccess(tier + ' setup fee ' + (val === null ? 'cleared' : 'updated to Rs. ' + val));
@@ -146,7 +146,7 @@ export default function PlansPage() {
     const val = parseInt(trialInput[tier]);
     if (!trialInput[tier] || isNaN(val) || val < 0) return;
     setTrialSaving(tier);
-    const res = await api.patch('/api/super-admin/plans/' + tier + '/trial-days', { days: val });
+    const res = await api.patch('/api/v1/super-admin/plans/' + tier + '/trial-days', { days: val });
     setTrialSaving('');
     if (res.error) { showError(res.error.message); return; }
     showSuccess(tier + ' trial period updated to ' + val + ' days');
@@ -158,7 +158,7 @@ export default function PlansPage() {
     const val = parseInt(graceInput[tier]);
     if (!graceInput[tier] || isNaN(val) || val < 1) return;
     setGraceSaving(tier);
-    const res = await api.patch('/api/super-admin/plans/' + tier + '/grace-period', { gracePeriodDays: val });
+    const res = await api.patch('/api/v1/super-admin/plans/' + tier + '/grace-period', { gracePeriodDays: val });
     setGraceSaving('');
     if (res.error) { showError(res.error.message); return; }
     showSuccess(tier + ' grace period updated to ' + val + ' days');
@@ -170,7 +170,7 @@ export default function PlansPage() {
     const val = parseInt(discountInput);
     if (discountInput === '' || isNaN(val) || val < 0 || val > 100) return;
     setDiscountSaving(true);
-    const res = await api.patch('/api/super-admin/plans/OPERATIONS/annual-discount', { annualDiscountPercent: val });
+    const res = await api.patch('/api/v1/super-admin/plans/OPERATIONS/annual-discount', { annualDiscountPercent: val });
     setDiscountSaving(false);
     if (res.error) { showError(res.error.message); return; }
     showSuccess('Annual discount updated to ' + val + '%');

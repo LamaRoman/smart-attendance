@@ -47,7 +47,7 @@ export default function AccountantReportsPage() {
   const loadMonthly = async () => {
     setLoadingMonth(true); setError('');
     try {
-      const res = await api.get(`/api/payroll/records?bsYear=${monthYear}&bsMonth=${monthMonth}`);
+      const res = await api.get(`/api/v1/payroll/records?bsYear=${monthYear}&bsMonth=${monthMonth}`);
       if (res.error) throw new Error(res.error.message);
       setMonthData(res.data);
     } catch (e: any) { setError(e.message || 'Failed to load'); }
@@ -57,7 +57,7 @@ export default function AccountantReportsPage() {
   const loadAnnual = async () => {
     setLoadingAnnual(true); setError('');
     try {
-      const res = await api.get(`/api/payroll/annual-report?bsYear=${annualYear}`);
+      const res = await api.get(`/api/v1/payroll/annual-report?bsYear=${annualYear}`);
       if (res.error) throw new Error(res.error.message);
       setAnnualData(res.data);
     } catch (e: any) { setError(e.message || 'Failed to load'); }
@@ -68,8 +68,8 @@ export default function AccountantReportsPage() {
     setExportingCsv(true);
     try {
       const url = type === 'monthly'
-        ? `${API_URL}/api/payroll/export/bank-sheet?bsYear=${monthYear}&bsMonth=${monthMonth}`
-       : `${API_URL}/api/payroll/annual-report/csv?bsYear=${annualYear}`;
+        ? `${API_URL}/api/v1/payroll/export/bank-sheet?bsYear=${monthYear}&bsMonth=${monthMonth}`
+       : `${API_URL}/api/v1/payroll/annual-report/csv?bsYear=${annualYear}`;
       const res = await fetch(url, {
         credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
@@ -89,7 +89,7 @@ export default function AccountantReportsPage() {
   const exportDetailed = async () => {
     setExportingCsv(true);
     try {
-      const url = `${API_URL}/api/payroll/export/detailed?bsYear=${monthYear}&bsMonth=${monthMonth}`;
+      const url = `${API_URL}/api/v1/payroll/export/detailed?bsYear=${monthYear}&bsMonth=${monthMonth}`;
       const res = await fetch(url, {
         credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });

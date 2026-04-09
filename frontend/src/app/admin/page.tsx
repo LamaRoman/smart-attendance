@@ -71,7 +71,7 @@ export default function AdminDashboard() {
   const loadStats = async () => {
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const res = await api.get('/api/reports/daily?date=' + today);
+    const res = await api.get('/api/v1/reports/daily?date=' + today);
     if (res.data) {
       const data = res.data as DailyReport;
       setStats({
@@ -87,12 +87,12 @@ export default function AdminDashboard() {
   };
 
   const loadRecentAttendance = async () => {
-    const res = await api.get('/api/attendance?limit=5');
+    const res = await api.get('/api/v1/attendance?limit=5');
     if (res.data) setRecentAttendance((res.data as any).records || []);
   };
 
   const loadBirthdays = async () => {
-    const res = await api.get('/api/users/upcoming-birthdays?days=30');
+    const res = await api.get('/api/v1/users/upcoming-birthdays?days=30');
     if (res.data && Array.isArray(res.data)) setBirthdays(res.data as BirthdayEmployee[]);
   };
 

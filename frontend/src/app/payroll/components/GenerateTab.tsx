@@ -38,7 +38,7 @@ export default function GenerateTab({
 
   // Fetch employees with pay settings on mount
   useEffect(() => {
-    api.get('/api/payroll/settings').then((res) => {
+    api.get('/api/v1/payroll/settings').then((res) => {
       if (res.data && Array.isArray(res.data)) {
         setEmployees((res.data as any[]).map((e) => ({
           membershipId: e.membershipId,
@@ -55,7 +55,7 @@ export default function GenerateTab({
     let cancelled = false;
     setCheckingExisting(true);
     setExistingStatus(null);
-    api.get(`/api/payroll/records?bsYear=${genYear}&bsMonth=${genMonth}`).then((res) => {
+    api.get(`/api/v1/payroll/records?bsYear=${genYear}&bsMonth=${genMonth}`).then((res) => {
       if (cancelled) return;
       const records: any[] = (res.data as any)?.records || [];
       if (records.length === 0) {

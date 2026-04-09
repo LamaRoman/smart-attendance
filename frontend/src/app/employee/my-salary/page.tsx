@@ -55,7 +55,7 @@ export default function MySalaryHistoryPage() {
   } | null>(null);
 
   useEffect(() => {
-    api.get('/api/payroll/my-earliest-year').then((res) => {
+    api.get('/api/v1/payroll/my-earliest-year').then((res) => {
       if (!res.error && (res.data as any)?.earliestBsYear) {
         setEarliestBsYear((res.data as any).earliestBsYear);
       } else {
@@ -90,7 +90,7 @@ export default function MySalaryHistoryPage() {
     }
     try {
       const res = await api.get(
-        `/api/payroll/my-multi-month?fromBsYear=${fY}&fromBsMonth=${fM}&toBsYear=${tY}&toBsMonth=${tM}`
+        `/api/v1/payroll/my-multi-month?fromBsYear=${fY}&fromBsMonth=${fM}&toBsYear=${tY}&toBsMonth=${tM}`
       );
       if (res.error) throw new Error(res.error.message);
       setSalaryData(res.data);
@@ -270,7 +270,7 @@ export default function MySalaryHistoryPage() {
   const openPreview = async (recordId: string, bsYear: number, bsMonth: number) => {
     setPreviewLoading(true);
     const url = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001') +
-      `/api/payroll/my-payslip/${recordId}/pdf`;
+      `/api/v1/payroll/my-payslip/${recordId}/pdf`;
     try {
       const res = await fetch(url, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!res.ok) throw new Error('Failed to load PDF');

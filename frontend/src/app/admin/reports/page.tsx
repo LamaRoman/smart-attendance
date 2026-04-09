@@ -84,7 +84,7 @@ export default function AdminReportsPage() {
   useEffect(() => {
     if (!user || user.role !== "ORG_ADMIN" || featureChecked) return;
     (async () => {
-      const subRes = await api.get("/api/org-settings/subscription");
+      const subRes = await api.get("/api/v1/org-settings/subscription");
       if (subRes.data) { setOrgTier((subRes.data as any)?.plan?.tier || null); }
       setFeatureChecked(true);
     })();
@@ -92,7 +92,7 @@ export default function AdminReportsPage() {
 
   const loadDaily = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/api/reports/daily?date=' + reportDate);
+    const res = await api.get('/api/v1/reports/daily?date=' + reportDate);
     if (res.data) {
       setDaily(res.data as DailyReport);
       setLastRefreshed(new Date());
@@ -102,7 +102,7 @@ export default function AdminReportsPage() {
 
   const loadWeekly = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/api/reports/weekly?startDate=' + weekStart);
+    const res = await api.get('/api/v1/reports/weekly?startDate=' + weekStart);
     if (res.data) {
       setWeekly(res.data as WeeklyReport);
       setLastRefreshed(new Date());
@@ -120,7 +120,7 @@ export default function AdminReportsPage() {
       apiYear = adDate.getFullYear();
       apiMonth = adDate.getMonth() + 1;
     }
-    const res = await api.get('/api/reports/monthly?year=' + apiYear + '&month=' + apiMonth);
+    const res = await api.get('/api/v1/reports/monthly?year=' + apiYear + '&month=' + apiMonth);
     if (res.data) {
       setMonthly(res.data as MonthlyReport);
       setLastRefreshed(new Date());

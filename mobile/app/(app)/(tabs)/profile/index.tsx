@@ -83,7 +83,7 @@ export default function ProfileScreen() {
     if (!firstName.trim()) { Alert.alert('Error', 'First name is required.'); return; }
     setSavingProfile(true);
     try {
-      await api.put(`/api/users/${user?.id}`, {
+      await api.put(`/api/v1/users/${user?.id}`, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim() || undefined,
@@ -107,7 +107,7 @@ export default function ProfileScreen() {
 
     setSavingPassword(true);
     try {
-      await api.put(`/api/users/${user?.id}`, { password: newPassword });
+      await api.put(`/api/v1/users/${user?.id}`, { password: newPassword });
       setNewPassword('');
       setConfirmPassword('');
       Alert.alert('Success', 'Password changed successfully.');
@@ -124,7 +124,7 @@ export default function ProfileScreen() {
     if (currentPin === newPin) { Alert.alert('Error', 'New PIN must differ from current PIN.'); return; }
     setSavingPin(true);
     try {
-      await apiPost('/api/auth/attendance-pin', { currentPin, newPin });
+      await apiPost('/api/v1/auth/attendance-pin', { currentPin, newPin });
       setCurrentPin('');
       setNewPin('');
       Alert.alert('Success', 'Attendance PIN changed successfully.');

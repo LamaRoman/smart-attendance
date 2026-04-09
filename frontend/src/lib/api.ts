@@ -1,6 +1,17 @@
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
+/**
+ * Upgrade endpoint to versioned path.
+ * /api/foo → /api/v1/foo
+ */
+function versionedUrl(endpoint: string): string {
+  if (endpoint.startsWith('/api/') && !endpoint.startsWith('/api/v1/')) {
+    return endpoint.replace('/api/', '/api/v1/');
+  }
+  return endpoint;
+}
+
 export async function apiRequest(
   endpoint: string,
   options: RequestInit = {}
@@ -12,7 +23,7 @@ export async function apiRequest(
   };
 
   try {
-    const res = await fetch(`${API_URL}${endpoint}`, {
+    const res = await fetch(`${API_URL}${versionedUrl(endpoint)}`, {
       ...options,
       headers,
       credentials: 'include',

@@ -171,12 +171,12 @@ export default function UsersPage() {
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/api/users');
+    const res = await api.get('/api/v1/users');
     if (res.data && Array.isArray(res.data)) {
       setUsers((res.data as UserData[]).filter((u: UserData) => u.role !== 'SUPER_ADMIN'));
       setLastRefreshed(new Date());
     }
-    const subRes = await api.get("/api/org-settings/subscription");
+    const subRes = await api.get("/api/v1/org-settings/subscription");
     if (subRes.data) {
       const d = subRes.data as any;
       setEmpCap({ current: d?.currentEmployeeCount || 0, max: d?.plan?.maxEmployees ?? null });
@@ -243,7 +243,7 @@ export default function UsersPage() {
         workingDays: formData.workingDays || null,
       };
       if (formData.password) updateData.password = formData.password;
-      const res = await api.put('/api/users/' + editingUser.id, updateData);
+      const res = await api.put('/api/v1/users/' + editingUser.id, updateData);
       if (res.error) { setError(res.error.message); }
       else {
         setSuccess(isNp ? 'प्रयोगकर्ता अपडेट गरियो' : 'User updated');
@@ -255,7 +255,7 @@ export default function UsersPage() {
         setError(isNp ? 'सबै फिल्ड भर्नुहोस्' : 'All fields are required');
         setSaving(false); return;
       }
-      const res = await api.post('/api/users', formData);
+      const res = await api.post('/api/v1/users', formData);
       if (res.error) { setError(res.error.message); }
       else {
         const created = res.data as any;
@@ -282,7 +282,7 @@ export default function UsersPage() {
       setError(isNp ? 'प्लेटफर्म ID आवश्यक छ' : 'Platform ID is required');
       setSaving(false); return;
     }
-    const res = await api.post('/api/users/add-existing', existingFormData);
+    const res = await api.post('/api/v1/users/add-existing', existingFormData);
     if (res.error) { setError(res.error.message); }
     else {
       const result = res.data as any;
@@ -309,7 +309,7 @@ export default function UsersPage() {
   const handleResetPin = async (u: UserData) => {
     if (!confirm(isNp ? `${u.firstName} ${u.lastName} को PIN रिसेट गर्ने?` : `Reset PIN for ${u.firstName} ${u.lastName}?`)) return;
     setResettingPinId(u.id);
-    const res = await api.patch(`/api/users/${u.id}/attendance-pin`, {});
+    const res = await api.patch(`/api/v1/users/${u.id}/attendance-pin`, {});
     setResettingPinId(null);
     if (res.error) { setError(res.error.message); }
     else {
@@ -326,14 +326,14 @@ export default function UsersPage() {
 
   const toggleStatus = async (u: UserData) => {
     const isActive = u.status === 'ACTIVE' || u.isActive;
-    const res = await api.patch('/api/users/' + u.id + '/status', { isActive: !isActive });
+    const res = await api.patch('/api/v1/users/' + u.id + '/status', { isActive: !isActive });
     if (res.error) { setError(res.error.message); }
     else { loadUsers(); }
   };
 
   const removeUser = async (u: UserData) => {
     if (!confirm((isNp ? 'संगठनबाट हटाउने' : 'Remove from organization: ') + u.firstName + ' ' + u.lastName + '?')) return;
-    const res = await api.delete('/api/users/' + u.id);
+    const res = await api.delete('/api/v1/users/' + u.id);
     if (res.error) { setError(res.error.message); }
     else {
       setSuccess(isNp ? 'संगठनबाट हटाइयो' : 'Removed from organization');
@@ -485,7 +485,7 @@ export default function UsersPage() {
                       onClick={async () => {
                         setShowRosterMenu(false);
                         const url = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001') +
-                          `/api/reports/roster?period=${rosterPeriod}&includeTime=${rosterIncludeTime}`;
+                          `/api/v1/reports/roster?period=${rosterPeriod}&includeTime=${rosterIncludeTime}`;
                         try {
                           const res = await fetch(url, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
                           if (!res.ok) throw new Error('Failed to generate roster');

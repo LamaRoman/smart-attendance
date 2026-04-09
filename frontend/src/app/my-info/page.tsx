@@ -73,7 +73,7 @@ export default function MyInfoPage() {
       if (form.phone !== originalForm.phone) payload.phone = form.phone;
       if (form.email !== originalForm.email) payload.email = form.email;
 
-      const res = await api.put('/api/users/' + user!.id, payload);
+      const res = await api.put('/api/v1/users/' + user!.id, payload);
       if (res.error) throw new Error(res.error.message);
 
       setOriginalForm({ ...form });
@@ -98,7 +98,7 @@ export default function MyInfoPage() {
 
     setPwSaving(true);
     try {
-      const res = await api.put('/api/users/' + user!.id, { password: pw });
+      const res = await api.put('/api/v1/users/' + user!.id, { password: pw });
       if (res.error) throw new Error(res.error.message);
       setPwForm({ newPassword: '', confirmPassword: '' });
       setPwMsg({ type: 'success', text: isNp ? 'पासवर्ड सफलतापूर्वक परिवर्तन भयो!' : 'Password changed successfully!' });
@@ -124,7 +124,7 @@ export default function MyInfoPage() {
     }
     setPinSaving(true);
     try {
-      const res = await api.patch('/api/auth/attendance-pin', { currentPin: pinForm.currentPin, newPin: pinForm.newPin });
+      const res = await api.patch('/api/v1/auth/attendance-pin', { currentPin: pinForm.currentPin, newPin: pinForm.newPin });
       if (res.error) throw new Error(res.error.message);
       setPinForm({ currentPin: '', newPin: '', confirmPin: '' });
       setPinMsg({ type: 'success', text: isNp ? 'PIN सफलतापूर्वक परिवर्तन भयो!' : 'Attendance PIN changed successfully!' });

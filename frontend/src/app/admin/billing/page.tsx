@@ -44,7 +44,7 @@ export default function BillingPage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const res = await api.get('/api/org-settings/subscription');
+      const res = await api.get('/api/v1/org-settings/subscription');
       if (res.data) {
         const d = res.data as any;
         setCurrentTier(d?.plan?.tier || 'STARTER');

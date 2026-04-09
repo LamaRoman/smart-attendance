@@ -62,7 +62,7 @@ export default function EmployeeDetailModal({
 
     const fetchUser = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/users/${user.id}`, {
+        const res = await fetch(`${API_URL}/api/v1/users/${user.id}`, {
           credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
         });
         if (res.ok) {

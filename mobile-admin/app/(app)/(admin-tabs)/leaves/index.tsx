@@ -57,7 +57,7 @@ export default function LeavesScreen() {
   const fetchData = async () => {
     try {
       const params = filter === 'PENDING' ? '?status=PENDING&limit=50' : '?limit=50';
-      const data = await apiGet<any>(`/api/leaves${params}`);
+      const data = await apiGet<any>(`/api/v1/leaves${params}`);
       const items = data?.leaves ?? data?.records ?? (Array.isArray(data) ? data : []);
       setLeaves(items);
     } catch (err: any) {
@@ -91,7 +91,7 @@ export default function LeavesScreen() {
           onPress: async () => {
             setActionLoading(id);
             try {
-              await apiPut(`/api/leaves/${id}/status`, { status: action });
+              await apiPut(`/api/v1/leaves/${id}/status`, { status: action });
               await fetchData();
             } catch {
               Alert.alert('Error', `Failed to ${label.toLowerCase()} leave request.`);

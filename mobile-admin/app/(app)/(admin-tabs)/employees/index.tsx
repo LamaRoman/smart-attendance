@@ -89,7 +89,7 @@ export default function EmployeesScreen() {
   const fetchData = async () => {
     setError('');
     try {
-      const data = await apiGet<any>('/api/users');
+      const data = await apiGet<any>('/api/v1/users');
       let users: Employee[] = [];
       if (Array.isArray(data)) {
         users = data;

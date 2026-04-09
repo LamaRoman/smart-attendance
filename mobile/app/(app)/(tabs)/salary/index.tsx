@@ -53,7 +53,7 @@ function PayslipRow({ item }: { item: PayslipRecord }) {
       const filename = `payslip-${item.bsYear}-${item.bsMonth}.pdf`;
       const fileUri = (FileSystem.documentDirectory ?? '') + filename;
       const result = await FileSystem.downloadAsync(
-        `${API_URL}/api/payroll/my-payslip/${item.id}/pdf`,
+        `${API_URL}/api/v1/payroll/my-payslip/${item.id}/pdf`,
         fileUri,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -149,7 +149,7 @@ export default function SalaryScreen() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await apiGet<PayslipRecord[]>('/api/payroll/my-payslips');
+        const data = await apiGet<PayslipRecord[]>('/api/v1/payroll/my-payslips');
         const all = Array.isArray(data) ? data : [];
         setRecords(all.filter(r => r.status === 'PAID'));
       } catch {

@@ -65,12 +65,12 @@ export default function EmployeeDashboard() {
   }, [user, status?.isClockedIn]);
 
   const loadStatus = async () => {
-    const res = await api.get('/api/attendance/status');
+    const res = await api.get('/api/v1/attendance/status');
     if (res.data) setStatus(res.data as AttendanceStatus);
   };
 
   const loadRecords = async () => {
-    const res = await api.get('/api/attendance/my?limit=10');
+    const res = await api.get('/api/v1/attendance/my?limit=10');
     if (res.data) setRecords((res.data as { records: AttendanceRecord[] }).records);
   };
 
@@ -78,7 +78,7 @@ export default function EmployeeDashboard() {
     setProcessing(true);
     setError('');
     setMessage('');
-    const res = await api.post('/api/attendance/scan', { qrPayload });
+    const res = await api.post('/api/v1/attendance/scan', { qrPayload });
     if (res.error) {
       setError(res.error.message);
     } else {

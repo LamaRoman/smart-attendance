@@ -19,7 +19,7 @@ export default function PayslipModal({ record, language, isStarter, onClose, onE
     ? BS_MONTHS_NP[record.bsMonth - 1]
     : BS_MONTHS_EN[record.bsMonth - 1];
 
-  const pdfUrl = `${API_BASE}/api/payroll/payslip/${record.id}/pdf`;
+  const pdfUrl = `${API_BASE}/api/v1/payroll/payslip/${record.id}/pdf`;
 
   const handleDownload = async () => {
     const res = await fetch(pdfUrl, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });

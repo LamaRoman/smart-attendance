@@ -97,7 +97,7 @@ export default function HolidaysPage() {
   }, [user, isLoading, router]);
 
   const loadHolidays = useCallback(async () => {
-    let url = '/api/holidays?bsYear=' + filterYear;
+    let url = '/api/v1/holidays?bsYear=' + filterYear;
     if (filterMonth) url += '&bsMonth=' + filterMonth;
     const res = await api.get(url);
     if (res.data) {
@@ -111,7 +111,7 @@ export default function HolidaysPage() {
   }, [user, filterYear, filterMonth, loadHolidays]);
 
   const loadMasterHolidays = async () => {
-    const res = await api.get('/api/holidays/master?bsYear=' + filterYear);
+    const res = await api.get('/api/v1/holidays/master?bsYear=' + filterYear);
     if (res.data) {
       setMasterHolidays(res.data as Holiday[]);
     }
@@ -120,7 +120,7 @@ export default function HolidaysPage() {
   const syncHolidays = async () => {
     setSyncing(true);
     setError('');
-    const res = await api.post('/api/holidays/sync', { bsYear: filterYear });
+    const res = await api.post('/api/v1/holidays/sync', { bsYear: filterYear });
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -140,7 +140,7 @@ export default function HolidaysPage() {
   const importMasterHolidays = async () => {
     setImporting(true);
     setError('');
-    const res = await api.post('/api/holidays/import', { bsYear: filterYear });
+    const res = await api.post('/api/v1/holidays/import', { bsYear: filterYear });
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -162,7 +162,7 @@ export default function HolidaysPage() {
       setError(isNp ? 'नाम र मिति आवश्यक छ' : 'Name and date are required');
       return;
     }
-    const res = await api.post('/api/holidays', form);
+    const res = await api.post('/api/v1/holidays', form);
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -176,7 +176,7 @@ export default function HolidaysPage() {
 
   const deleteHoliday = async (id: string, name: string) => {
     if (!confirm((isNp ? 'मेटाउने: ' : 'Delete: ') + name + '?')) return;
-    const res = await api.delete('/api/holidays/' + id);
+    const res = await api.delete('/api/v1/holidays/' + id);
     if (res.error) {
       setError(res.error.message);
     } else {
@@ -194,7 +194,7 @@ export default function HolidaysPage() {
         : `Mark "${holiday.name}" as a working day for your org? This only affects your organization.`
     )) return;
 
-    const res = await api.post('/api/holidays', {
+    const res = await api.post('/api/v1/holidays', {
       name: `${holiday.name} (Working day)`,
       nameNepali: holiday.nameNepali ? `${holiday.nameNepali} (कार्य दिन)` : undefined,
       bsYear: holiday.bsYear,
@@ -222,7 +222,7 @@ export default function HolidaysPage() {
         : `Restore "${holidayName}" as a holiday (remove working day override)?`
     )) return;
 
-    const res = await api.delete('/api/holidays/' + overrideId);
+    const res = await api.delete('/api/v1/holidays/' + overrideId);
     if (res.error) {
       setError(res.error.message);
     } else {

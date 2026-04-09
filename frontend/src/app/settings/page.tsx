@@ -98,7 +98,7 @@ export default function OrgSettingsPage() {
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/api/org-settings');
+    const res = await api.get('/api/v1/org-settings');
     if (res.data) {
       const data = res.data as any;
       setSettings(data);
@@ -128,7 +128,7 @@ export default function OrgSettingsPage() {
         sickLeaveEntitlement: data.sickLeaveEntitlement ?? 12,
         casualLeaveEntitlement: data.casualLeaveEntitlement ?? 6,
       });
-      const configRes = await api.get('/api/config');
+      const configRes = await api.get('/api/v1/config');
       if (configRes.data) {
         const configMap = (configRes.data as any).configMap || {};
         setFormData(prev => ({
@@ -151,7 +151,7 @@ export default function OrgSettingsPage() {
     setSaving(true);
     setError('');
 
-    const res = await api.put('/api/org-settings', {
+    const res = await api.put('/api/v1/org-settings', {
       name: formData.name,
       email: formData.email,
       phone: formData.phone,
@@ -177,7 +177,7 @@ export default function OrgSettingsPage() {
       casualLeaveEntitlement: formData.casualLeaveEntitlement,
     });
 
-    await api.put('/api/config/notificationRetentionDays', {
+    await api.put('/api/v1/config/notificationRetentionDays', {
       value: String(Math.min(90, Math.max(7, formData.notificationRetentionDays))),
     });
 

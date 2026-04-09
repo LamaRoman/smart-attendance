@@ -27,7 +27,7 @@ export default function AnnualTab({
 
   const handleCsvExport = async () => {
     const res = await fetch(
-      `${API_BASE}/api/payroll/annual-report/csv?bsYear=${annualYear}`,
+      `${API_BASE}/api/v1/payroll/annual-report/csv?bsYear=${annualYear}`,
       { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } },
     );
     const blob = await res.blob();

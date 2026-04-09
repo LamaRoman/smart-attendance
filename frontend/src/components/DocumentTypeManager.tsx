@@ -60,7 +60,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
   const fetchTypes = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/org/document-types?all=true`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const res = await fetch(`${API_URL}/api/v1/org/document-types?all=true`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!res.ok) throw new Error('Failed to load');
       setTypes(await res.json());
     } catch (err: any) {
@@ -115,8 +115,8 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
       };
 
       const url = editingId
-        ? `${API_URL}/api/org/document-types/${editingId}`
-        : `${API_URL}/api/org/document-types`;
+        ? `${API_URL}/api/v1/org/document-types/${editingId}`
+        : `${API_URL}/api/v1/org/document-types`;
 
       const res = await fetch(url, {
         method: editingId ? 'PATCH' : 'POST',
@@ -147,7 +147,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
   // ── Toggle active ──
   const handleToggleActive = async (t: DocType) => {
     try {
-      const res = await fetch(`${API_URL}/api/org/document-types/${t.id}`, {
+      const res = await fetch(`${API_URL}/api/v1/org/document-types/${t.id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -163,7 +163,7 @@ export default function DocumentTypeManager({ language = 'ENGLISH' }: DocumentTy
   // ── Delete ──
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/org/document-types/${id}`, {
+      const res = await fetch(`${API_URL}/api/v1/org/document-types/${id}`, {
         method: 'DELETE',
         credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });

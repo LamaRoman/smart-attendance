@@ -86,7 +86,7 @@ export default function DocumentManager({
 
   const fetchDocTypes = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/org/document-types`, {
+      const res = await fetch(`${API_URL}/api/v1/org/document-types`, {
         credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
       if (!res.ok) throw new Error('Failed to fetch document types');
@@ -101,7 +101,7 @@ export default function DocumentManager({
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/documents/user/${userId}`, {
+      const res = await fetch(`${API_URL}/api/v1/documents/user/${userId}`, {
         credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
       if (!res.ok) throw new Error('Failed to fetch documents');
@@ -135,7 +135,7 @@ export default function DocumentManager({
       formData.append('documentTypeId', selectedTypeId);
       if (description.trim()) formData.append('description', description.trim());
 
-      const res = await fetch(`${API_URL}/api/documents/user/${userId}`, {
+      const res = await fetch(`${API_URL}/api/v1/documents/user/${userId}`, {
         method: 'POST', credentials: 'include',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: formData,
@@ -161,7 +161,7 @@ export default function DocumentManager({
     setPreviewDoc(doc);
     setPreviewLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/documents/${doc.id}/download`, {
+      const res = await fetch(`${API_URL}/api/v1/documents/${doc.id}/download`, {
         credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
       if (!res.ok) throw new Error('Preview failed');
@@ -179,7 +179,7 @@ export default function DocumentManager({
 
   const handleDelete = async (docId: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/documents/${docId}`, {
+      const res = await fetch(`${API_URL}/api/v1/documents/${docId}`, {
         method: 'DELETE', credentials: 'include',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });

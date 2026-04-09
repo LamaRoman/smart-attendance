@@ -42,13 +42,13 @@ export default function LateArrivalsPage() {
   }, [user, isAdmin, timeRange, fromDate, toDate]);
 
   const clearNotifications = async () => {
-    await api.post('/api/notifications/clear-late-arrivals');
+    await api.post('/api/v1/notifications/clear-late-arrivals');
   };
 
   const loadLateArrivals = async () => {
     setLoading(true);
     
-    let url = `/api/attendance/late-arrivals?range=${timeRange}`;
+    let url = `/api/v1/attendance/late-arrivals?range=${timeRange}`;
     if (timeRange === 'custom' && fromDate && toDate) {
       url += `&fromDate=${fromDate}&toDate=${toDate}`;
     }

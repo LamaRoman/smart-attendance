@@ -51,7 +51,7 @@ function CheckinPageContent() {
     }
     (async () => {
       try {
-        const res = await fetch(API_URL + '/api/attendance/org-mode/' + orgId);
+        const res = await fetch(API_URL + '/api/v1/attendance/org-mode/' + orgId);
         const data = await res.json();
         if (data.data) setOrgInfo(data.data);
       } catch {
@@ -92,7 +92,7 @@ function CheckinPageContent() {
       async (position) => {
         setStep('processing');
         try {
-          const response = await fetch(API_URL + '/api/attendance/mobile-checkin', {
+          const response = await fetch(API_URL + '/api/v1/attendance/mobile-checkin', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
