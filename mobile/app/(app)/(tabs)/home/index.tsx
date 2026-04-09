@@ -120,8 +120,8 @@ export default function HomeScreen() {
 
   const isClockedIn = (status?.isClockedIn ?? false) && statusRecordIsToday;
   const elapsedFormatted = isClockedIn ? (status?.currentDuration?.formatted ?? null) : null;
-  const checkInTime = todayRecord?.checkInTime ?? null;
-  const checkOutTime = todayRecord?.checkOutTime ?? null;
+  const checkInTime = todayRecord?.checkInTime ?? (statusRecordIsToday ? status?.record?.checkInTime ?? null : null);
+  const checkOutTime = todayRecord?.checkOutTime ?? (statusRecordIsToday ? status?.record?.checkOutTime ?? null : null);
   const attendanceComplete = !!(checkInTime && checkOutTime);
 
   return (

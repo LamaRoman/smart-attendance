@@ -209,8 +209,12 @@ router.get('/roster', async (req: AuthRequest, res: Response, next: NextFunction
               doc.text(empShiftStart, x + 1, y + 3, { width: dayColWidth - 2, align: 'center' });
               doc.text(empShiftEnd, x + 1, y + 13, { width: dayColWidth - 2, align: 'center' });
             } else {
-              doc.fillColor('#16A34A').font('Helvetica-Bold').fontSize(8);
-              doc.text('✓', x + 1, y + 4, { width: dayColWidth - 2, align: 'center' });
+              // Draw a filled green circle as check indicator
+              const cx = x + dayColWidth / 2;
+              const cy = y + rowHeight / 2;
+              doc.save();
+              doc.circle(cx, cy, 4).fill('#475569');
+              doc.restore();
             }
           }
           doc.fillColor('#1E293B').font('Helvetica').fontSize(7);
