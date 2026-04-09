@@ -85,13 +85,23 @@ export class NepaliDateService {
    * Get detailed info about a BS month
    */
   async getMonthInfo(bsYear: number, bsMonth: number, currentUser: JWTPayload) {
+    // Fetch org's working days setting
+    let orgWorkingDays: string | undefined;
+    if (currentUser.organizationId) {
+      const org = await prisma.organization.findUnique({
+        where: { id: currentUser.organizationId },
+        select: { workingDays: true },
+      });
+      orgWorkingDays = org?.workingDays;
+    }
+
     const daysInMonth = getDaysInBSMonth(bsYear, bsMonth);
-    const workingDays = getWorkingDaysInBSMonth(bsYear, bsMonth);
+    const workingDays = getWorkingDaysInBSMonth(bsYear, bsMonth, orgWorkingDays);
 
     const holidayDates = await holidayService.getHolidayDatesForMonth(
       bsYear, bsMonth, currentUser.organizationId || undefined
     );
-    const effectiveWorkingDays = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates);
+    const effectiveWorkingDays = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates, orgWorkingDays);
 
     const holidays = await prisma.holiday.findMany({
       where: {

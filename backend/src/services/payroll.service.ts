@@ -452,7 +452,7 @@ export class PayrollService {
     const holidayDates = await holidayService.getHolidayDatesForMonth(bsYear, bsMonth, organizationId);
     const holidaysInMonth = holidayDates.length;
     const daysInMonth = getDaysInBSMonth(bsYear, bsMonth);
-    const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates);
+    const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates, org.workingDays);
 
     let tdsConfig: any = null;
     try {
@@ -626,7 +626,7 @@ export class PayrollService {
 
     const holidayDates = await holidayService.getHolidayDatesForMonth(bsYear, bsMonth, organizationId);
     const holidaysInMonth = holidayDates.length;
-    const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates);
+    const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates, org.workingDays);
 
     let tdsConfig: any = null;
     try {

@@ -74,6 +74,7 @@ export default function OrgSettingsPage() {
     officeLng: '',
     geofenceRadius: 100,
     attendanceMode: 'QR_ONLY' as 'QR_ONLY' | 'MOBILE_ONLY' | 'BOTH',
+    workingDays: '0,1,2,3,4,5',
     workStartTime: '10:00',
     workEndTime: '18:00',
     lateThresholdMinutes: 10,
@@ -110,6 +111,7 @@ export default function OrgSettingsPage() {
         calendarMode: data.calendarMode,
         geofenceEnabled: data.geofenceEnabled || false,
         attendanceMode: data.attendanceMode || 'QR_ONLY',
+        workingDays: data.workingDays || '0,1,2,3,4,5',
         officeLat: data.officeLat || '',
         officeLng: data.officeLng || '',
         geofenceRadius: data.geofenceRadius || 100,
@@ -158,6 +160,7 @@ export default function OrgSettingsPage() {
       calendarMode: formData.calendarMode,
       geofenceEnabled: formData.geofenceEnabled,
       attendanceMode: formData.attendanceMode,
+      workingDays: formData.workingDays,
       officeLat: formData.officeLat ? parseFloat(formData.officeLat) : null,
       officeLng: formData.officeLng ? parseFloat(formData.officeLng) : null,
       geofenceRadius: formData.geofenceRadius,
@@ -193,6 +196,7 @@ export default function OrgSettingsPage() {
         calendarMode: updated.calendarMode,
         geofenceEnabled: updated.geofenceEnabled || false,
         attendanceMode: updated.attendanceMode || 'QR_ONLY',
+        workingDays: updated.workingDays || '0,1,2,3,4,5',
         officeLat: updated.officeLat || '',
         officeLng: updated.officeLng || '',
         geofenceRadius: updated.geofenceRadius || 100,
@@ -479,6 +483,55 @@ export default function OrgSettingsPage() {
                       : 'Office closing time — forgotten clock-outs are capped here'}
                   </p>
                 </div>
+              </div>
+
+              {/* Working Days */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  {isNepali ? 'कार्य दिनहरू' : 'Working Days'}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { day: 0, en: 'Sun', np: 'आइत' },
+                    { day: 1, en: 'Mon', np: 'सोम' },
+                    { day: 2, en: 'Tue', np: 'मंगल' },
+                    { day: 3, en: 'Wed', np: 'बुध' },
+                    { day: 4, en: 'Thu', np: 'बिहि' },
+                    { day: 5, en: 'Fri', np: 'शुक्र' },
+                    { day: 6, en: 'Sat', np: 'शनि' },
+                  ].map(({ day, en, np }) => {
+                    const activeDays = formData.workingDays.split(',').map(Number);
+                    const isActive = activeDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const current = formData.workingDays.split(',').map(Number);
+                          const updated = isActive
+                            ? current.filter((d) => d !== day)
+                            : [...current, day].sort();
+                          if (updated.length > 0) {
+                            setFormData({ ...formData, workingDays: updated.join(',') });
+                          }
+                        }}
+                        className={`px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all duration-150 ${
+                          isActive
+                            ? 'bg-slate-800 text-white border-slate-800'
+                            : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {isNepali ? np : en}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-500">
+                  {isNepali
+                    ? 'कार्य दिन चयन गर्नुहोस्। बिदाका दिनहरू तलब गणनामा अनुपस्थितिमा गनिँदैन।'
+                    : 'Select working days. Non-working days are paid holidays and won\'t count as absences.'}
+                </p>
               </div>
 
               {/* Late threshold + Notification retention */}

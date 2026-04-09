@@ -75,6 +75,7 @@ export class OrgSettingsService {
       earlyClockInGraceMinutes?: number;
       lateClockOutGraceMinutes?: number;
       attendanceMode?: 'QR_ONLY' | 'MOBILE_ONLY' | 'BOTH';
+      workingDays?: string;
       dashainBonusMonth?: number;
       dashainBonusPercent?: number;
       // ── Leave Balance Policy ────────────────────────────────────────────
@@ -118,6 +119,14 @@ export class OrgSettingsService {
       data.officeLng = input.officeLng ? Number(input.officeLng) : null;
     if (input.geofenceRadius !== undefined) data.geofenceRadius = Number(input.geofenceRadius);
     if (input.attendanceMode !== undefined) data.attendanceMode = input.attendanceMode;
+    if (input.workingDays !== undefined) {
+      // Validate format: comma-separated digits 0-6
+      const days = input.workingDays.split(',').map((s) => parseInt(s.trim(), 10));
+      const valid = days.every((d) => d >= 0 && d <= 6);
+      if (valid && days.length > 0) {
+        data.workingDays = days.join(',');
+      }
+    }
     if (input.workStartTime !== undefined) data.workStartTime = input.workStartTime;
     if (input.workEndTime !== undefined) data.workEndTime = input.workEndTime;
     if (input.lateThresholdMinutes !== undefined)

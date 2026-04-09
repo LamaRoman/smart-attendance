@@ -189,19 +189,35 @@ export function getDaysInBSYear(year: number): number {
 }
 
 /**
- * Get working days in a BS month (excluding Saturdays)
- * Saturday is the weekly holiday in Nepal
+ * Parse org workingDays string (e.g. "0,1,2,3,4,5") into a Set of day numbers.
+ * 0=Sunday, 1=Monday, ..., 6=Saturday — matches JavaScript's Date.getDay().
+ * Default: "0,1,2,3,4,5" = Sunday-Friday (Nepal standard 6-day week).
  */
-export function getWorkingDaysInBSMonth(bsYear: number, bsMonth: number): number {
+function parseWorkingDays(orgWorkingDays?: string): Set<number> {
+  const raw = orgWorkingDays ?? '0,1,2,3,4,5';
+  return new Set(
+    raw.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n))
+  );
+}
+
+/**
+ * Get working days in a BS month (excluding weekly holidays).
+ * Uses the org's workingDays setting to determine which days are off.
+ */
+export function getWorkingDaysInBSMonth(
+  bsYear: number,
+  bsMonth: number,
+  orgWorkingDays?: string
+): number {
   const daysInMonth = getDaysInBSMonth(bsYear, bsMonth);
   const firstDayAD = bsToAD({ year: bsYear, month: bsMonth, day: 1 });
+  const workingDaySet = parseWorkingDays(orgWorkingDays);
 
   let workingDays = 0;
   for (let d = 0; d < daysInMonth; d++) {
     const currentDay = new Date(firstDayAD);
     currentDay.setDate(currentDay.getDate() + d);
-    // 6 = Saturday
-    if (currentDay.getDay() !== 6) {
+    if (workingDaySet.has(currentDay.getDay())) {
       workingDays++;
     }
   }
@@ -210,15 +226,18 @@ export function getWorkingDaysInBSMonth(bsYear: number, bsMonth: number): number
 }
 
 /**
- * Get effective working days (excluding Saturdays AND holidays)
+ * Get effective working days (excluding weekly holidays AND public holidays).
+ * Uses the org's workingDays setting to determine which days are weekly holidays.
  */
 export function getEffectiveWorkingDays(
   bsYear: number,
   bsMonth: number,
-  holidayDates: Date[]
+  holidayDates: Date[],
+  orgWorkingDays?: string
 ): number {
   const daysInMonth = getDaysInBSMonth(bsYear, bsMonth);
   const firstDayAD = bsToAD({ year: bsYear, month: bsMonth, day: 1 });
+  const workingDaySet = parseWorkingDays(orgWorkingDays);
 
   // Normalize holiday dates to date strings for comparison
   const holidaySet = new Set(
@@ -230,10 +249,10 @@ export function getEffectiveWorkingDays(
     const currentDay = new Date(firstDayAD);
     currentDay.setDate(currentDay.getDate() + d);
 
-    const isSaturday = currentDay.getDay() === 6;
+    const isWorkingDay = workingDaySet.has(currentDay.getDay());
     const isHoliday = holidaySet.has(currentDay.toISOString().split('T')[0]);
 
-    if (!isSaturday && !isHoliday) {
+    if (isWorkingDay && !isHoliday) {
       workingDays++;
     }
   }
