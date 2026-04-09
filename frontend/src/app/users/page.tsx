@@ -11,7 +11,7 @@ import {
   FileText,
   Users, UserPlus, Search, Edit, UserMinus, Shield, UserCheck,
   CheckCircle, XCircle, Save, Key, Mail, User, X, AlertCircle,
-  RefreshCw, Copy, Eye, EyeOff, Link, Calendar,
+  RefreshCw, Copy, Eye, EyeOff, Link, Calendar, Printer,
 } from 'lucide-react';
 
 interface UserData {
@@ -20,6 +20,7 @@ interface UserData {
   createdAt: string;
   shiftStartTime?: string | null;
   shiftEndTime?: string | null;
+  workingDays?: string | null;
   dateOfBirth?: string | null;
 }
 
@@ -138,6 +139,9 @@ export default function UsersPage() {
   const [empCap, setEmpCap] = useState<{ current: number; max: number | null } | null>(null);
   const [resettingPinId, setResettingPinId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'existing'>('create');
+  const [showRosterMenu, setShowRosterMenu] = useState(false);
+  const [rosterIncludeTime, setRosterIncludeTime] = useState(false);
+  const [rosterPeriod, setRosterPeriod] = useState<'weekly' | 'fortnightly' | 'monthly'>('weekly');
   const [pinModal, setPinModal] = useState<{
     pin: string; employeeName: string; employeeId: string;
   } | null>(null);
@@ -149,6 +153,7 @@ export default function UsersPage() {
     role: 'EMPLOYEE' as 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE',
     shiftStartTime: '',
     shiftEndTime: '',
+    workingDays: '',
   });
 
   const [existingFormData, setExistingFormData] = useState({
@@ -157,6 +162,7 @@ export default function UsersPage() {
     panNumber: '',
     shiftStartTime: '',
     shiftEndTime: '',
+    workingDays: '',
   });
 
   useEffect(() => {
@@ -198,8 +204,8 @@ export default function UsersPage() {
   const openCreate = () => {
     setEditingUser(null);
     setModalMode('create');
-    setFormData({ email: '', password: '', firstName: '', lastName: '', role: 'EMPLOYEE', panNumber: '', dateOfBirth: '', shiftStartTime: '', shiftEndTime: '' });
-    setExistingFormData({ platformId: '', role: 'EMPLOYEE', panNumber: '', shiftStartTime: '', shiftEndTime: '' });
+    setFormData({ email: '', password: '', firstName: '', lastName: '', role: 'EMPLOYEE', panNumber: '', dateOfBirth: '', shiftStartTime: '', shiftEndTime: '', workingDays: '' });
+    setExistingFormData({ platformId: '', role: 'EMPLOYEE', panNumber: '', shiftStartTime: '', shiftEndTime: '', workingDays: '' });
     setShowModal(true);
     setError('');
   };
@@ -217,6 +223,7 @@ export default function UsersPage() {
       dateOfBirth: u.dateOfBirth ? new Date(u.dateOfBirth).toISOString().split('T')[0] : '',
       shiftStartTime: u.shiftStartTime || '',
       shiftEndTime: u.shiftEndTime || '',
+      workingDays: u.workingDays || '',
     });
     setShowModal(true);
     setError('');
@@ -233,6 +240,7 @@ export default function UsersPage() {
         dateOfBirth: formData.dateOfBirth || null,
         shiftStartTime: formData.shiftStartTime || null,
         shiftEndTime: formData.shiftEndTime || null,
+        workingDays: formData.workingDays || null,
       };
       if (formData.password) updateData.password = formData.password;
       const res = await api.put('/api/users/' + editingUser.id, updateData);
@@ -439,6 +447,62 @@ export default function UsersPage() {
                   {empCap.current}/{empCap.max} {isNp ? "कर्मचारी" : "employees"}
                 </span>
               )}
+              <div className="relative">
+                <button
+                  onClick={() => setShowRosterMenu(!showRosterMenu)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-slate-700 border border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  {isNp ? 'रोस्टर' : 'Roster'}
+                </button>
+                {showRosterMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-3 z-50 w-60">
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">{isNp ? 'अवधि' : 'Period'}</label>
+                    <div className="flex gap-1.5 mb-3">
+                      {([
+                        { value: 'weekly', en: 'Weekly', np: 'साप्ताहिक' },
+                        { value: 'fortnightly', en: '2 Weeks', np: '२ हप्ता' },
+                        { value: 'monthly', en: 'Monthly', np: 'मासिक' },
+                      ] as const).map(({ value, en, np }) => (
+                        <button
+                          key={value}
+                          onClick={() => setRosterPeriod(value)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                            rosterPeriod === value
+                              ? 'bg-slate-800 text-white border-slate-800'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {isNp ? np : en}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer mb-3">
+                      <input type="checkbox" checked={rosterIncludeTime} onChange={(e) => setRosterIncludeTime(e.target.checked)} className="rounded border-slate-300" />
+                      {isNp ? 'शिफ्ट समय देखाउनुहोस्' : 'Include shift times'}
+                    </label>
+                    <button
+                      onClick={async () => {
+                        setShowRosterMenu(false);
+                        const url = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001') +
+                          `/api/reports/roster?period=${rosterPeriod}&includeTime=${rosterIncludeTime}`;
+                        try {
+                          const res = await fetch(url, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                          if (!res.ok) throw new Error('Failed to generate roster');
+                          const blob = await res.blob();
+                          const blobUrl = URL.createObjectURL(blob);
+                          window.open(blobUrl, '_blank');
+                        } catch {
+                          setError(isNp ? 'रोस्टर बनाउन सकिएन' : 'Could not generate roster');
+                        }
+                      }}
+                      className="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors"
+                    >
+                      {isNp ? 'PDF डाउनलोड' : 'Download PDF'}
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={openCreate}
                 disabled={empCap !== null && empCap.max !== null && empCap.current >= empCap.max}
@@ -753,6 +817,50 @@ export default function UsersPage() {
                     </div>
                   </div>
 
+                  {/* Per-Employee Working Days */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-500">
+                      {isNp ? 'कार्य दिनहरू (कर्मचारी)' : 'Working Days (Employee)'}
+                    </label>
+                    <p className="text-xs text-slate-400 mb-2">
+                      {isNp ? 'खाली छोड्नुभयो भने संगठनको पूर्वनिर्धारित दिन लागू हुन्छ' : 'Leave empty to use organization default'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { day: 0, en: 'Sun', np: 'आइत' },
+                        { day: 1, en: 'Mon', np: 'सोम' },
+                        { day: 2, en: 'Tue', np: 'मंगल' },
+                        { day: 3, en: 'Wed', np: 'बुध' },
+                        { day: 4, en: 'Thu', np: 'बिहि' },
+                        { day: 5, en: 'Fri', np: 'शुक्र' },
+                        { day: 6, en: 'Sat', np: 'शनि' },
+                      ].map(({ day, en, np }) => {
+                        const activeDays = formData.workingDays ? formData.workingDays.split(',').map(Number) : [];
+                        const isActive = activeDays.includes(day);
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => {
+                              const current = formData.workingDays ? formData.workingDays.split(',').map(Number) : [];
+                              const updated = isActive
+                                ? current.filter((d) => d !== day)
+                                : [...current, day].sort();
+                              setFormData({ ...formData, workingDays: updated.length > 0 ? updated.join(',') : '' });
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
+                              isActive
+                                ? 'bg-slate-800 text-white border-slate-800'
+                                : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {isNp ? np : en}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {!editingUser && (
                     <p className="text-xs text-slate-400 bg-slate-50 px-3 py-2 rounded-lg">
                       {isNp ? 'हाजिरी PIN स्वचालित रूपमा उत्पन्न हुनेछ' : 'Attendance PIN will be auto-generated'}
@@ -835,6 +943,51 @@ export default function UsersPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Per-Employee Working Days */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-500">
+                      {isNp ? 'कार्य दिनहरू (कर्मचारी)' : 'Working Days (Employee)'}
+                    </label>
+                    <p className="text-xs text-slate-400 mb-2">
+                      {isNp ? 'खाली छोड्नुभयो भने संगठनको पूर्वनिर्धारित दिन लागू हुन्छ' : 'Leave empty to use organization default'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { day: 0, en: 'Sun', np: 'आइत' },
+                        { day: 1, en: 'Mon', np: 'सोम' },
+                        { day: 2, en: 'Tue', np: 'मंगल' },
+                        { day: 3, en: 'Wed', np: 'बुध' },
+                        { day: 4, en: 'Thu', np: 'बिहि' },
+                        { day: 5, en: 'Fri', np: 'शुक्र' },
+                        { day: 6, en: 'Sat', np: 'शनि' },
+                      ].map(({ day, en, np }) => {
+                        const activeDays = existingFormData.workingDays ? existingFormData.workingDays.split(',').map(Number) : [];
+                        const isActive = activeDays.includes(day);
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => {
+                              const current = existingFormData.workingDays ? existingFormData.workingDays.split(',').map(Number) : [];
+                              const updated = isActive
+                                ? current.filter((d) => d !== day)
+                                : [...current, day].sort();
+                              setExistingFormData({ ...existingFormData, workingDays: updated.length > 0 ? updated.join(',') : '' });
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
+                              isActive
+                                ? 'bg-slate-800 text-white border-slate-800'
+                                : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {isNp ? np : en}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                       {isNp ? 'रद्द' : 'Cancel'}

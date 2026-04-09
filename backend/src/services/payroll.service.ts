@@ -487,9 +487,14 @@ export class PayrollService {
       // Point 3: look up per-employee overtime override by membershipId
       const overtimeOverride = input.overtimeOverrides?.[membership.id];
 
+      // Per-employee working days: use employee override if set, else org default
+      const employeeWorkingDays = membership.workingDays
+        ? getEffectiveWorkingDays(bsYear, bsMonth, holidayDates, membership.workingDays)
+        : workingDaysInMonth;
+
       const payrollData = await this.calculateEmployeePayroll(
         membership, organizationId, bsYear, bsMonth,
-        adStart, adEnd, workingDaysInMonth, holidaysInMonth, tdsConfig,
+        adStart, adEnd, employeeWorkingDays, holidaysInMonth, tdsConfig,
         overtimeOverride,
         orgDashainMonth,
         orgDashainPercent
@@ -626,7 +631,7 @@ export class PayrollService {
 
     const holidayDates = await holidayService.getHolidayDatesForMonth(bsYear, bsMonth, organizationId);
     const holidaysInMonth = holidayDates.length;
-    const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates, org.workingDays);
+    const workingDaysInMonth = getEffectiveWorkingDays(bsYear, bsMonth, holidayDates, membership.workingDays ?? org.workingDays);
 
     let tdsConfig: any = null;
     try {

@@ -242,6 +242,10 @@ model OrgMembership {
   shiftStartTime String? // HH:mm format, e.g. "14:00"
   shiftEndTime   String? // HH:mm format, e.g. "18:00"
 
+  // Individual working days override (null = follow org default)
+  // Comma-separated day numbers: "0,1,2,3,4,5" = Sun-Fri
+  workingDays String?
+
   // Membership lifecycle
   isActive Boolean   @default(true) // false = departed from org
   joinedAt DateTime  @default(now())

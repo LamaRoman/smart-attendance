@@ -35,6 +35,7 @@ function flattenMembershipResponse(membership: any) {
     isActive: membership.isActive,
     shiftStartTime: membership.shiftStartTime,
     shiftEndTime: membership.shiftEndTime,
+    workingDays: membership.workingDays,
     organizationId: membership.organizationId,
     joinedAt: membership.joinedAt,
     leftAt: membership.leftAt,
@@ -50,6 +51,7 @@ const MEMBERSHIP_WITH_USER_SELECT = {
   isActive: true,
   shiftStartTime: true,
   shiftEndTime: true,
+  workingDays: true,
   organizationId: true,
   joinedAt: true,
   leftAt: true,
@@ -223,6 +225,7 @@ export class UserService {
           employeeId,
           shiftStartTime: input.shiftStartTime || null,
           shiftEndTime: input.shiftEndTime || null,
+          workingDays: input.workingDays || null,
           panNumber: input.panNumber || null,
           attendancePinHash,
           isActive: true,
@@ -351,6 +354,7 @@ export class UserService {
           panNumber: input.panNumber || existingMembership.panNumber,
           shiftStartTime: input.shiftStartTime || existingMembership.shiftStartTime,
           shiftEndTime: input.shiftEndTime || existingMembership.shiftEndTime,
+          workingDays: input.workingDays || existingMembership.workingDays,
           joinedAt: new Date(),
         },
       });
@@ -401,6 +405,7 @@ export class UserService {
         employeeId,
         shiftStartTime: input.shiftStartTime || null,
         shiftEndTime: input.shiftEndTime || null,
+        workingDays: input.workingDays || null,
         panNumber: input.panNumber || null,
         attendancePinHash,
         isActive: true,
@@ -527,6 +532,7 @@ export class UserService {
     if (input.isActive !== undefined) membershipUpdateData.isActive = input.isActive;
     if (input.shiftStartTime !== undefined) membershipUpdateData.shiftStartTime = input.shiftStartTime || null;
     if (input.shiftEndTime !== undefined) membershipUpdateData.shiftEndTime = input.shiftEndTime || null;
+    if (input.workingDays !== undefined) membershipUpdateData.workingDays = input.workingDays || null;
     if (input.panNumber !== undefined) membershipUpdateData.panNumber = input.panNumber || null;
 
     // Execute updates in transaction

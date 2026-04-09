@@ -18,6 +18,16 @@ const dobField = z
   .nullable()
   .optional();
 
+// Comma-separated day numbers 0-6 (Sun=0 .. Sat=6), e.g. "0,1,2,3,4,5"
+const workingDaysField = z
+  .string()
+  .transform((v) => (v === '' ? undefined : v))
+  .pipe(
+    z.string().regex(/^[0-6](,[0-6])*$/, 'Must be comma-separated day numbers 0-6').optional()
+  )
+  .nullable()
+  .optional();
+
 export const createUserSchema = z.object({
   email: z.string().email('Invalid email format').transform((v) => v.toLowerCase().trim()),
   password: z
@@ -34,6 +44,7 @@ export const createUserSchema = z.object({
   dateOfBirth: dobField,
   shiftStartTime: timeField,
   shiftEndTime: timeField,
+  workingDays: workingDaysField,
   role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE'], { errorMap: () => ({ message: 'Role must be ORG_ADMIN, ORG_ACCOUNTANT, or EMPLOYEE' }) }).default('EMPLOYEE'),
 });
 
@@ -45,6 +56,7 @@ export const addExistingUserSchema = z.object({
   panNumber: z.string().optional(),
   shiftStartTime: timeField,
   shiftEndTime: timeField,
+  workingDays: workingDaysField,
 });
 
 export const updateUserSchema = z.object({
@@ -64,6 +76,7 @@ export const updateUserSchema = z.object({
   dateOfBirth: dobField,
   shiftStartTime: timeField,
   shiftEndTime: timeField,
+  workingDays: workingDaysField,
   role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE']).optional(),
   isActive: z.boolean().optional(),
 });
