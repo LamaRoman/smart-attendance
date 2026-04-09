@@ -7,7 +7,7 @@ const envSchema = z.object({
 
   // JWT -- no fallback, must be explicitly set
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_EXPIRES_IN: z.string().default('7d'),
+  JWT_EXPIRES_IN: z.string().default('24h'),
 
   // QR / TOTP -- separate from JWT
   QR_SECRET: z.string().min(32, 'QR_SECRET must be at least 32 characters'),

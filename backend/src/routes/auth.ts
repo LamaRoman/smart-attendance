@@ -119,8 +119,8 @@ router.post('/reset-password', authRateLimiter, async (req: Request, res: Respon
       res.status(400).json({ error: { message: 'Token and new password are required', code: 'VALIDATION_ERROR' } });
       return;
     }
-    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      res.status(400).json({ error: { message: 'Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number', code: 'VALIDATION_ERROR' } });
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      res.status(400).json({ error: { message: 'Password must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special character', code: 'VALIDATION_ERROR' } });
       return;
     }
     const result = await authService.resetPassword(token, newPassword);
