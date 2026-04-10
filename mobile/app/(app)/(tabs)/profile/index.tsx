@@ -71,6 +71,7 @@ export default function ProfileScreen() {
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [savingProfile, setSavingProfile] = useState(false);
 
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
@@ -78,6 +79,7 @@ export default function ProfileScreen() {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [savingPin, setSavingPin] = useState(false);
+  const [resettingPin, setResettingPin] = useState(false);
 
   const handleSaveProfile = async () => {
     if (!firstName.trim()) { Alert.alert('Error', 'First name is required.'); return; }
@@ -97,6 +99,7 @@ export default function ProfileScreen() {
   };
 
   const handleChangePassword = async () => {
+    if (!currentPassword) { Alert.alert('Error', 'Please enter your current password.'); return; }
     if (!newPassword) { Alert.alert('Error', 'Please enter a new password.'); return; }
     if (newPassword !== confirmPassword) { Alert.alert('Error', 'Passwords do not match.'); return; }
     if (newPassword.length < 8) { Alert.alert('Error', 'Password must be at least 8 characters.'); return; }
@@ -107,7 +110,8 @@ export default function ProfileScreen() {
 
     setSavingPassword(true);
     try {
-      await api.put(`/api/v1/users/${user?.id}`, { password: newPassword });
+      await apiPost('/api/v1/auth/change-password', { currentPassword, newPassword });
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       Alert.alert('Success', 'Password changed successfully.');
@@ -133,6 +137,30 @@ export default function ProfileScreen() {
     } finally {
       setSavingPin(false);
     }
+  };
+
+  const handleForgotPin = async () => {
+    Alert.alert(
+      'Reset PIN',
+      'A new PIN will be generated and sent to your email. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          onPress: async () => {
+            setResettingPin(true);
+            try {
+              await apiPost('/api/v1/auth/forgot-attendance-pin', {});
+              Alert.alert('Success', 'A new PIN has been sent to your email.');
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.error?.message ?? 'Failed to reset PIN.');
+            } finally {
+              setResettingPin(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -170,6 +198,7 @@ export default function ProfileScreen() {
 
         {/* Change password */}
         <Section title="Change Password">
+          <Field label="Current Password" value={currentPassword} onChangeText={setCurrentPassword} placeholder="Enter current password" secureTextEntry autoCapitalize="none" />
           <Field label="New Password" value={newPassword} onChangeText={setNewPassword} placeholder="Min 8 chars, upper, lower, number, special" secureTextEntry autoCapitalize="none" />
           <Field label="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat new password" secureTextEntry autoCapitalize="none" />
           <TouchableOpacity style={[s.btn, savingPassword && { opacity: 0.6 }]} onPress={handleChangePassword} disabled={savingPassword}>
@@ -183,6 +212,9 @@ export default function ProfileScreen() {
           <Field label="New PIN" value={newPin} onChangeText={setNewPin} placeholder="4-digit new PIN" secureTextEntry autoCapitalize="none" keyboardType="phone-pad" />
           <TouchableOpacity style={[s.btn, savingPin && { opacity: 0.6 }]} onPress={handleChangePin} disabled={savingPin}>
             {savingPin ? <ActivityIndicator color={Colors.white} /> : <Text style={s.btnText}>Change PIN</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity style={s.forgotBtn} onPress={handleForgotPin} disabled={resettingPin}>
+            <Text style={s.forgotBtnText}>{resettingPin ? 'Sending...' : 'Forgot PIN?'}</Text>
           </TouchableOpacity>
         </Section>
 
@@ -207,6 +239,8 @@ const s = StyleSheet.create({
   field: { marginBottom: 14 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: Colors.gray700, marginBottom: 6 },
   fieldInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: Colors.text, backgroundColor: Colors.white },
-  btn: { backgroundColor: Colors.slate900, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  btnText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
+  btn: { backgroundColor: Colors.slate900, borderRadius: 10, paddingVertical: 13, alignItems: 'center' as const, marginTop: 4 },
+  btnText: { color: Colors.white, fontSize: 15, fontWeight: '700' as const },
+  forgotBtn: { alignItems: 'center' as const, marginTop: 12, paddingVertical: 8 },
+  forgotBtnText: { fontSize: 14, color: Colors.primary, fontWeight: '500' as const },
 });

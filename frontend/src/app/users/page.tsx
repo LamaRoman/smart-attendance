@@ -11,7 +11,7 @@ import {
   FileText,
   Users, UserPlus, Search, Edit, UserMinus, Shield, UserCheck,
   CheckCircle, XCircle, Save, Key, Mail, User, X, AlertCircle,
-  RefreshCw, Copy, Eye, EyeOff, Link, Calendar, Printer,
+  RefreshCw, Link, Calendar, Printer,
 } from 'lucide-react';
 
 interface UserData {
@@ -25,95 +25,6 @@ interface UserData {
 }
 
 // ── PIN Reveal Modal ──────────────────────────────────────────
-function PinRevealModal({
-  pin, employeeName, employeeId, isNp, onClose,
-}: {
-  pin: string; employeeName: string; employeeId: string; isNp: boolean; onClose: () => void;
-}) {
-  const [acknowledged, setAcknowledged] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-
-  const copyPin = () => {
-    navigator.clipboard.writeText(pin);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
-        <div className="bg-amber-50 border-b border-amber-100 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-amber-100">
-              <Key className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">
-                {isNp ? 'उपस्थिति PIN' : 'Attendance PIN'}
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">{employeeName} · {employeeId}</p>
-            </div>
-          </div>
-        </div>
-        <div className="p-6 space-y-5">
-          <div className="flex items-start gap-2.5 p-3 bg-rose-50 rounded-xl border border-rose-200">
-            <AlertCircle className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-rose-700 leading-relaxed">
-              {isNp
-                ? 'यो PIN एक पटक मात्र देखाइनेछ। अहिले नै लेख्नुहोस् वा कर्मचारीलाई दिनुहोस्।'
-                : 'This PIN will not be shown again. Note it down or give it to the employee now.'}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-slate-500 mb-3">{isNp ? 'हाजिरी PIN' : 'Attendance PIN'}</p>
-            <div className="relative inline-flex items-center justify-center">
-              <div className="text-5xl font-mono font-bold tracking-[0.4em] text-slate-900 px-6 py-4 bg-slate-50 rounded-2xl border-2 border-slate-200 select-all">
-                {revealed ? pin : '••••'}
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <button
-                onClick={() => setRevealed(!revealed)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200"
-              >
-                {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                {revealed ? (isNp ? 'लुकाउनुहोस्' : 'Hide') : (isNp ? 'देखाउनुहोस्' : 'Reveal')}
-              </button>
-              <button
-                onClick={copyPin}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200"
-              >
-                {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? (isNp ? 'कपी भयो!' : 'Copied!') : (isNp ? 'कपी गर्नुहोस्' : 'Copy PIN')}
-              </button>
-            </div>
-          </div>
-          <label className="flex items-start gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={acknowledged}
-              onChange={(e) => setAcknowledged(e.target.checked)}
-              className="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-200"
-            />
-            <span className="text-xs text-slate-600 leading-relaxed">
-              {isNp
-                ? 'मैले यो PIN लेखेको छु र कर्मचारीलाई दिन तयार छु।'
-                : 'I have noted this PIN and will give it to the employee.'}
-            </span>
-          </label>
-          <button
-            onClick={onClose}
-            disabled={!acknowledged}
-            className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isNp ? 'बुझेँ, बन्द गर्नुहोस्' : 'Done, close'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 // ─────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
@@ -137,14 +48,10 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [empCap, setEmpCap] = useState<{ current: number; max: number | null } | null>(null);
-  const [resettingPinId, setResettingPinId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'existing'>('create');
   const [showRosterMenu, setShowRosterMenu] = useState(false);
   const [rosterIncludeTime, setRosterIncludeTime] = useState(false);
   const [rosterPeriod, setRosterPeriod] = useState<'weekly' | 'fortnightly' | 'monthly'>('weekly');
-  const [pinModal, setPinModal] = useState<{
-    pin: string; employeeName: string; employeeId: string;
-  } | null>(null);
 
   const [formData, setFormData] = useState({
     email: '', password: '', firstName: '', lastName: '',
@@ -244,34 +151,52 @@ export default function UsersPage() {
       };
       if (formData.password) updateData.password = formData.password;
       const res = await api.put('/api/v1/users/' + editingUser.id, updateData);
-      if (res.error) { setError(res.error.message); }
+      if (res.error) {
+        const details = (res.error as any).details;
+        if (details && Array.isArray(details) && details.length > 0) {
+          setError(details.map((d: any) => d.message).join(', '));
+        } else {
+          setError(res.error.message);
+        }
+      }
       else {
         setSuccess(isNp ? 'प्रयोगकर्ता अपडेट गरियो' : 'User updated');
         setShowModal(false); loadUsers();
         setTimeout(() => setSuccess(''), 3000);
       }
     } else {
-      if (!formData.email || !formData.firstName || !formData.lastName) {
-        setError(isNp ? 'सबै फिल्ड भर्नुहोस्' : 'All fields are required');
+      if (!formData.email) {
+        setError(isNp ? 'इमेल आवश्यक छ' : 'Email is required');
+        setSaving(false); return;
+      }
+      if (!formData.firstName) {
+        setError(isNp ? 'पहिलो नाम आवश्यक छ' : 'First name is required');
+        setSaving(false); return;
+      }
+      if (!formData.lastName) {
+        setError(isNp ? 'थर आवश्यक छ' : 'Last name is required');
+        setSaving(false); return;
+      }
+      if (!formData.panNumber) {
+        setError(isNp ? 'PAN नम्बर आवश्यक छ' : 'PAN number is required');
         setSaving(false); return;
       }
       const { password: _pw, ...createData } = formData;
       const res = await api.post('/api/v1/users', createData);
-      if (res.error) { setError(res.error.message); }
+      if (res.error) {
+        // Show field-specific errors from backend if available
+        const details = (res.error as any).details;
+        if (details && Array.isArray(details) && details.length > 0) {
+          setError(details.map((d: any) => d.message).join(', '));
+        } else {
+          setError(res.error.message);
+        }
+      }
       else {
-        const created = res.data as any;
         setShowModal(false);
         loadUsers();
-        if (created?.pin) {
-          setPinModal({
-            pin: created.pin,
-            employeeName: `${formData.firstName} ${formData.lastName}`,
-            employeeId: created.employeeId || '',
-          });
-        } else {
-          setSuccess(isNp ? 'प्रयोगकर्ता सिर्जना गरियो' : 'User created');
-          setTimeout(() => setSuccess(''), 3000);
-        }
+        setSuccess(isNp ? 'प्रयोगकर्ता सिर्जना गरियो' : 'User created');
+        setTimeout(() => setSuccess(''), 3000);
       }
     }
     setSaving(false);
@@ -289,40 +214,14 @@ export default function UsersPage() {
       const result = res.data as any;
       setShowModal(false);
       loadUsers();
-      if (result?.pin) {
-        setPinModal({
-          pin: result.pin,
-          employeeName: `${result.firstName} ${result.lastName}`,
-          employeeId: result.employeeId || '',
-        });
-      } else {
-        setSuccess(
-          result?.reactivated
-            ? (isNp ? 'कर्मचारी पुन: सक्रिय गरियो' : 'Employee reactivated successfully')
-            : (isNp ? 'कर्मचारी संगठनमा थपियो' : 'Employee added to organization')
-        );
-        setTimeout(() => setSuccess(''), 3000);
-      }
+      setSuccess(
+        result?.reactivated
+          ? (isNp ? 'कर्मचारी पुन: सक्रिय गरियो' : 'Employee reactivated successfully')
+          : (isNp ? 'कर्मचारी संगठनमा थपियो' : 'Employee added to organization')
+      );
+      setTimeout(() => setSuccess(''), 3000);
     }
     setSaving(false);
-  };
-
-  const handleResetPin = async (u: UserData) => {
-    if (!confirm(isNp ? `${u.firstName} ${u.lastName} को PIN रिसेट गर्ने?` : `Reset PIN for ${u.firstName} ${u.lastName}?`)) return;
-    setResettingPinId(u.id);
-    const res = await api.patch(`/api/v1/users/${u.id}/attendance-pin`, {});
-    setResettingPinId(null);
-    if (res.error) { setError(res.error.message); }
-    else {
-      const data = res.data as any;
-      if (data?.pin) {
-        setPinModal({
-          pin: data.pin,
-          employeeName: `${u.firstName} ${u.lastName}`,
-          employeeId: u.employeeId,
-        });
-      }
-    }
   };
 
   const toggleStatus = async (u: UserData) => {
@@ -611,9 +510,6 @@ export default function UsersPage() {
                           <button onClick={() => openEdit(u)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title={isNp ? 'सम्पादन' : 'Edit'}>
                             <Edit className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => handleResetPin(u)} disabled={resettingPinId === u.id} className="p-1.5 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50" title={isNp ? 'PIN रिसेट' : 'Reset PIN'}>
-                            <Key className={`w-3.5 h-3.5 ${resettingPinId === u.id ? 'animate-pulse' : ''}`} />
-                          </button>
                           <button onClick={() => router.push(`/users/${u.id}`)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title={isNp ? 'कागजात' : 'Documents'}>
                             <FileText className="w-3.5 h-3.5" />
                           </button>
@@ -663,17 +559,6 @@ export default function UsersPage() {
       </div>
 
       <EmployeeDetailModal isOpen={!!docUserId} onClose={() => setDocUserId(null)} user={users.find(u => u.id === docUserId) || null} language={language} />
-
-      {/* PIN Reveal Modal */}
-      {pinModal && (
-        <PinRevealModal
-          pin={pinModal.pin}
-          employeeName={pinModal.employeeName}
-          employeeId={pinModal.employeeId}
-          isNp={isNp}
-          onClose={() => setPinModal(null)}
-        />
-      )}
 
       {/* Create / Edit Modal */}
       {showModal && (
@@ -773,7 +658,8 @@ export default function UsersPage() {
 
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
-                      {isNp ? 'PAN नम्बर (ऐच्छिक)' : 'PAN number (optional)'}
+                      {isNp ? 'PAN नम्बर' : 'PAN number'}
+                      {!editingUser && <span className="text-rose-500">*</span>}
                     </label>
                     <input type="text" value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} placeholder={isNp ? 'PAN नम्बर...' : 'PAN number...'} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                   </div>
@@ -923,7 +809,8 @@ export default function UsersPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
-                      {isNp ? 'PAN नम्बर (ऐच्छिक)' : 'PAN number (optional)'}
+                      {isNp ? 'PAN नम्बर' : 'PAN number'}
+                      <span className="text-rose-500">*</span>
                     </label>
                     <input type="text" value={existingFormData.panNumber} onChange={(e) => setExistingFormData({ ...existingFormData, panNumber: e.target.value })} placeholder={isNp ? 'PAN नम्बर...' : 'PAN number...'} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                   </div>

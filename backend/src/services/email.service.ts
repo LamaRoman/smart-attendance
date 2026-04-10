@@ -18,7 +18,7 @@ function baseTemplate(content: string, footer?: string): string {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-<div style="background:linear-gradient(135deg,#7c3aed,#9333ea);padding:24px 32px;">
+<div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:24px 32px;">
 <h1 style="color:#fff;margin:0;font-size:20px;">${APP_NAME}</h1>
 </div>
 <div style="padding:32px;">
@@ -54,7 +54,7 @@ class EmailService {
 <h2 style="color:#111827;margin:0 0 8px;">Welcome to ${params.orgName}!</h2>
 <p style="color:#6b7280;font-size:15px;">Hi ${params.firstName},</p>
 <p style="color:#374151;font-size:15px;">Your account has been created on ${APP_NAME}. Here are your login details:</p>
-<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:20px;margin:20px 0;">
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:20px 0;">
 <table style="width:100%;border-collapse:collapse;">
 <tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Employee ID</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.employeeId}</td></tr>
 <tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Email</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.to}</td></tr>
@@ -63,7 +63,7 @@ ${params.pin ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Atte
 </table>
 </div>
 ${params.tempPassword ? '<p style="color:#374151;font-size:14px;">You will be asked to set a new password when you first log in.</p>' : ''}
-${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="${params.downloadUrl}" style="display:inline-block;background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Download the App</a></div>` : ''}`;
+${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="${params.downloadUrl}" style="display:inline-block;background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Download the App</a></div>` : ''}`;
     await this.send(params.to, 'Welcome to ' + params.orgName + ' -- ' + APP_NAME, content);
   }
 
@@ -140,9 +140,9 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
 <h2 style="color:#111827;margin:0 0 8px;">Payslip Ready </h2>
 <p style="color:#6b7280;font-size:15px;">Hi ${params.employeeName},</p>
 <p style="color:#374151;font-size:15px;">Your payslip for <strong>${params.bsMonth} ${params.bsYear}</strong> is now available.</p>
-<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:24px;margin:20px 0;text-align:center;">
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin:20px 0;text-align:center;">
 <p style="color:#6b7280;font-size:13px;margin:0 0 4px;">Net Salary</p>
-<p style="color:#7c3aed;font-size:28px;font-weight:700;margin:0;">Rs. ${params.netSalary}</p>
+<p style="color:#1e293b;font-size:28px;font-weight:700;margin:0;">Rs. ${params.netSalary}</p>
 </div>
 <p style="color:#374151;font-size:14px;">Log in to ${APP_NAME} to view the full payslip and download PDF.</p>`;
     await this.send(params.to, 'Payslip Ready -- ' + params.bsMonth + ' ' + params.bsYear, content);
@@ -193,7 +193,7 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
 <p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> expires on <strong>${params.trialEndsAt.toDateString()}</strong>.</p>
 <p style="color:#374151;font-size:15px;">To keep your attendance data, payroll records, and team access uninterrupted, upgrade to Operations before your trial ends.</p>
 <div style="margin:24px 0;">
-<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade Now</a>
+<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade Now</a>
 </div>
 <p style="color:#9ca3af;font-size:13px;">Rs. 250 per employee per month. Cancel anytime.</p>`;
     await this.send(params.to, `Your ${APP_NAME} trial ends in ${params.daysLeft} day${params.daysLeft === 1 ? '' : 's'}`, content);
@@ -212,7 +212,7 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
 <p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> has expired. Your data is safe, but your team's access has been paused.</p>
 <p style="color:#374151;font-size:15px;">Upgrade to Operations to restore full access immediately.</p>
 <div style="margin:24px 0;">
-<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Restore Access</a>
+<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Restore Access</a>
 </div>
 <p style="color:#9ca3af;font-size:13px;">Need help? Reply to this email and we'll sort it out.</p>`;
     await this.send(params.to, `Your ${APP_NAME} trial has ended -- restore access now`, content);
@@ -231,7 +231,7 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
 <p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> ended a few days ago. Your data is still here -- we haven't deleted anything.</p>
 <p style="color:#374151;font-size:15px;">If something stopped you from upgrading, reply to this email and let us know. We'd love to help.</p>
 <div style="margin:24px 0;">
-<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade and Restore Access</a>
+<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade and Restore Access</a>
 </div>`;
     await this.send(params.to, `Your ${APP_NAME} data is waiting -- come back anytime`, content);
   }
@@ -345,6 +345,44 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
       `Account suspended -- ${params.orgName}`,
       content
     );
+  }
+
+  // 12. PIN Reset Email -- Sent when employee uses "Forgot PIN"
+  async sendPinResetEmail(params: {
+    to: string;
+    firstName: string;
+    employeeId: string;
+    pin: string;
+    orgName: string;
+  }) {
+    if (!isConfigured()) { log.warn('Email not configured, skipping PIN reset email'); return; }
+    const content = `
+<h2 style="color:#111827;margin:0 0 8px;">Attendance PIN Reset</h2>
+<p style="color:#6b7280;font-size:15px;">Hi ${params.firstName},</p>
+<p style="color:#374151;font-size:15px;">Your attendance PIN for ${params.orgName} has been reset. Here is your new PIN:</p>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
+<p style="color:#6b7280;font-size:13px;margin:0 0 8px;">Your New Attendance PIN</p>
+<p style="color:#111827;font-size:36px;font-weight:700;letter-spacing:0.3em;margin:0;font-family:monospace;">${params.pin}</p>
+</div>
+<p style="color:#374151;font-size:14px;">You can change this PIN anytime from your profile in the app.</p>
+<p style="color:#9ca3af;font-size:13px;">If you did not request this, please contact your administrator immediately.</p>`;
+    await this.send(params.to, 'Attendance PIN Reset -- ' + params.orgName, content);
+  }
+
+  // 13. Password Changed Confirmation
+  async sendPasswordChangedEmail(params: {
+    to: string;
+    firstName: string;
+  }) {
+    if (!isConfigured()) { log.warn('Email not configured, skipping password changed email'); return; }
+    const content = `
+<h2 style="color:#111827;margin:0 0 8px;">Password Changed</h2>
+<p style="color:#6b7280;font-size:15px;">Hi ${params.firstName},</p>
+<p style="color:#374151;font-size:15px;">Your ${APP_NAME} password has been changed successfully.</p>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:20px 0;">
+<p style="color:#374151;font-size:14px;margin:0;">If you did not make this change, please reset your password immediately or contact your administrator.</p>
+</div>`;
+    await this.send(params.to, 'Password Changed -- ' + APP_NAME, content);
   }
 
   // ============================================================

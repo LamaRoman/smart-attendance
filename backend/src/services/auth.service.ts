@@ -1,11 +1,12 @@
-﻿import crypto from 'crypto';
+﻿import crypto, { randomInt } from 'crypto';
 import prisma from '../lib/prisma';
 import { generateToken, hashToken, getTokenExpiration, JWTPayload } from '../lib/jwt';
-import { verifyPassword } from '../lib/password';
+import { verifyPassword, hashPassword } from '../lib/password';
 import { AuthenticationError } from '../lib/errors';
 import { checkLockout, recordFailedAttempt, clearFailedAttempts } from '../lib/lockout';
 import { createLogger } from '../logger';
 import { LoginInput } from '../schemas/auth.schema';
+import { emailService } from './email.service';
 
 const log = createLogger('auth-service');
 
@@ -369,7 +370,6 @@ export class AuthService {
     const isValid = await verifyPassword(currentPin, membership.attendancePinHash);
     if (!isValid) throw new AuthenticationError('Current PIN is incorrect');
 
-    const { hashPassword } = await import('../lib/password');
     const newHash = await hashPassword(newPin);
     await prisma.orgMembership.update({
       where: { id: membershipId },
@@ -439,7 +439,6 @@ export class AuthService {
     }
 
     // Hash new password and update
-    const { hashPassword } = await import('../lib/password');
     const hashedPassword = await hashPassword(newPassword);
 
     await prisma.user.update({
@@ -477,7 +476,6 @@ export class AuthService {
       throw new AuthenticationError('Password change is not required');
     }
 
-    const { hashPassword } = await import('../lib/password');
     const hashedPassword = await hashPassword(newPassword);
 
     await prisma.user.update({
@@ -486,6 +484,84 @@ export class AuthService {
     });
 
     log.info({ userId }, 'Initial password changed successfully');
+    return { message: 'Password changed successfully.' };
+  }
+
+  /**
+   * Forgot attendance PIN — generates a new random PIN and emails it.
+   * Called by the employee themselves (authenticated).
+   */
+  async forgotAttendancePin(userId: string, membershipId: string) {
+    const membership = await prisma.orgMembership.findUnique({
+      where: { id: membershipId },
+      select: {
+        id: true,
+        userId: true,
+        employeeId: true,
+        organization: { select: { name: true } },
+      },
+    });
+    if (!membership || membership.userId !== userId) {
+      throw new AuthenticationError('Membership not found');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true, lastName: true },
+    });
+    if (!user) throw new AuthenticationError('User not found');
+
+    // Generate new random 4-digit PIN
+    const newPin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
+    const newHash = await hashPassword(newPin);
+
+    await prisma.orgMembership.update({
+      where: { id: membershipId },
+      data: { attendancePinHash: newHash },
+    });
+
+    // Send email with new PIN
+    emailService.sendPinResetEmail({
+      to: user.email,
+      firstName: user.firstName,
+      employeeId: membership.employeeId,
+      pin: newPin,
+      orgName: membership.organization.name,
+    }).catch(err => log.error({ err }, 'Failed to send PIN reset email'));
+
+    log.info({ userId, membershipId }, 'Attendance PIN reset via forgot-pin');
+    return { message: 'A new PIN has been sent to your email.' };
+  }
+
+  /**
+   * Change password (self-service from profile).
+   * Requires current password verification.
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, firstName: true, password: true },
+    });
+    if (!user) throw new AuthenticationError('User not found');
+
+    const isValid = await verifyPassword(currentPassword, user.password);
+    if (!isValid) {
+      throw new AuthenticationError('Current password is incorrect');
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    // Send confirmation email
+    emailService.sendPasswordChangedEmail({
+      to: user.email,
+      firstName: user.firstName,
+    }).catch(err => log.error({ err }, 'Failed to send password changed email'));
+
+    log.info({ userId }, 'Password changed via profile');
     return { message: 'Password changed successfully.' };
   }
 }

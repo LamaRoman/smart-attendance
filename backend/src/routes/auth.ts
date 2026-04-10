@@ -149,4 +149,37 @@ router.post('/change-initial-password', authenticate, async (req: AuthRequest, r
   }
 });
 
+// POST /api/v1/auth/forgot-attendance-pin — authenticated, emails new PIN
+router.post('/forgot-attendance-pin', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user!.membershipId) {
+      res.status(400).json({ error: { message: 'No active organization membership', code: 'NO_MEMBERSHIP' } }); return;
+    }
+    const result = await authService.forgotAttendancePin(req.user!.userId, req.user!.membershipId);
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/v1/auth/change-password — authenticated, requires current password
+router.post('/change-password', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword) {
+      res.status(400).json({ error: { message: 'Current password is required', code: 'VALIDATION_ERROR' } }); return;
+    }
+    if (!newPassword) {
+      res.status(400).json({ error: { message: 'New password is required', code: 'VALIDATION_ERROR' } }); return;
+    }
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      res.status(400).json({ error: { message: 'Password must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special character', code: 'VALIDATION_ERROR' } }); return;
+    }
+    const result = await authService.changePassword(req.user!.userId, currentPassword, newPassword);
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

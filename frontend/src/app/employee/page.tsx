@@ -48,7 +48,6 @@ export default function EmployeeDashboard() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [processing, setProcessing] = useState(false);
  
   useEffect(() => {
     if (user) {
@@ -72,22 +71,6 @@ export default function EmployeeDashboard() {
   const loadRecords = async () => {
     const res = await api.get('/api/v1/attendance/my?limit=10');
     if (res.data) setRecords((res.data as { records: AttendanceRecord[] }).records);
-  };
-
-  const handleScan = async (qrPayload: string) => {
-    setProcessing(true);
-    setError('');
-    setMessage('');
-    const res = await api.post('/api/v1/attendance/scan', { qrPayload });
-    if (res.error) {
-      setError(res.error.message);
-    } else {
-      const data = res.data as { message: string };
-      setMessage(data.message);
-      loadStatus();
-      loadRecords();
-    }
-    setProcessing(false);
   };
 
   const formatTime = (dateStr: string) =>
@@ -212,49 +195,10 @@ export default function EmployeeDashboard() {
                   {isNp ? 'चेक इन भएको छैन' : 'Not Clocked In'}
                 </p>
                 <p className="text-gray-500 text-sm mt-1">
-                  {isNp ? 'चेक इन गर्न QR कोड स्क्यान गर्नुहोस्' : 'Scan QR code to clock in'}
+                  {isNp ? 'मोबाइल एपबाट चेक इन गर्नुहोस्' : 'Use the mobile app to clock in'}
                 </p>
               </>
             )}
-          </div>
-        </div>
-
-        {/* Scanner Card */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-lg font-bold text-gray-900 text-center mb-4">
-              {status?.isClockedIn
-                ? isNp ? 'चेक आउट गर्न स्क्यान गर्नुहोस्' : 'Scan to Clock Out'
-                : isNp ? 'चेक इन गर्न स्क्यान गर्नुहोस्' : 'Scan to Clock In'}
-            </h2>
-
-            {processing ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-500 mx-auto" />
-                <p className="mt-4 text-gray-500">{isNp ? 'प्रशोधन हुँदैछ...' : 'Processing...'}</p>
-              </div>
-            ) : (
-              <div className={`w-full flex flex-col items-center gap-3 py-10 rounded-xl border-2 border-dashed ${
-                status?.isClockedIn
-                  ? 'border-orange-300 bg-orange-50/50'
-                  : 'border-green-300 bg-green-50/50'
-              }`}>
-                <div className={`p-4 rounded-full ${status?.isClockedIn ? 'bg-orange-100' : 'bg-green-100'}`}>
-                  <Clock className={`w-8 h-8 ${status?.isClockedIn ? 'text-orange-600' : 'text-green-600'}`} />
-                </div>
-                <span className={`font-semibold text-lg ${status?.isClockedIn ? 'text-orange-700' : 'text-green-700'}`}>
-                  {status?.isClockedIn
-                    ? isNp ? 'चेक आउट गर्न QR स्क्यान गर्नुहोस्' : 'Scan QR Code to Check Out'
-                    : isNp ? 'चेक इन गर्न QR स्क्यान गर्नुहोस्' : 'Scan QR Code to Check In'}
-                </span>
-                <p className="text-sm text-gray-500 text-center px-4">
-                  {isNp
-                    ? 'आफ्नो फोनको क्यामेराले कार्यालयमा राखिएको QR कोड स्क्यान गर्नुहोस्'
-                    : 'Use your phone camera to scan the QR code posted at your office'}
-                </p>
-              </div>
-            )}
-
           </div>
         </div>
 
