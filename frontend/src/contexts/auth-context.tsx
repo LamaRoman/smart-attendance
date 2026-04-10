@@ -102,9 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.user.mustChangePassword) {
           router.push('/change-password');
         }
+      } else {
+        // Auth failed (401, expired session, etc.) — clear stale user
+        setUser(null);
       }
     } catch {
-      // Not logged in
+      setUser(null);
     } finally {
       setIsLoading(false);
     }

@@ -44,6 +44,11 @@ export const authenticate = async (
 
     if (!session) {
       log.warn({ userId: decoded.userId }, 'Token valid but session not found or expired');
+      // Clear the stale cookie so the browser stops sending it
+      res.clearCookie('token', {
+        path: '/',
+        domain: process.env.NODE_ENV === 'production' ? '.zentaralabs.com' : undefined,
+      });
       return res.status(401).json({ error: { message: 'Session expired or invalid', code: 'INVALID_SESSION' } });
     }
 
