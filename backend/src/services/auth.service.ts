@@ -524,7 +524,7 @@ export class AuthService {
     emailService.sendPinResetEmail({
       to: user.email,
       firstName: user.firstName,
-      employeeId: membership.employeeId,
+      employeeId: membership.employeeId || '',
       pin: newPin,
       orgName: membership.organization.name,
     }).catch(err => log.error({ err }, 'Failed to send PIN reset email'));
