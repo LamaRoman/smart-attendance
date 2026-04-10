@@ -34,7 +34,8 @@ export default function MyInfoPage() {
   const [saving, setSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const [pwForm, setPwForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
@@ -43,6 +44,7 @@ export default function MyInfoPage() {
   const [pinForm, setPinForm] = useState({ currentPin: '', newPin: '', confirmPin: '' });
   const [pinSaving, setPinSaving] = useState(false);
   const [pinMsg, setPinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [resettingPin, setResettingPin] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -87,6 +89,7 @@ export default function MyInfoPage() {
 
   const savePassword = async () => {
     setPwMsg(null);
+    if (!pwForm.currentPassword) { setPwMsg({ type: 'error', text: isNp ? 'हालको पासवर्ड आवश्यक छ' : 'Current password is required' }); return; }
     if (!pwForm.newPassword) { setPwMsg({ type: 'error', text: isNp ? 'नयाँ पासवर्ड आवश्यक छ' : 'New password is required' }); return; }
     if (pwForm.newPassword !== pwForm.confirmPassword) { setPwMsg({ type: 'error', text: isNp ? 'पासवर्ड मेल खाएन' : 'Passwords do not match' }); return; }
     const pw = pwForm.newPassword;
@@ -98,9 +101,9 @@ export default function MyInfoPage() {
 
     setPwSaving(true);
     try {
-      const res = await api.put('/api/v1/users/' + user!.id, { password: pw });
+      const res = await api.post('/api/v1/auth/change-password', { currentPassword: pwForm.currentPassword, newPassword: pw });
       if (res.error) throw new Error(res.error.message);
-      setPwForm({ newPassword: '', confirmPassword: '' });
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setPwMsg({ type: 'success', text: isNp ? 'पासवर्ड सफलतापूर्वक परिवर्तन भयो!' : 'Password changed successfully!' });
     } catch (e: any) {
       setPwMsg({ type: 'error', text: e.message || 'Failed to change password' });
@@ -132,6 +135,20 @@ export default function MyInfoPage() {
       setPinMsg({ type: 'error', text: e.message || 'Failed to change PIN' });
     }
     setPinSaving(false);
+  };
+
+  const handleForgotPin = async () => {
+    if (!confirm(isNp ? 'नयाँ PIN तपाईंको इमेलमा पठाइनेछ। जारी राख्ने?' : 'A new PIN will be generated and sent to your email. Continue?')) return;
+    setResettingPin(true);
+    setPinMsg(null);
+    try {
+      const res = await api.post('/api/v1/auth/forgot-attendance-pin', {});
+      if (res.error) throw new Error(res.error.message);
+      setPinMsg({ type: 'success', text: isNp ? 'नयाँ PIN तपाईंको इमेलमा पठाइयो।' : 'A new PIN has been sent to your email.' });
+    } catch (e: any) {
+      setPinMsg({ type: 'error', text: e.message || 'Failed to reset PIN' });
+    }
+    setResettingPin(false);
   };
 
   if (isLoading) {
@@ -405,6 +422,13 @@ export default function MyInfoPage() {
               <KeyRound className="w-3.5 h-3.5" />
               {pinSaving ? (isNp ? 'परिवर्तन गर्दै...' : 'Updating...') : (isNp ? 'PIN परिवर्तन गर्नुहोस्' : 'Update PIN')}
             </button>
+            <button
+              onClick={handleForgotPin}
+              disabled={resettingPin}
+              className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-40"
+            >
+              {resettingPin ? (isNp ? 'पठाउँदै...' : 'Sending...') : (isNp ? 'PIN बिर्सनुभयो?' : 'Forgot PIN?')}
+            </button>
           </div>
         </div>
 
@@ -417,6 +441,20 @@ export default function MyInfoPage() {
             </h3>
           </div>
           <div className="p-5 space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">{isNp ? 'हालको पासवर्ड' : 'Current Password'}</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input type={showCurrent ? 'text' : 'password'} value={pwForm.currentPassword}
+                  onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+                  className="w-full pl-9 pr-10 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-colors bg-white"
+                  placeholder={isNp ? 'हालको पासवर्ड' : 'Current password'} />
+                <button type="button" onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">{isNp ? 'नयाँ पासवर्ड' : 'New Password'}</label>
               <div className="relative">
@@ -451,7 +489,7 @@ export default function MyInfoPage() {
                 : 'Min. 8 characters with uppercase, lowercase, number and special character.'}
             </p>
             {pwMsg && <Feedback msg={pwMsg} />}
-            <button onClick={savePassword} disabled={pwSaving || !pwForm.newPassword || !pwForm.confirmPassword}
+            <button onClick={savePassword} disabled={pwSaving || !pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-800 hover:bg-slate-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               <Lock className="w-3.5 h-3.5" />
               {pwSaving ? (isNp ? 'परिवर्तन गर्दै...' : 'Updating...') : (isNp ? 'पासवर्ड परिवर्तन गर्नुहोस्' : 'Update password')}

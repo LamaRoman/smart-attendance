@@ -4,7 +4,7 @@ import { config } from '../config';
 const log = createLogger('email-service');
 const resend = new Resend(config.RESEND_API_KEY || '');
 const FROM_EMAIL = config.RESEND_FROM_EMAIL;
-const APP_NAME = 'Smart Attendance';
+const APP_NAME = 'Attend Xpress';
 function isConfigured(): boolean {
   const key = config.RESEND_API_KEY;
   return !!key && !key.startsWith('re_your');
