@@ -41,6 +41,7 @@ interface User {
   employeeId: string | null;
   role: 'SUPER_ADMIN' | 'ORG_ADMIN' | 'ORG_ACCOUNTANT' | 'EMPLOYEE';
   isActive: boolean;
+  mustChangePassword?: boolean;
   organizationId: string | null;
   /** OrgMembership ID — null for SUPER_ADMIN */
   membershipId: string | null;
@@ -98,6 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.data) {
         const data = res.data as { user: User };
         setUser(data.user);
+        if (data.user.mustChangePassword) {
+          router.push('/change-password');
+        }
       }
     } catch {
       // Not logged in
@@ -121,6 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (meRes.data) {
       const meData = meRes.data as { user: User };
       setUser(meData.user);
+    }
+
+    // Force password change if needed
+    const finalUser = (meRes.data as { user: User })?.user ?? data.user;
+    if (finalUser.mustChangePassword) {
+      router.push('/change-password');
+      return;
     }
 
     // Route based on role

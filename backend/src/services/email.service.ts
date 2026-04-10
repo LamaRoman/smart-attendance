@@ -45,6 +45,8 @@ class EmailService {
     employeeId: string;
     tempPassword?: string;
     resetLink?: string;
+    pin?: string;
+    downloadUrl?: string;
     orgName: string;
   }) {
     if (!isConfigured()) { log.warn('Email not configured, skipping welcome email'); return; }
@@ -56,10 +58,12 @@ class EmailService {
 <table style="width:100%;border-collapse:collapse;">
 <tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Employee ID</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.employeeId}</td></tr>
 <tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Email</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.to}</td></tr>
-${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Password</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.tempPassword}</td></tr>` : ''}
+${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Temporary Password</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.tempPassword}</td></tr>` : ''}
+${params.pin ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Attendance PIN</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.pin}</td></tr>` : ''}
 </table>
 </div>
-<p style="color:#374151;font-size:14px;">Please change your password after first login.</p>`;
+${params.tempPassword ? '<p style="color:#374151;font-size:14px;">You will be asked to set a new password when you first log in.</p>' : ''}
+${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="${params.downloadUrl}" style="display:inline-block;background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Download the App</a></div>` : ''}`;
     await this.send(params.to, 'Welcome to ' + params.orgName + ' -- ' + APP_NAME, content);
   }
 

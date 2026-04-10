@@ -22,6 +22,9 @@ const envSchema = z.object({
   // Frontend URL (for QR code scan URLs)
   FRONTEND_URL: z.string().default('http://localhost:3000'),
 
+  // App download link (optional -- included in welcome emails)
+  APP_DOWNLOAD_URL: z.string().url().optional(),
+
   // Calendarific API (optional -- holiday sync)
   CALENDARIFIC_API_KEY: z.string().optional(),
 

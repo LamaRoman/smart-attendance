@@ -201,7 +201,8 @@ model User {
   // Platform-level active flag.
   // If false, user cannot log in at all (banned/suspended from platform).
   // This is separate from OrgMembership.isActive (org-level).
-  isActive   Boolean @default(true)
+  isActive           Boolean @default(true)
+  mustChangePassword Boolean @default(false)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

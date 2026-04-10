@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/auth.store';
 
 export default function RootLayout() {
-  const { isAuthenticated, isLoading, initialize } = useAuthStore();
+  const { isAuthenticated, isLoading, initialize, user } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
 
@@ -23,9 +23,16 @@ export default function RootLayout() {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(app)/(tabs)/home');
+      // If user must change password, redirect to change-password screen
+      if (user?.mustChangePassword) {
+        router.replace('/(auth)/change-password');
+      } else {
+        router.replace('/(app)/(tabs)/home');
+      }
+    } else if (isAuthenticated && !inAuthGroup && user?.mustChangePassword) {
+      router.replace('/(auth)/change-password');
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isLoading, segments, user?.mustChangePassword]);
 
   return (
     <SafeAreaProvider>

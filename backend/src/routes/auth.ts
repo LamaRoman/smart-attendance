@@ -130,4 +130,23 @@ router.post('/reset-password', authRateLimiter, async (req: Request, res: Respon
   }
 });
 
+// POST /api/v1/auth/change-initial-password — authenticated, for mustChangePassword flow
+router.post('/change-initial-password', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword) {
+      res.status(400).json({ error: { message: 'New password is required', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      res.status(400).json({ error: { message: 'Password must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special character', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+    const result = await authService.changeInitialPassword(req.user!.userId, newPassword);
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

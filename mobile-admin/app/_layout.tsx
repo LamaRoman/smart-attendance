@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/auth.store';
 
 export default function RootLayout() {
-  const { isAuthenticated, isLoading, initialize } = useAuthStore();
+  const { isAuthenticated, isLoading, initialize, user } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
 
@@ -22,9 +22,15 @@ export default function RootLayout() {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(app)/(admin-tabs)/dashboard');
+      if (user?.mustChangePassword) {
+        router.replace('/(auth)/change-password');
+      } else {
+        router.replace('/(app)/(admin-tabs)/dashboard');
+      }
+    } else if (isAuthenticated && !inAuthGroup && user?.mustChangePassword) {
+      router.replace('/(auth)/change-password');
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isLoading, segments, user?.mustChangePassword]);
 
   return (
     <>

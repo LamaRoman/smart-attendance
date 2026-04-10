@@ -251,11 +251,12 @@ export default function UsersPage() {
         setTimeout(() => setSuccess(''), 3000);
       }
     } else {
-      if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+      if (!formData.email || !formData.firstName || !formData.lastName) {
         setError(isNp ? 'सबै फिल्ड भर्नुहोस्' : 'All fields are required');
         setSaving(false); return;
       }
-      const res = await api.post('/api/v1/users', formData);
+      const { password: _pw, ...createData } = formData;
+      const res = await api.post('/api/v1/users', createData);
       if (res.error) { setError(res.error.message); }
       else {
         const created = res.data as any;
@@ -758,16 +759,17 @@ export default function UsersPage() {
                     </div>
                   )}
 
+                  {editingUser && (
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
-                      {editingUser ? (isNp ? 'नयाँ पासवर्ड (ऐच्छिक)' : 'New password (optional)') : (isNp ? 'पासवर्ड' : 'Password')}
-                      {!editingUser && <span className="text-rose-500">*</span>}
+                      {isNp ? 'नयाँ पासवर्ड (ऐच्छिक)' : 'New password (optional)'}
                     </label>
                     <div className="relative">
                       <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                      <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={editingUser ? (isNp ? 'खाली छोड्नुहोस्' : 'Leave blank to keep') : ''} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                      <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder={isNp ? 'खाली छोड्नुहोस्' : 'Leave blank to keep'} className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200" />
                     </div>
                   </div>
+                  )}
 
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">

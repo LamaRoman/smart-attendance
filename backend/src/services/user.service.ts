@@ -8,8 +8,42 @@ import { emailService } from './email.service';
 import { CreateUserInput, UpdateUserInput, AddExistingUserInput } from '../schemas/user.schema';
 import { generatePlatformId } from '../utils/platformId';
 import { invalidatePlanCache } from './plan.service';
+import { config } from '../config';
 
 const log = createLogger('user-service');
+
+/**
+ * Generate a random temporary password that satisfies all validation rules:
+ * 8+ chars, uppercase, lowercase, digit, special character.
+ */
+function generateTempPassword(): string {
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const special = '!@#$%^&*';
+  const all = upper + lower + digits + special;
+
+  // Guarantee at least one of each category
+  const chars: string[] = [
+    upper[randomInt(upper.length)],
+    lower[randomInt(lower.length)],
+    digits[randomInt(digits.length)],
+    special[randomInt(special.length)],
+  ];
+
+  // Fill remaining 6 chars randomly
+  for (let i = 0; i < 6; i++) {
+    chars.push(all[randomInt(all.length)]);
+  }
+
+  // Fisher-Yates shuffle
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join('');
+}
 
 /**
  * Shape the combined user+membership data into a flat response object
@@ -184,7 +218,9 @@ export class UserService {
     }
 
     // New user — create User + OrgMembership in transaction
-    const hashedPassword = await hashPassword(input.password);
+    const tempPassword = input.password ? undefined : generateTempPassword();
+    const passwordToHash = input.password || tempPassword!;
+    const hashedPassword = await hashPassword(passwordToHash);
     const employeeId = await this.generateEmployeeId(organizationId);
     const platformId = await generatePlatformId();
     const plainPin = String(randomInt(1000, 9999 + 1)).padStart(4, '0');
@@ -202,6 +238,7 @@ export class UserService {
           dateOfBirth: (input as any).dateOfBirth ? new Date((input as any).dateOfBirth) : null,
           platformId,
           role: 'EMPLOYEE', // Platform-level default; effective role is on membership
+          mustChangePassword: !!tempPassword, // Force password change when using auto-generated password
         },
         select: {
           id: true,
@@ -245,21 +282,21 @@ export class UserService {
       await this.syncEmployeeCount(organizationId);
     }
 
-    // Send welcome email with password reset link
+    // Send welcome email
     try {
       const org = await prisma.organization.findUnique({
         where: { id: organizationId! },
         select: { name: true },
       });
 
-      const resetToken = await this.generatePasswordResetToken(result.user.id);
-
       emailService.sendWelcomeEmail({
         to: input.email,
         firstName: input.firstName,
         lastName: input.lastName,
         employeeId,
-        resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
+        tempPassword,
+        pin: plainPin,
+        downloadUrl: config.APP_DOWNLOAD_URL,
         orgName: org?.name || '',
       }).catch(err => log.error({ err }, 'Failed to send welcome email'));
     } catch (err) {
@@ -431,7 +468,8 @@ export class UserService {
         firstName: existingUser.firstName,
         lastName: existingUser.lastName,
         employeeId,
-        resetLink: '', // No password reset needed — they already have credentials
+        pin: plainPin,
+        downloadUrl: config.APP_DOWNLOAD_URL,
         orgName: org?.name || '',
       }).catch(err => log.error({ err }, 'Failed to send org-join notification email'));
     } catch (err) {

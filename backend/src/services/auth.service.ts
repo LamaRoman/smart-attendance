@@ -35,6 +35,7 @@ export class AuthService {
         platformId: true,
         role: true,
         isActive: true,
+        mustChangePassword: true,
       },
     });
 
@@ -244,6 +245,7 @@ export class AuthService {
         platformId: true,
         role: true,
         isActive: true,
+        mustChangePassword: true,
         createdAt: true,
       },
     });
@@ -442,7 +444,7 @@ export class AuthService {
 
     await prisma.user.update({
       where: { id: resetRecord.userId },
-      data: { password: hashedPassword },
+      data: { password: hashedPassword, mustChangePassword: false },
     });
 
     // Mark token as used
@@ -458,6 +460,33 @@ export class AuthService {
 
     log.info({ userId: resetRecord.userId }, 'Password reset successfully');
     return { message: 'Password reset successfully. Please log in with your new password.' };
+  }
+
+  /**
+   * Change initial password — used when mustChangePassword is true.
+   * User is already authenticated; just needs to set their own password.
+   */
+  async changeInitialPassword(userId: string, newPassword: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, mustChangePassword: true },
+    });
+
+    if (!user) throw new AuthenticationError('User not found');
+    if (!user.mustChangePassword) {
+      throw new AuthenticationError('Password change is not required');
+    }
+
+    const { hashPassword } = await import('../lib/password');
+    const hashedPassword = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword, mustChangePassword: false },
+    });
+
+    log.info({ userId }, 'Initial password changed successfully');
+    return { message: 'Password changed successfully.' };
   }
 }
 

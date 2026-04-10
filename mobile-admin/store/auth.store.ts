@@ -13,6 +13,7 @@ export interface User {
   organizationId: string | null;
   membershipId: string | null;
   employeeId: string | null;
+  mustChangePassword?: boolean;
   // From login response
   organizationName: string | null;
   // From getMe response
