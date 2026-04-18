@@ -25,7 +25,7 @@ smart_attendance/
 |-----------|----------|-----|
 | Backend API | Railway | https://api.zentaralabs.com |
 | Web Frontend | Vercel | https://attendance.zentaralabs.com |
-| Database | Railway PostgreSQL | switchback.proxy.rlwy.net:17927 |
+| Database | Railway PostgreSQL | (private — see Railway dashboard) |
 | Employee App | EAS Build | com.zentaralabs.attendxpress |
 | Admin App | EAS Build | com.zentaralabs.attendxpress.admin |
 
@@ -33,8 +33,8 @@ smart_attendance/
 
 | App | EAS Project | Project ID |
 |-----|-------------|------------|
-| Employee | @romanlama/attendxpress | c10d5cfd-cc65-469b-a696-330e69b7e383 |
-| Admin | @romanlama/attendxpress-admin | 3b9521d0-76fa-4eff-b0f9-08ab24873ccf |
+| Employee | @romanlama/attendxpress | (see mobile/eas.json) |
+| Admin | @romanlama/attendxpress-admin | (see mobile-admin/eas.json) |
 
 ---
 
@@ -498,17 +498,7 @@ npm install --legacy-peer-deps
 
 ## Test Credentials (Dev Seed Only)
 
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | admin@smartattendance.com | SuperAdmin@123 |
-| Org Admin | orgadmin@democompany.com | OrgAdmin@123 |
-| Employee | sita@democompany.com | Employee@123 |
-| Employee | hari@democompany.com | Employee@123 |
-| Employee | gita@democompany.com | Employee@123 |
-| Employee | bikash@democompany.com | Employee@123 |
-| Employee | anita@democompany.com | Employee@123 |
+Dev seed credentials are defined in `backend/prisma/seed-dev.ts`. See that file
+for the current values. Never run the dev seed against a production database.
 
-Attendance PIN (all employees): `1234`
-
-> These credentials only exist when running the dev seed (`seed-dev.ts`).
-> Production uses env-var-based super admin password with no demo data.
+Production uses env-var-based super admin password with no demo data.
