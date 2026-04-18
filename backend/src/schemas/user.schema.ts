@@ -80,6 +80,7 @@ export const updateUserSchema = z.object({
   workingDays: workingDaysField,
   role: z.enum(['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE']).optional(),
   isActive: z.boolean().optional(),
+  currentPassword: z.string().optional(),
 });
 
 export const userIdParamSchema = z.object({
