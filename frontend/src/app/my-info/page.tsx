@@ -25,11 +25,12 @@ import {
 import PoweredBy from '@/components/PoweredBy';
 import { adToBS, toNepaliDigits, BS_MONTHS_NP } from '@/components/BSDatePicker';
 export default function MyInfoPage() {
-  const { user, isLoading, language, calendarMode,refreshUser } = useAuth();
+  const { user, isLoading, language, calendarMode, refreshUser } = useAuth();
   const router = useRouter();
   const isNp = language === 'NEPALI';
 
   const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', email: '' });
+  const [emailChangePassword, setEmailChangePassword] = useState('');
   const [originalForm, setOriginalForm] = useState({ ...form });
   const [saving, setSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -69,18 +70,43 @@ export default function MyInfoPage() {
     setSaving(true);
     setProfileMsg(null);
     try {
+      const emailChanged = form.email !== originalForm.email;
+
+      // Client-side check: if email is being changed, we need the current password
+      if (emailChanged && !emailChangePassword) {
+        setProfileMsg({
+          type: 'error',
+          text: isNp
+            ? 'इमेल परिवर्तन गर्न हालको पासवर्ड आवश्यक छ'
+            : 'Current password is required to change your email',
+        });
+        setSaving(false);
+        return;
+      }
+
       const payload: any = {};
       if (form.firstName !== originalForm.firstName) payload.firstName = form.firstName;
       if (form.lastName !== originalForm.lastName) payload.lastName = form.lastName;
       if (form.phone !== originalForm.phone) payload.phone = form.phone;
-      if (form.email !== originalForm.email) payload.email = form.email;
+      if (emailChanged) {
+        payload.email = form.email;
+        payload.currentPassword = emailChangePassword;
+      }
 
       const res = await api.put('/api/v1/users/' + user!.id, payload);
       if (res.error) throw new Error(res.error.message);
 
       setOriginalForm({ ...form });
+      setEmailChangePassword(''); // clear after success
       if (typeof refreshUser === 'function') await refreshUser();
-      setProfileMsg({ type: 'success', text: isNp ? 'विवरण सफलतापूर्वक अपडेट भयो!' : 'Profile updated successfully!' });
+      setProfileMsg({
+        type: 'success',
+        text: emailChanged
+          ? (isNp
+            ? 'इमेल परिवर्तन भयो। पुष्टिकरण तपाईंको पुरानो इमेलमा पठाइयो।'
+            : 'Email changed. A confirmation has been sent to your previous email address.')
+          : (isNp ? 'विवरण सफलतापूर्वक अपडेट भयो!' : 'Profile updated successfully!'),
+      });
     } catch (e: any) {
       setProfileMsg({ type: 'error', text: e.message || 'Failed to update profile' });
     }
@@ -284,7 +310,7 @@ export default function MyInfoPage() {
                   {(user as any).createdAt
                     ? calendarMode === 'NEPALI'
                       ? (() => { const bs = adToBS(new Date((user as any).createdAt)); return `${toNepaliDigits(bs.day)} ${BS_MONTHS_NP[bs.month - 1]} ${toNepaliDigits(bs.year)}`; })()
-                      : new Date((user as any).createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }): '—'}
+                      : new Date((user as any).createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                 </td>
               </tr>
             </tbody>
@@ -323,6 +349,30 @@ export default function MyInfoPage() {
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputClass} placeholder="email@example.com" />
               </div>
             </div>
+            {form.email !== originalForm.email && (
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  {isNp ? 'हालको पासवर्ड' : 'Current Password'}
+                  <span className="text-red-500 ml-0.5">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="password"
+                    value={emailChangePassword}
+                    onChange={(e) => setEmailChangePassword(e.target.value)}
+                    className={inputClass}
+                    placeholder={isNp ? 'आफ्नो हालको पासवर्ड प्रविष्ट गर्नुहोस्' : 'Enter your current password'}
+                    autoComplete="current-password"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  {isNp
+                    ? 'सुरक्षाका लागि, इमेल परिवर्तन पुष्टि गर्न हालको पासवर्ड आवश्यक छ।'
+                    : 'For your security, we require your current password to confirm the email change.'}
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">{isNp ? 'फोन नम्बर' : 'Phone Number'}</label>
               <div className="relative">
@@ -338,8 +388,7 @@ export default function MyInfoPage() {
                 {saving ? (isNp ? 'सुरक्षित गर्दै...' : 'Saving...') : (isNp ? 'सुरक्षित गर्नुहोस्' : 'Save changes')}
               </button>
               {hasProfileChanges && (
-                <button onClick={() => { setForm({ ...originalForm }); setProfileMsg(null); }}
-                  className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors border border-slate-200">
+                <button onClick={() => { setForm({ ...originalForm }); setEmailChangePassword(''); setProfileMsg(null); }} className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors border border-slate-200">
                   {isNp ? 'रद्द' : 'Cancel'}
                 </button>
               )}

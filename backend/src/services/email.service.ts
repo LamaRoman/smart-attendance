@@ -397,6 +397,27 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     await this.send(params.to, safeSubject('Password Changed -- ' + APP_NAME), content);
   }
 
+  
+  // 14. Email Changed Notification — alert the OLD email address that their account email was changed
+  async sendEmailChangedNotification(params: {
+    to: string;                // the OLD email address
+    firstName: string;
+    newEmail: string;
+    changedAt: Date;
+  }) {
+    if (!isConfigured()) { log.warn('Email not configured, skipping email-changed notification'); return; }
+    const when = params.changedAt.toUTCString();
+    const content = `
+<h2 style="color:#dc2626;margin:0 0 8px;">Your email address was changed</h2>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.firstName)},</p>
+<p style="color:#374151;font-size:15px;">The email address on your ${APP_NAME} account was just changed to <strong>${h(params.newEmail)}</strong> on ${h(when)}.</p>
+<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin:20px 0;">
+<p style="color:#b91c1c;font-weight:600;margin:0 0 8px;font-size:14px;">Did you not request this change?</p>
+<p style="color:#374151;font-size:14px;margin:0;">If you did not change your email, your account may have been compromised. Contact your administrator immediately and request a password reset.</p>
+</div>
+<p style="color:#9ca3af;font-size:13px;margin:16px 0 0;">This notification was sent to the previous email address on file so the rightful account owner is always informed when their email changes.</p>`;
+    await this.send(params.to, safeSubject('Your ' + APP_NAME + ' email address was changed'), content);
+  }
   // ============================================================
   // Core send method
   // ============================================================
