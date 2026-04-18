@@ -149,26 +149,25 @@ export class AuthService {
   }
 
   /**
-   * Refresh access token using a valid refresh token.
+   * Refresh access token AND refresh token.
    *
-   * Flow:
-   * 1. Find session by refreshTokenHash
-   * 2. Verify session is valid and not expired
-   * 3. Look up user + membership to build a fresh JWT payload
-   * 4. Generate a new access token and update the session
+   * Rotates both tokens on every call. The old session row is kept with
+   * isValid=false so a replayed (stolen) refresh token can be detected:
+   * if someone presents a refresh token that matches an invalid row,
+   * we treat it as a theft signal and wipe every session for that user.
    */
   async refreshAccessToken(refreshToken: string) {
     const refreshHash = hashToken(refreshToken);
 
-    // Find session by refresh token hash — use select (not include) for type safety
+    // Look up ANY session with this refresh hash — valid OR invalid.
+    // Matching an invalid (already-rotated) hash is the reuse signal.
     const session = await prisma.userSession.findFirst({
-      where: {
-        refreshTokenHash: refreshHash,
-        isValid: true,
-      },
+      where: { refreshTokenHash: refreshHash },
       select: {
         id: true,
         userId: true,
+        isValid: true,
+        expiresAt: true,
         user: {
           select: {
             id: true,
@@ -177,11 +176,7 @@ export class AuthService {
             isActive: true,
             memberships: {
               where: { isActive: true, leftAt: null, deletedAt: null },
-              select: {
-                id: true,
-                role: true,
-                organizationId: true,
-              },
+              select: { id: true, role: true, organizationId: true },
               take: 1,
             },
           },
@@ -193,16 +188,40 @@ export class AuthService {
       throw new AuthenticationError('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
     }
 
+    // Reuse detection: token presented after it was already rotated.
+    // Either an attacker replaying, or a legitimate retry of a slow
+    // request — either way, nuke every session so the legitimate user
+    // is forced to re-login and the attacker loses access.
+    if (!session.isValid) {
+      log.warn(
+        { userId: session.userId, sessionId: session.id },
+        'Refresh token reuse detected — revoking all sessions for user',
+      );
+      await prisma.userSession.deleteMany({ where: { userId: session.userId } });
+      throw new AuthenticationError(
+        'Refresh token reuse detected. Please log in again.',
+        'REFRESH_REUSE',
+      );
+    }
+
+    if (session.expiresAt < new Date()) {
+      throw new AuthenticationError('Refresh token has expired', 'REFRESH_EXPIRED');
+    }
+
     if (!session.user.isActive) {
-      await prisma.userSession.update({ where: { id: session.id }, data: { isValid: false } });
+      await prisma.userSession.update({
+        where: { id: session.id },
+        data: { isValid: false },
+      });
       throw new AuthenticationError('Account is inactive');
     }
 
-    // Build JWT payload from current user state
+    // Rotate both tokens.
     const membership = session.user.memberships[0] ?? null;
-    const effectiveRole = session.user.role === 'SUPER_ADMIN'
-      ? 'SUPER_ADMIN'
-      : (membership?.role ?? session.user.role);
+    const effectiveRole =
+      session.user.role === 'SUPER_ADMIN'
+        ? 'SUPER_ADMIN'
+        : membership?.role ?? session.user.role;
 
     const newAccessToken = generateToken({
       userId: session.user.id,
@@ -213,18 +232,32 @@ export class AuthService {
       membershipId: membership?.id ?? null,
     });
 
-    // Update session with new access token hash and extend expiry
-    await prisma.userSession.update({
-      where: { id: session.id },
-      data: {
-        tokenHash: hashToken(newAccessToken),
-        expiresAt: getTokenExpiration(),
-      },
-    });
+    const newRefreshToken = crypto.randomBytes(48).toString('hex');
+    const newRefreshHash = hashToken(newRefreshToken);
 
-    log.info({ userId: session.user.id }, 'Access token refreshed');
+    // Atomic rotation: invalidate old session (keep its hash for reuse
+    // detection) and create a new session with the new token hashes.
+    await prisma.$transaction([
+      prisma.userSession.update({
+        where: { id: session.id },
+        data: { isValid: false },
+      }),
+      prisma.userSession.create({
+        data: {
+          userId: session.userId,
+          tokenHash: hashToken(newAccessToken),
+          refreshTokenHash: newRefreshHash,
+          expiresAt: getTokenExpiration(),
+        },
+      }),
+    ]);
 
-    return { accessToken: newAccessToken };
+    log.info({ userId: session.user.id }, 'Tokens rotated');
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    };
   }
 
   /**

@@ -83,13 +83,18 @@ api.interceptors.response.use(
         throw new Error('No refresh token available');
       }
 
-      const response = await axios.post(`${BASE_URL}/api/v1/auth/refresh`, { refreshToken });
-      const { accessToken } = response.data.data;
+    const response = await axios.post(`${BASE_URL}/api/v1/auth/refresh`, { refreshToken });
+      const { accessToken, refreshToken: newRefreshToken } = response.data.data;
 
       await TokenStorage.setAccessToken(accessToken);
+      // Server rotates the refresh token on every use (PR 3). Persist the
+      // new one or the next refresh will be flagged as reuse and kill all
+      // sessions for this user.
+      if (newRefreshToken) {
+        await TokenStorage.setRefreshToken(newRefreshToken);
+      }
       api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
       processQueue(null, accessToken);
-
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       return api(originalRequest);
     } catch (refreshError) {

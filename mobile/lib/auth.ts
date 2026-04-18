@@ -23,6 +23,10 @@ export const TokenStorage = {
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
   },
 
+  async setRefreshToken(refreshToken: string): Promise<void> {
+    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+  },
+
   async clearTokens(): Promise<void> {
     await Promise.all([
       SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
