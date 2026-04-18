@@ -1,14 +1,25 @@
-﻿import { Resend } from 'resend';
+import { Resend } from 'resend';
 import { createLogger } from '../logger';
 import { config } from '../config';
+import { h, hUrl } from '../lib/email-escape';
+
 const log = createLogger('email-service');
 const resend = new Resend(config.RESEND_API_KEY || '');
 const FROM_EMAIL = config.RESEND_FROM_EMAIL;
 const APP_NAME = 'Attend Xpress';
+
 function isConfigured(): boolean {
   const key = config.RESEND_API_KEY;
   return !!key && !key.startsWith('re_your');
 }
+
+// Strip CR/LF from subject lines to prevent SMTP header injection when
+// concatenating user-controlled values into subjects. Resend likely
+// normalizes these too, but defence-in-depth costs nothing.
+function safeSubject(subject: string): string {
+  return subject.replace(/[\r\n]+/g, ' ').slice(0, 200);
+}
+
 // ============================================================
 // Email Templates
 // ============================================================
@@ -33,6 +44,7 @@ ${footer || 'This is an automated message from ' + APP_NAME + '. Please do not r
 </body>
 </html>`;
 }
+
 // ============================================================
 // Email Service
 // ============================================================
@@ -51,20 +63,20 @@ class EmailService {
   }) {
     if (!isConfigured()) { log.warn('Email not configured, skipping welcome email'); return; }
     const content = `
-<h2 style="color:#111827;margin:0 0 8px;">Welcome to ${params.orgName}!</h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.firstName},</p>
+<h2 style="color:#111827;margin:0 0 8px;">Welcome to ${h(params.orgName)}!</h2>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.firstName)},</p>
 <p style="color:#374151;font-size:15px;">Your account has been created on ${APP_NAME}. Here are your login details:</p>
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:20px 0;">
 <table style="width:100%;border-collapse:collapse;">
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Employee ID</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.employeeId}</td></tr>
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Email</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.to}</td></tr>
-${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Temporary Password</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.tempPassword}</td></tr>` : ''}
-${params.pin ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Attendance PIN</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.pin}</td></tr>` : ''}
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Employee ID</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.employeeId)}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Email</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.to)}</td></tr>
+${params.tempPassword ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Temporary Password</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.tempPassword)}</td></tr>` : ''}
+${params.pin ? `<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Attendance PIN</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.pin)}</td></tr>` : ''}
 </table>
 </div>
 ${params.tempPassword ? '<p style="color:#374151;font-size:14px;">You will be asked to set a new password when you first log in.</p>' : ''}
-${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="${params.downloadUrl}" style="display:inline-block;background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Download the App</a></div>` : ''}`;
-    await this.send(params.to, 'Welcome to ' + params.orgName + ' -- ' + APP_NAME, content);
+${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="${hUrl(params.downloadUrl)}" style="display:inline-block;background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Download the App</a></div>` : ''}`;
+    await this.send(params.to, safeSubject('Welcome to ' + params.orgName + ' -- ' + APP_NAME), content);
   }
 
   // 2. Leave Request Submitted -- Notify admin
@@ -82,18 +94,18 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     if (!isConfigured()) { log.warn('Email not configured, skipping leave notification'); return; }
     const content = `
 <h2 style="color:#111827;margin:0 0 8px;">New Leave Request</h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.adminName},</p>
-<p style="color:#374151;font-size:15px;"><strong>${params.employeeName}</strong> (${params.employeeId}) has submitted a leave request:</p>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.adminName)},</p>
+<p style="color:#374151;font-size:15px;"><strong>${h(params.employeeName)}</strong> (${h(params.employeeId)}) has submitted a leave request:</p>
 <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
 <table style="width:100%;border-collapse:collapse;">
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Type</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.leaveType}</td></tr>
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">From</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.startDate}</td></tr>
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">To</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.endDate}</td></tr>
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Reason</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.reason}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Type</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.leaveType)}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">From</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.startDate)}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">To</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.endDate)}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Reason</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.reason)}</td></tr>
 </table>
 </div>
 <p style="color:#374151;font-size:14px;">Please review and approve/reject this request in the ${APP_NAME} dashboard.</p>`;
-    await this.send(params.adminEmail, 'Leave Request from ' + params.employeeName, content);
+    await this.send(params.adminEmail, safeSubject('Leave Request from ' + params.employeeName), content);
   }
 
   // 3. Leave Approved/Rejected -- Notify employee
@@ -112,18 +124,18 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     const bgColor = isApproved ? '#ecfdf5' : '#fef2f2';
     const borderColor = isApproved ? '#a7f3d0' : '#fecaca';
     const content = `
-<h2 style="color:#111827;margin:0 0 8px;">Leave ${params.status}</h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.employeeName},</p>
-<p style="color:#374151;font-size:15px;">Your leave request has been <strong style="color:${color};">${params.status.toLowerCase()}</strong> by ${params.approverName}.</p>
+<h2 style="color:#111827;margin:0 0 8px;">Leave ${h(params.status)}</h2>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.employeeName)},</p>
+<p style="color:#374151;font-size:15px;">Your leave request has been <strong style="color:${color};">${h(params.status.toLowerCase())}</strong> by ${h(params.approverName)}.</p>
 <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:20px;margin:20px 0;">
 <table style="width:100%;border-collapse:collapse;">
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Type</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.leaveType}</td></tr>
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">From</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.startDate}</td></tr>
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">To</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${params.endDate}</td></tr>
-<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Status</td><td style="color:${color};font-weight:700;padding:4px 0;font-size:14px;">${params.status}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Type</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.leaveType)}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">From</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.startDate)}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">To</td><td style="color:#111827;font-weight:600;padding:4px 0;font-size:14px;">${h(params.endDate)}</td></tr>
+<tr><td style="color:#6b7280;padding:4px 0;font-size:14px;">Status</td><td style="color:${color};font-weight:700;padding:4px 0;font-size:14px;">${h(params.status)}</td></tr>
 </table>
 </div>`;
-    await this.send(params.to, 'Leave ' + params.status + ' -- ' + params.leaveType, content);
+    await this.send(params.to, safeSubject('Leave ' + params.status + ' -- ' + params.leaveType), content);
   }
 
   // 4. Payroll Ready -- Notify employee
@@ -138,14 +150,14 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     if (!isConfigured()) { log.warn('Email not configured, skipping payroll notification'); return; }
     const content = `
 <h2 style="color:#111827;margin:0 0 8px;">Payslip Ready </h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.employeeName},</p>
-<p style="color:#374151;font-size:15px;">Your payslip for <strong>${params.bsMonth} ${params.bsYear}</strong> is now available.</p>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.employeeName)},</p>
+<p style="color:#374151;font-size:15px;">Your payslip for <strong>${h(params.bsMonth)} ${h(params.bsYear)}</strong> is now available.</p>
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin:20px 0;text-align:center;">
 <p style="color:#6b7280;font-size:13px;margin:0 0 4px;">Net Salary</p>
-<p style="color:#1e293b;font-size:28px;font-weight:700;margin:0;">Rs. ${params.netSalary}</p>
+<p style="color:#1e293b;font-size:28px;font-weight:700;margin:0;">Rs. ${h(params.netSalary)}</p>
 </div>
 <p style="color:#374151;font-size:14px;">Log in to ${APP_NAME} to view the full payslip and download PDF.</p>`;
-    await this.send(params.to, 'Payslip Ready -- ' + params.bsMonth + ' ' + params.bsYear, content);
+    await this.send(params.to, safeSubject('Payslip Ready -- ' + params.bsMonth + ' ' + params.bsYear), content);
   }
 
   // 5. Payroll Bulk Notify -- All employees
@@ -189,14 +201,14 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     if (!isConfigured()) { log.warn('Email not configured, skipping trial warning'); return; }
     const content = `
 <h2 style="color:#111827;margin:0 0 8px;">Your trial ends in ${params.daysLeft} day${params.daysLeft === 1 ? '' : 's'}</h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.adminName},</p>
-<p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> expires on <strong>${params.trialEndsAt.toDateString()}</strong>.</p>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.adminName)},</p>
+<p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${h(params.orgName)}</strong> expires on <strong>${h(params.trialEndsAt.toDateString())}</strong>.</p>
 <p style="color:#374151;font-size:15px;">To keep your attendance data, payroll records, and team access uninterrupted, upgrade to Operations before your trial ends.</p>
 <div style="margin:24px 0;">
-<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade Now</a>
+<a href="${hUrl(process.env.APP_URL ?? '#')}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade Now</a>
 </div>
 <p style="color:#9ca3af;font-size:13px;">Rs. 250 per employee per month. Cancel anytime.</p>`;
-    await this.send(params.to, `Your ${APP_NAME} trial ends in ${params.daysLeft} day${params.daysLeft === 1 ? '' : 's'}`, content);
+    await this.send(params.to, safeSubject(`Your ${APP_NAME} trial ends in ${params.daysLeft} day${params.daysLeft === 1 ? '' : 's'}`), content);
   }
 
   // 7. Trial Expired -- access paused
@@ -208,14 +220,14 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     if (!isConfigured()) { log.warn('Email not configured, skipping trial expired notice'); return; }
     const content = `
 <h2 style="color:#dc2626;margin:0 0 8px;">Your trial has ended</h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.adminName},</p>
-<p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> has expired. Your data is safe, but your team's access has been paused.</p>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.adminName)},</p>
+<p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${h(params.orgName)}</strong> has expired. Your data is safe, but your team's access has been paused.</p>
 <p style="color:#374151;font-size:15px;">Upgrade to Operations to restore full access immediately.</p>
 <div style="margin:24px 0;">
-<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Restore Access</a>
+<a href="${hUrl(process.env.APP_URL ?? '#')}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Restore Access</a>
 </div>
 <p style="color:#9ca3af;font-size:13px;">Need help? Reply to this email and we'll sort it out.</p>`;
-    await this.send(params.to, `Your ${APP_NAME} trial has ended -- restore access now`, content);
+    await this.send(params.to, safeSubject(`Your ${APP_NAME} trial has ended -- restore access now`), content);
   }
 
   // 8. Post-trial nudge -- 3 days after expiry (last attempt)
@@ -227,13 +239,13 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     if (!isConfigured()) { log.warn('Email not configured, skipping conversion nudge'); return; }
     const content = `
 <h2 style="color:#111827;margin:0 0 8px;">Still thinking about it?</h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.adminName},</p>
-<p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${params.orgName}</strong> ended a few days ago. Your data is still here -- we haven't deleted anything.</p>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.adminName)},</p>
+<p style="color:#374151;font-size:15px;">Your ${APP_NAME} trial for <strong>${h(params.orgName)}</strong> ended a few days ago. Your data is still here -- we haven't deleted anything.</p>
 <p style="color:#374151;font-size:15px;">If something stopped you from upgrading, reply to this email and let us know. We'd love to help.</p>
 <div style="margin:24px 0;">
-<a href="${process.env.APP_URL ?? '#'}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade and Restore Access</a>
+<a href="${hUrl(process.env.APP_URL ?? '#')}/billing" style="background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upgrade and Restore Access</a>
 </div>`;
-    await this.send(params.to, `Your ${APP_NAME} data is waiting -- come back anytime`, content);
+    await this.send(params.to, safeSubject(`Your ${APP_NAME} data is waiting -- come back anytime`), content);
   }
 
   // 9. Billing Renewal Reminder -- 7 days before due date
@@ -254,14 +266,14 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     const content = `
 <h2 style="color:#1e293b;margin:0 0 16px">Subscription Renewal Reminder</h2>
 <p style="color:#475569;margin:0 0 16px">
-  Hi, this is a reminder that your <strong>${params.planName}</strong> subscription
-  for <strong>${params.orgName}</strong> renews on <strong>${billingDateStr}</strong>.
+  Hi, this is a reminder that your <strong>${h(params.planName)}</strong> subscription
+  for <strong>${h(params.orgName)}</strong> renews on <strong>${h(billingDateStr)}</strong>.
 </p>
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:0 0 20px">
   <p style="margin:0 0 8px;color:#64748b;font-size:14px">Amount due</p>
-  <p style="margin:0;font-size:28px;font-weight:700;color:#1e293b">Rs. ${params.amountDue.toLocaleString()}</p>
+  <p style="margin:0;font-size:28px;font-weight:700;color:#1e293b">Rs. ${h(params.amountDue.toLocaleString())}</p>
   <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">
-    ${params.employeeCount} employees X— Rs. ${params.pricePerEmployee}/employee
+    ${h(params.employeeCount)} employees X— Rs. ${h(params.pricePerEmployee)}/employee
   </p>
 </div>
 <p style="color:#475569;margin:0 0 16px">
@@ -271,7 +283,7 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
 <p style="color:#94a3b8;font-size:13px;margin:0">Questions? Reply to this email or reach us on WhatsApp.</p>`;
     await this.send(
       params.to,
-      `Subscription renewal in ${params.daysUntilBilling} days -- ${params.orgName}`,
+      safeSubject(`Subscription renewal in ${params.daysUntilBilling} days -- ${params.orgName}`),
       content
     );
   }
@@ -290,15 +302,15 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     const content = `
 <h2 style="color:#dc2626;margin:0 0 16px">Payment Due</h2>
 <p style="color:#475569;margin:0 0 16px">
-  Your <strong>${params.planName}</strong> subscription for <strong>${params.orgName}</strong>
+  Your <strong>${h(params.planName)}</strong> subscription for <strong>${h(params.orgName)}</strong>
   has reached its renewal date. Your access will continue for a
   <strong>${params.gracePeriodDays}-day grace period</strong> while we await payment.
 </p>
 <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin:0 0 20px">
   <p style="margin:0 0 8px;color:#dc2626;font-size:14px;font-weight:600">Amount due immediately</p>
-  <p style="margin:0;font-size:28px;font-weight:700;color:#1e293b">Rs. ${params.amountDue.toLocaleString()}</p>
+  <p style="margin:0;font-size:28px;font-weight:700;color:#1e293b">Rs. ${h(params.amountDue.toLocaleString())}</p>
   <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">
-    ${params.employeeCount} employees Ã— Rs. ${params.pricePerEmployee}/employee
+    ${h(params.employeeCount)} employees Ã— Rs. ${h(params.pricePerEmployee)}/employee
   </p>
 </div>
 <p style="color:#b91c1c;font-weight:600;margin:0 0 16px">
@@ -312,7 +324,7 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
 </p>`;
     await this.send(
       params.to,
-      `Action required: Payment due for ${params.orgName}`,
+      safeSubject(`Action required: Payment due for ${params.orgName}`),
       content
     );
   }
@@ -327,7 +339,7 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     const content = `
 <h2 style="color:#dc2626;margin:0 0 16px">Account Suspended</h2>
 <p style="color:#475569;margin:0 0 16px">
-  Your ${APP_NAME} account for <strong>${params.orgName}</strong> has been suspended
+  Your ${APP_NAME} account for <strong>${h(params.orgName)}</strong> has been suspended
   because payment was not received within the ${params.gracePeriodDays}-day grace period.
 </p>
 <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin:0 0 20px">
@@ -342,7 +354,7 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
 <p style="color:#94a3b8;font-size:13px;margin:0">Need help? Reply to this email and we'll sort it out together.</p>`;
     await this.send(
       params.to,
-      `Account suspended -- ${params.orgName}`,
+      safeSubject(`Account suspended -- ${params.orgName}`),
       content
     );
   }
@@ -358,15 +370,15 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     if (!isConfigured()) { log.warn('Email not configured, skipping PIN reset email'); return; }
     const content = `
 <h2 style="color:#111827;margin:0 0 8px;">Attendance PIN Reset</h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.firstName},</p>
-<p style="color:#374151;font-size:15px;">Your attendance PIN for ${params.orgName} has been reset. Here is your new PIN:</p>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.firstName)},</p>
+<p style="color:#374151;font-size:15px;">Your attendance PIN for ${h(params.orgName)} has been reset. Here is your new PIN:</p>
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
 <p style="color:#6b7280;font-size:13px;margin:0 0 8px;">Your New Attendance PIN</p>
-<p style="color:#111827;font-size:36px;font-weight:700;letter-spacing:0.3em;margin:0;font-family:monospace;">${params.pin}</p>
+<p style="color:#111827;font-size:36px;font-weight:700;letter-spacing:0.3em;margin:0;font-family:monospace;">${h(params.pin)}</p>
 </div>
 <p style="color:#374151;font-size:14px;">You can change this PIN anytime from your profile in the app.</p>
 <p style="color:#9ca3af;font-size:13px;">If you did not request this, please contact your administrator immediately.</p>`;
-    await this.send(params.to, 'Attendance PIN Reset -- ' + params.orgName, content);
+    await this.send(params.to, safeSubject('Attendance PIN Reset -- ' + params.orgName), content);
   }
 
   // 13. Password Changed Confirmation
@@ -377,12 +389,12 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
     if (!isConfigured()) { log.warn('Email not configured, skipping password changed email'); return; }
     const content = `
 <h2 style="color:#111827;margin:0 0 8px;">Password Changed</h2>
-<p style="color:#6b7280;font-size:15px;">Hi ${params.firstName},</p>
+<p style="color:#6b7280;font-size:15px;">Hi ${h(params.firstName)},</p>
 <p style="color:#374151;font-size:15px;">Your ${APP_NAME} password has been changed successfully.</p>
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:20px 0;">
 <p style="color:#374151;font-size:14px;margin:0;">If you did not make this change, please reset your password immediately or contact your administrator.</p>
 </div>`;
-    await this.send(params.to, 'Password Changed -- ' + APP_NAME, content);
+    await this.send(params.to, safeSubject('Password Changed -- ' + APP_NAME), content);
   }
 
   // ============================================================

@@ -32,15 +32,15 @@ router.post('/login', authRateLimiter, validate(loginSchema), async (req: Reques
   }
 });
 
-// POST /api/auth/refresh (mobile only)
-router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/auth/refresh (mobile only) — rate-limited same as login
+router.post('/refresh', authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
       res.status(400).json({ error: { message: 'Refresh token required' } }); return;
     }
     const result = await authService.refreshAccessToken(refreshToken);
-    res.json({ data: { accessToken: result.accessToken } });
+    res.json({ data: { accessToken: result.accessToken, refreshToken: result.refreshToken } });
   } catch {
     res.status(401).json({ error: { message: 'Invalid or expired refresh token' } });
   }
