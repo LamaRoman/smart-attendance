@@ -28,6 +28,8 @@ export async function sendPasswordResetEmail(to: string, resetToken: string) {
             We received a request to reset your password. Click the button below to choose a new password. This link expires in 1 hour.
           </p>
           <a href="${hUrl(resetLink)}" style="display: inline-block; padding: 12px 32px; background: #0f172a; color: white; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 500;">
+            Reset Password
+          </a>
           <p style="font-size: 12px; color: #94a3b8; margin-top: 32px; line-height: 1.5;">
             If you didn't request this, you can safely ignore this email. Your password will remain unchanged.
           </p>
