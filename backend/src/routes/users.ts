@@ -118,15 +118,20 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
       delete req.body.panNumber;
     }
 
-    // ── Email-change verification (self-update only) ──────────────────────
-    // An email change is an account-takeover vector: if an attacker has a
-    // session, they can change the email to their own and request a password
-    // reset. Require the current password before allowing the change.
+    // ── Email-change verification ────────────────────────────────────────
+    // An email change is an account-takeover vector. For self-updates, an
+    // attacker with a session can change the email to their own and trigger
+    // a password reset. For admin-initiated updates, an attacker with an
+    // admin session can silently change any employee's email and take over
+    // that account.
     //
-    // Admins updating OTHER users' emails are exempt (they already have the
-    // authority and a separate audit trail). Only self-update is gated.
+    // Both paths require password reconfirmation. Self-updates verify the
+    // user's own password; admin-updates verify the admin's own password.
+    // On either path, if the email actually changes we notify the TARGET
+    // at their OLD address, giving them a signal to investigate.
     let oldEmail: string | null = null;
     let oldFirstName: string | null = null;
+
     if (isSelf && req.body.email) {
       const currentUser = await prisma.user.findUnique({
         where: { id: req.user!.userId },
@@ -160,6 +165,49 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
 
         oldEmail = currentUser.email;
         oldFirstName = currentUser.firstName;
+      }
+    } else if (!isSelf && isAdmin && req.body.email) {
+      // Admin changing another user's email.
+      const targetUser = await prisma.user.findUnique({
+        where: { id: req.params.id },
+        select: { email: true, firstName: true },
+      });
+      if (!targetUser) {
+        return res.status(404).json({ error: { message: 'User not found' } });
+      }
+
+      // If the email is actually changing, require the ADMIN's currentPassword.
+      if (req.body.email !== targetUser.email) {
+        const currentPassword = req.body.currentPassword;
+        if (!currentPassword) {
+          return res.status(400).json({
+            error: {
+              message: 'Your current password is required to change another user\'s email address.',
+              code: 'CURRENT_PASSWORD_REQUIRED',
+            },
+          });
+        }
+
+        const adminUser = await prisma.user.findUnique({
+          where: { id: req.user!.userId },
+          select: { password: true },
+        });
+        if (!adminUser) {
+          return res.status(404).json({ error: { message: 'User not found' } });
+        }
+
+        const valid = await verifyPassword(currentPassword, adminUser.password);
+        if (!valid) {
+          return res.status(401).json({
+            error: {
+              message: 'Current password is incorrect.',
+              code: 'INVALID_PASSWORD',
+            },
+          });
+        }
+
+        oldEmail = targetUser.email;
+        oldFirstName = targetUser.firstName;
       }
     }
 
