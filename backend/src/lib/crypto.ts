@@ -1,9 +1,19 @@
-﻿import crypto from 'crypto';
-import { config } from '../config';
+import crypto from 'crypto';
 
 // ============================================================
-// QR Token Generation & Verification
-// Uses QR_SECRET -- completely separate from JWT_SECRET
+// QR Token Generation & Payload Parsing
+//
+// History: earlier versions of this file also HMAC-signed the token
+// with QR_SECRET and embedded the signature in the QR URL. That check
+// was removed in PR 6 — the signature was stored next to the token in
+// the same DB row and offered no real defense: a UUID v4 token already
+// has 122 bits of entropy, and DB lookup against qr_codes is the real
+// authorization check. The HMAC only mattered if an attacker had read
+// access to the DB, in which case they had the signature too.
+//
+// The parseQRPayload() function still tolerates old-format payloads
+// that include a `signature` field, so printed QRs from before PR 6
+// keep working. The signature value is discarded.
 // ============================================================
 
 // Generate a random token for QR code
@@ -11,41 +21,21 @@ export function generateQRToken(): string {
   return crypto.randomUUID();
 }
 
-// Sign the token with HMAC-SHA256 using QR_SECRET
-export function signQRToken(token: string): string {
-  return crypto
-    .createHmac('sha256', config.QR_SECRET)
-    .update(token)
-    .digest('hex');
-}
-
-// Verify the signature (timing-safe comparison)
-export function verifyQRSignature(token: string, signature: string): boolean {
-  const expectedSignature = signQRToken(token);
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
-  } catch {
-    // Buffers of different lengths will throw -- means signature is invalid
-    return false;
-  }
-}
-
 // Create QR payload (what gets encoded in the QR code)
-export function createQRPayload(token: string, signature: string): string {
-  return JSON.stringify({ token, signature });
+export function createQRPayload(token: string): string {
+  return JSON.stringify({ token });
 }
 
-// Parse QR payload
+// Parse QR payload. Accepts:
+//   - New format:  {"token":"<uuid>"}
+//   - Old format:  {"token":"<uuid>","signature":"<hex>"}  (signature ignored)
 export function parseQRPayload(
   payload: string
-): { token: string; signature: string } | null {
+): { token: string } | null {
   try {
     const parsed = JSON.parse(payload);
-    if (typeof parsed.token === 'string' && typeof parsed.signature === 'string') {
-      return parsed;
+    if (typeof parsed.token === 'string') {
+      return { token: parsed.token };
     }
     return null;
   } catch {

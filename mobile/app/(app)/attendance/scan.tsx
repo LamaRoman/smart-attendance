@@ -63,14 +63,17 @@ export default function QRScannerScreen() {
     Vibration.vibrate(100);
 
     try {
-      // Parse URL format QR code — extract token and signature
+      // Parse URL format QR code — extract token (signature is legacy and
+      // not required since PR 6; kept for backward compat with old prints).
       let qrPayload = data;
       try {
         const url = new URL(data);
         const token = url.searchParams.get('token');
         const signature = url.searchParams.get('signature');
-        if (token && signature) {
-          qrPayload = JSON.stringify({ token, signature });
+        if (token) {
+          qrPayload = signature
+            ? JSON.stringify({ token, signature })
+            : JSON.stringify({ token });
         }
       } catch {
         // Not a URL — use raw data as-is

@@ -1,5 +1,5 @@
 ﻿import prisma from '../lib/prisma';
-import { parseQRPayload, verifyQRSignature } from '../lib/crypto';
+import { parseQRPayload } from '../lib/crypto';
 import { verifyPassword } from '../lib/password';
 import { adToBS } from '../lib/nepali-date';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
@@ -1091,9 +1091,9 @@ export class AttendanceService {
     if (!parsed)
       throw new ValidationError('Invalid QR code format', 'INVALID_QR_FORMAT');
 
-    const { token, signature } = parsed;
-    if (!verifyQRSignature(token, signature))
-      throw new ValidationError('Invalid QR code signature', 'INVALID_QR_SIGNATURE');
+    // Signature check removed in PR 6 — see lib/crypto.ts comment.
+    // Any tampering with the token just produces a DB miss below.
+    const { token } = parsed;
 
     const qrCode = await prisma.qRCode.findUnique({ where: { token } });
     if (!qrCode) throw new ValidationError('QR code not found', 'QR_NOT_FOUND');
@@ -1119,9 +1119,8 @@ export class AttendanceService {
     if (!parsed)
       throw new ValidationError('Invalid QR code format', 'INVALID_QR_FORMAT');
 
-    const { token, signature } = parsed;
-    if (!verifyQRSignature(token, signature))
-      throw new ValidationError('Invalid QR code signature', 'INVALID_QR_SIGNATURE');
+    // Signature check removed in PR 6 — see lib/crypto.ts comment.
+    const { token } = parsed;
 
     const qrCode = await prisma.qRCode.findUnique({ where: { token } });
     if (!qrCode) throw new ValidationError('QR code not found', 'QR_NOT_FOUND');
