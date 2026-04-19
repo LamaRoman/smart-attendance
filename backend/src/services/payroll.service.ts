@@ -1,4 +1,5 @@
 import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
 import {
   getBSMonthADRange,
@@ -7,7 +8,7 @@ import {
   BS_MONTHS_EN,
   BS_MONTHS_NP,
 } from '../lib/nepali-date';
-import { NotFoundError, ValidationError } from '../lib/errors';
+import { NotFoundError, ValidationError, ConflictError } from '../lib/errors';
 import { createLogger } from '../logger';
 import { emailService } from './email.service';
 import { JWTPayload } from '../lib/jwt';
@@ -15,6 +16,46 @@ import { PaySettingsInput, GeneratePayrollInput } from '../schemas/payroll.schem
 import { holidayService } from './holiday.service';
 
 const log = createLogger('payroll-service');
+
+/**
+ * Run a Serializable transaction, retrying on serialization failures
+ * (Prisma P2034, PostgreSQL SQLSTATE 40001). Up to 2 retries with small
+ * randomized backoff so simultaneous admin clicks heal transparently.
+ *
+ * Any other error propagates without retry. If all retries are exhausted,
+ * throws ConflictError so the client sees a 409 and can surface a
+ * "please retry" toast rather than a 500.
+ */
+async function runSerializable<T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ctx: { op: string }
+): Promise<T> {
+  const MAX_ATTEMPTS = 3; // 1 initial + 2 retries
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await prisma.$transaction(fn, { isolationLevel: 'Serializable' });
+    } catch (err: any) {
+      // Prisma signals serialization failures with code P2034.
+      // See https://www.prisma.io/docs/orm/reference/error-reference#p2034
+      const isSerializationFailure = err?.code === 'P2034';
+      if (!isSerializationFailure) throw err;
+
+      if (attempt === MAX_ATTEMPTS) {
+        log.warn({ op: ctx.op, attempts: attempt }, 'Serialization failure after retries');
+        throw new ConflictError(
+          'This record is being updated by another user. Please refresh and try again.',
+          'CONCURRENT_UPDATE'
+        );
+      }
+      // Jitter: 30–80ms. Tiny sleeps so concurrent clicks don't collide again.
+      const jitterMs = 30 + Math.floor(Math.random() * 50);
+      log.info({ op: ctx.op, attempt, jitterMs }, 'Serialization failure — retrying');
+      await new Promise((r) => setTimeout(r, jitterMs));
+    }
+  }
+  // Unreachable — the loop either returns or throws.
+  throw new Error('runSerializable: unreachable');
+}
 
 function toNum(val: Decimal | number | null | undefined): number {
   if (val === null || val === undefined) return 0;
@@ -767,69 +808,91 @@ export class PayrollService {
       where.organizationId = currentUser.organizationId;
     }
 
-    const record = await prisma.payrollRecord.findFirst({
-      where,
-      include: { membership: { select: { userId: true } } },
-    });
-    if (!record) throw new NotFoundError('Payroll record not found');
+    // Read → validate → write happen in a single Serializable transaction
+    // so concurrent clicks can't both pass the same validation and both
+    // write (race would otherwise allow two admins to each flip
+    // PROCESSED→APPROVED, producing stale audit entries and, worse,
+    // interleaved transitions like APPROVED→PROCESSED racing with
+    // APPROVED→PAID leaving a PAID record with no approval chain).
+    const { updated, fromStatus, fromOrganizationId, membershipUserId } =
+      await runSerializable(async (tx) => {
+        const record = await tx.payrollRecord.findFirst({
+          where,
+          include: { membership: { select: { userId: true } } },
+        });
+        if (!record) throw new NotFoundError('Payroll record not found');
 
-    if (record.status === 'NEEDS_RECALCULATION' && status !== 'NEEDS_RECALCULATION') {
-      throw new ValidationError(
-        'This payslip has attendance corrections and must be regenerated before changing status.',
-        'NEEDS_RECALCULATION'
-      );
-    }
+        if (record.status === 'NEEDS_RECALCULATION' && status !== 'NEEDS_RECALCULATION') {
+          throw new ValidationError(
+            'This payslip has attendance corrections and must be regenerated before changing status.',
+            'NEEDS_RECALCULATION'
+          );
+        }
 
-    if (record.status === 'PAID') {
-      throw new ValidationError(
-        'Paid payroll records cannot be modified. Corrections must be applied in the next payroll period.'
-      );
-    }
+        if (record.status === 'PAID') {
+          throw new ValidationError(
+            'Paid payroll records cannot be modified. Corrections must be applied in the next payroll period.'
+          );
+        }
 
-    const ROLE_TRANSITIONS: Record<string, Record<string, string[]>> = {
-      ORG_ACCOUNTANT: {
-        DRAFT: ['PROCESSED'],
-        APPROVED: ['PAID'],
-      },
-      ORG_ADMIN: {
-        DRAFT: ['PROCESSED'],
-        PROCESSED: ['APPROVED'],
-        APPROVED: ['PROCESSED', 'PAID'],
-      },
-      SUPER_ADMIN: {
-        DRAFT: ['PROCESSED'],
-        PROCESSED: ['APPROVED'],
-        APPROVED: ['PROCESSED', 'PAID'],
-      },
-    };
+        const ROLE_TRANSITIONS: Record<string, Record<string, string[]>> = {
+          ORG_ACCOUNTANT: {
+            DRAFT: ['PROCESSED'],
+            APPROVED: ['PAID'],
+          },
+          ORG_ADMIN: {
+            DRAFT: ['PROCESSED'],
+            PROCESSED: ['APPROVED'],
+            APPROVED: ['PROCESSED', 'PAID'],
+          },
+          SUPER_ADMIN: {
+            DRAFT: ['PROCESSED'],
+            PROCESSED: ['APPROVED'],
+            APPROVED: ['PROCESSED', 'PAID'],
+          },
+        };
 
-    const transitions = ROLE_TRANSITIONS[currentUser.role];
-    if (!transitions) {
-      throw new ValidationError('Your role does not have permission to change payroll status.');
-    }
-    const allowed = transitions[record.status] || [];
-    if (!allowed.includes(status)) {
-      throw new ValidationError(
-        `${currentUser.role} cannot change status from ${record.status} to ${status}.`
-      );
-    }
+        const transitions = ROLE_TRANSITIONS[currentUser.role];
+        if (!transitions) {
+          throw new ValidationError('Your role does not have permission to change payroll status.');
+        }
+        const allowed = transitions[record.status] || [];
+        if (!allowed.includes(status)) {
+          throw new ValidationError(
+            `${currentUser.role} cannot change status from ${record.status} to ${status}.`
+          );
+        }
 
-    const updated = await prisma.payrollRecord.update({
-      where: { id: recordId },
-      data: updateData,
-      include: PAYROLL_RECORD_INCLUDE,
-    });
+        // Defense-in-depth: condition the update on the status we just
+        // read. Even under Serializable, this makes the write's intent
+        // explicit and guards against any non-transactional helpers.
+        const updatedRec = await tx.payrollRecord.update({
+          where: { id: recordId },
+          data: updateData,
+          include: PAYROLL_RECORD_INCLUDE,
+        });
 
+        return {
+          updated: updatedRec,
+          fromStatus: record.status,
+          fromOrganizationId: record.organizationId,
+          membershipUserId: (record as any).membership?.userId,
+        };
+      }, { op: 'updateStatus' });
+
+    // Audit log outside the transaction — matches clockAction's pattern
+    // of keeping the audit path tolerant of its own failures. If audit
+    // write fails we still want the status change to have committed.
     await this.logPayrollAudit({
-      organizationId: record.organizationId,
+      organizationId: fromOrganizationId,
       payrollRecordId: recordId,
-      employeeUserId: (record as any).membership?.userId,
+      employeeUserId: membershipUserId,
       action: 'STATUS_CHANGED',
-      fromStatus: record.status,
+      fromStatus,
       toStatus: status,
       triggeredBy: currentUser.userId,
-      bsYear: record.bsYear,
-      bsMonth: record.bsMonth,
+      bsYear: updated.bsYear,
+      bsMonth: updated.bsMonth,
     });
 
     return flattenRecordUser(updated);
@@ -841,18 +904,8 @@ export class PayrollService {
       where.organizationId = currentUser.organizationId;
     }
 
-    if (status === 'APPROVED' || status === 'PAID') {
-      const blockedCount = await prisma.payrollRecord.count({
-        where: { ...where, status: 'NEEDS_RECALCULATION' },
-      });
-      if (blockedCount > 0) {
-        throw new ValidationError(
-          `${blockedCount} employee(s) have attendance corrections and must be regenerated before bulk ${status.toLowerCase()}.`,
-          'NEEDS_RECALCULATION'
-        );
-      }
-    }
-
+    // Role permission check: pure JWT logic, no DB access needed — keep
+    // outside the transaction so we fail fast on unauthorized callers.
     const BULK_ROLE_TRANSITIONS: Record<string, string[]> = {
       ORG_ACCOUNTANT: ['PROCESSED', 'PAID'],
       ORG_ADMIN: ['PROCESSED', 'APPROVED', 'PAID'],
@@ -865,53 +918,100 @@ export class PayrollService {
       );
     }
 
-    const records = await prisma.payrollRecord.findMany({
-      where,
-      select: {
-        id: true,
-        status: true,
-        membershipId: true,
-        organizationId: true,
-        membership: { select: { userId: true } },
-      },
-    });
-
-    // Transition validation — same rules as individual updateStatus
     const BULK_FROM_STATES: Record<string, string[]> = {
       PROCESSED: ['DRAFT', 'NEEDS_RECALCULATION'],
       APPROVED: ['PROCESSED'],
       PAID: ['APPROVED'],
     };
     const validFromStates = BULK_FROM_STATES[status];
-    if (validFromStates) {
-      const invalidRecords = records.filter((r) => !validFromStates.includes(r.status));
-      if (invalidRecords.length > 0) {
-        const invalidStatuses = [...new Set(invalidRecords.map((r) => r.status))].join(', ');
-        throw new ValidationError(
-          `Cannot bulk update to ${status}: ${invalidRecords.length} record(s) are in invalid states (${invalidStatuses}). All records must be ${validFromStates.join(' or ')} before moving to ${status}.`,
-          'INVALID_TRANSITION'
-        );
-      }
-    }
 
-    const updateData: Record<string, unknown> = { status };
-    if (status === 'PROCESSED') updateData.processedAt = new Date();
-    if (status === 'APPROVED') updateData.approvedAt = new Date();
-    if (status === 'PAID') updateData.paidAt = new Date();
-    await prisma.payrollRecord.updateMany({ where, data: updateData });
-    Promise.all(records.map(r =>
-      this.logPayrollAudit({
-        organizationId: r.organizationId,
-        payrollRecordId: r.id,
-        employeeUserId: r.membership?.userId,
-        action: 'STATUS_CHANGED',
-        fromStatus: r.status,
-        toStatus: status,
-        triggeredBy: currentUser.userId,
-        bsYear,
-        bsMonth,
-      })
-    )).catch(err => log.error({ err }, 'Failed to write bulk payroll audit logs'));
+    // All the DB work happens in one Serializable transaction:
+    //   1. NEEDS_RECALCULATION precheck (for APPROVED/PAID transitions)
+    //   2. Load records to audit
+    //   3. Validate transitions against current status
+    //   4. Conditional updateMany — only rows whose status is still
+    //      in validFromStates actually flip, so a race that changed
+    //      a record's status between step 2 and step 4 is safely
+    //      excluded instead of silently overwritten.
+    const { records } = await runSerializable(async (tx) => {
+      if (status === 'APPROVED' || status === 'PAID') {
+        const blockedCount = await tx.payrollRecord.count({
+          where: { ...where, status: 'NEEDS_RECALCULATION' },
+        });
+        if (blockedCount > 0) {
+          throw new ValidationError(
+            `${blockedCount} employee(s) have attendance corrections and must be regenerated before bulk ${status.toLowerCase()}.`,
+            'NEEDS_RECALCULATION'
+          );
+        }
+      }
+
+      const records = await tx.payrollRecord.findMany({
+        where,
+        select: {
+          id: true,
+          status: true,
+          membershipId: true,
+          organizationId: true,
+          membership: { select: { userId: true } },
+        },
+      });
+
+      if (validFromStates) {
+        const invalidRecords = records.filter((r) => !validFromStates.includes(r.status));
+        if (invalidRecords.length > 0) {
+          const invalidStatuses = [...new Set(invalidRecords.map((r) => r.status))].join(', ');
+          throw new ValidationError(
+            `Cannot bulk update to ${status}: ${invalidRecords.length} record(s) are in invalid states (${invalidStatuses}). All records must be ${validFromStates.join(' or ')} before moving to ${status}.`,
+            'INVALID_TRANSITION'
+          );
+        }
+      }
+
+      const updateData: Record<string, unknown> = { status };
+      if (status === 'PROCESSED') updateData.processedAt = new Date();
+      if (status === 'APPROVED') updateData.approvedAt = new Date();
+      if (status === 'PAID') updateData.paidAt = new Date();
+
+      // Conditional updateMany — limits the write to records still in
+      // a valid source state. Under Serializable this is belt-and-braces
+      // (the findMany above already saw each record), but the filter
+      // makes the intent explicit and survives any future refactor that
+      // might weaken the isolation.
+      const writeWhere = validFromStates
+        ? { ...where, status: { in: validFromStates } }
+        : where;
+      await tx.payrollRecord.updateMany({ where: writeWhere, data: updateData });
+
+      return { records };
+    }, { op: 'bulkUpdateStatus' });
+
+    // Audit writes and emails run outside the transaction. They can
+    // fail independently without rolling back the status change, which
+    // matches the single-record updateStatus path.
+    //
+    // Fix: previous impl missed `await` on Promise.all, so audit writes
+    // were fire-and-forget. Now we await so failures are logged before
+    // the request returns.
+    try {
+      await Promise.all(
+        records.map((r) =>
+          this.logPayrollAudit({
+            organizationId: r.organizationId,
+            payrollRecordId: r.id,
+            employeeUserId: r.membership?.userId,
+            action: 'STATUS_CHANGED',
+            fromStatus: r.status,
+            toStatus: status,
+            triggeredBy: currentUser.userId,
+            bsYear,
+            bsMonth,
+          })
+        )
+      );
+    } catch (err) {
+      log.error({ err }, 'Failed to write bulk payroll audit logs');
+    }
 
     if (status === 'APPROVED') {
       try {
