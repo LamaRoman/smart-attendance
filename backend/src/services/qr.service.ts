@@ -1,12 +1,34 @@
 import QRCode from 'qrcode';
 import prisma from '../lib/prisma';
-import { generateQRToken, signQRToken } from '../lib/crypto';
+import { generateQRToken } from '../lib/crypto';
 import { config } from '../config';
 import { NotFoundError } from '../lib/errors';
 import { createLogger } from '../logger';
 import { JWTPayload } from '../lib/jwt';
 
 const log = createLogger('qr-service');
+
+// Rotating QR: expires 24h after creation. Not configurable for now.
+const ROTATING_QR_EXPIRY_MS = 24 * 60 * 60 * 1000;
+
+// Fallback default if Organization.staticQRExpiryDays is somehow null
+// on an otherwise-valid row. Should match the schema default.
+const DEFAULT_STATIC_EXPIRY_DAYS = 90;
+
+/**
+ * Compute expiresAt for a newly-created static QR based on the org's
+ * configured staticQRExpiryDays. Returns null (no expiry) if the org
+ * explicitly opted out by setting staticQRExpiryDays to 0 or a negative.
+ */
+async function resolveStaticExpiry(organizationId: string): Promise<Date | null> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { staticQRExpiryDays: true },
+  });
+  const days = org?.staticQRExpiryDays ?? DEFAULT_STATIC_EXPIRY_DAYS;
+  if (days <= 0) return null; // org opted out of static-QR expiry
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
 
 export class QRService {
   /**
@@ -26,31 +48,31 @@ export class QRService {
       });
 
       const token = generateQRToken();
-      const signature = signQRToken(token);
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + ROTATING_QR_EXPIRY_MS);
 
       return tx.qRCode.create({
         data: {
           token,
-          signature,
           status: 'ACTIVE',
           expiresAt,
+          lastRotatedAt: now,
           createdByMembershipId: currentUser.membershipId!,
           organizationId,
         },
         select: {
           id: true,
           token: true,
-          signature: true,
           status: true,
           scanCount: true,
           expiresAt: true,
+          lastRotatedAt: true,
           createdAt: true,
         },
       });
     });
 
-    const scanUrl = `${config.FRONTEND_URL}/scan?token=${qrCode.token}&signature=${qrCode.signature}`;
+    const scanUrl = buildScanUrl(qrCode.token);
     const qrImage = await this.generateQRImage(scanUrl);
 
     log.info({ orgId: organizationId, qrId: qrCode.id }, 'QR code generated (rotating)');
@@ -59,57 +81,76 @@ export class QRService {
   }
 
   /**
-   * Generate a static QR code (no expiry) — for printing and sticking on the wall.
-   * Only one static QR per org. If one exists, return it.
+   * Generate a static QR code for the org. If an active static QR exists,
+   * returns it unchanged (idempotent "show me" path). Admins who want a
+   * fresh token must call regenerateStatic.
+   *
+   * A QR is considered "static" if either:
+   *   - Legacy: expiresAt IS NULL (created before PR 6, grandfathered)
+   *   - New:    lastRotatedAt IS NOT NULL AND expiresAt is further out than
+   *             the rotating window (so we can't confuse it with a rotating)
    */
   async generateStatic(currentUser: JWTPayload) {
     const organizationId = currentUser.organizationId!;
 
-    // Check if a static QR already exists
     const existing = await prisma.qRCode.findFirst({
-      where: { organizationId, status: 'ACTIVE', expiresAt: null },
+      where: {
+        organizationId,
+        status: 'ACTIVE',
+        OR: [
+          { expiresAt: null },
+          {
+            AND: [
+              { expiresAt: { gt: new Date(Date.now() + ROTATING_QR_EXPIRY_MS) } },
+              { lastRotatedAt: { not: null } },
+            ],
+          },
+        ],
+      },
       select: {
         id: true,
         token: true,
-        signature: true,
         status: true,
         scanCount: true,
         expiresAt: true,
+        lastRotatedAt: true,
         createdAt: true,
       },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (existing) {
-      const scanUrl = `${config.FRONTEND_URL}/scan?token=${existing.token}&signature=${existing.signature}`;
+      const scanUrl = buildScanUrl(existing.token);
       const qrImage = await this.generateQRImage(scanUrl);
       const qrImageLarge = await this.generateQRImageLarge(scanUrl);
       return { qrCode: existing, scanUrl, qrImage, qrImageLarge, isExisting: true };
     }
 
     const token = generateQRToken();
-    const signature = signQRToken(token);
+    const now = new Date();
+    const expiresAt = await resolveStaticExpiry(organizationId);
 
     const qrCode = await prisma.qRCode.create({
       data: {
         token,
-        signature,
         status: 'ACTIVE',
-        expiresAt: null, // No expiry — permanent
+        expiresAt, // null = org opted out, else now + staticQRExpiryDays
+        lastRotatedAt: now,
         createdByMembershipId: currentUser.membershipId!,
         organizationId,
       },
       select: {
         id: true,
         token: true,
-        signature: true,
         status: true,
         scanCount: true,
         expiresAt: true,
+        lastRotatedAt: true,
         createdAt: true,
       },
     });
 
-    const scanUrl = `${config.FRONTEND_URL}/scan?token=${token}&signature=${signature}`;
+    const scanUrl = buildScanUrl(token);
     const qrImage = await this.generateQRImage(scanUrl);
     const qrImageLarge = await this.generateQRImageLarge(scanUrl);
 
@@ -124,39 +165,53 @@ export class QRService {
    */
   async regenerateStatic(currentUser: JWTPayload) {
     const organizationId = currentUser.organizationId!;
+    const expiresAt = await resolveStaticExpiry(organizationId);
 
     const qrCode = await prisma.$transaction(async (tx) => {
-      // Revoke existing static QR
+      // Revoke existing static QRs (legacy null-expiry + new-style far-future).
+      // Careful not to revoke rotating QRs here.
       await tx.qRCode.updateMany({
-        where: { organizationId, status: 'ACTIVE', expiresAt: null },
+        where: {
+          organizationId,
+          status: 'ACTIVE',
+          OR: [
+            { expiresAt: null },
+            {
+              AND: [
+                { expiresAt: { gt: new Date(Date.now() + ROTATING_QR_EXPIRY_MS) } },
+                { lastRotatedAt: { not: null } },
+              ],
+            },
+          ],
+        },
         data: { status: 'REVOKED', revokedAt: new Date() },
       });
 
       const token = generateQRToken();
-      const signature = signQRToken(token);
+      const now = new Date();
 
       return tx.qRCode.create({
         data: {
           token,
-          signature,
           status: 'ACTIVE',
-          expiresAt: null,
+          expiresAt,
+          lastRotatedAt: now,
           createdByMembershipId: currentUser.membershipId!,
           organizationId,
         },
         select: {
           id: true,
           token: true,
-          signature: true,
           status: true,
           scanCount: true,
           expiresAt: true,
+          lastRotatedAt: true,
           createdAt: true,
         },
       });
     });
 
-    const scanUrl = `${config.FRONTEND_URL}/scan?token=${qrCode.token}&signature=${qrCode.signature}`;
+    const scanUrl = buildScanUrl(qrCode.token);
     const qrImage = await this.generateQRImage(scanUrl);
     const qrImageLarge = await this.generateQRImageLarge(scanUrl);
 
@@ -167,7 +222,6 @@ export class QRService {
 
   /**
    * Get current active QR code(s) for the org.
-   * Includes creator info via membership → user.
    */
   async getActive(currentUser: JWTPayload) {
     const organizationId = currentUser.organizationId!;
@@ -177,17 +231,17 @@ export class QRService {
         organizationId,
         status: 'ACTIVE',
         OR: [
-          { expiresAt: null }, // Static QR — no expiry
-          { expiresAt: { gt: new Date() } }, // Rotating QR — not expired
+          { expiresAt: null }, // Legacy static QR — no expiry
+          { expiresAt: { gt: new Date() } }, // Any QR that hasn't expired
         ],
       },
       select: {
         id: true,
         token: true,
-        signature: true,
         status: true,
         scanCount: true,
         expiresAt: true,
+        lastRotatedAt: true,
         createdAt: true,
         createdByMembership: {
           select: {
@@ -202,10 +256,16 @@ export class QRService {
       throw new NotFoundError('No active QR code found. Generate one first.');
     }
 
-    const scanUrl = `${config.FRONTEND_URL}/scan?token=${qrCode.token}&signature=${qrCode.signature}`;
+    const scanUrl = buildScanUrl(qrCode.token);
     const qrImage = await this.generateQRImage(scanUrl);
 
-    // Flatten createdByMembership.user → createdBy for frontend compatibility
+    // isStatic: legacy null-expiry OR lastRotatedAt-tagged far-future expiry
+    const isStatic =
+      qrCode.expiresAt === null ||
+      (qrCode.lastRotatedAt !== null &&
+        qrCode.expiresAt !== null &&
+        qrCode.expiresAt.getTime() > Date.now() + ROTATING_QR_EXPIRY_MS);
+
     const { createdByMembership, ...rest } = qrCode;
     return {
       qrCode: {
@@ -214,7 +274,7 @@ export class QRService {
       },
       scanUrl,
       qrImage,
-      isStatic: qrCode.expiresAt === null,
+      isStatic,
     };
   }
 
@@ -234,7 +294,6 @@ export class QRService {
     return { message: `${updated.count} QR code(s) revoked` };
   }
 
-  // Standard size (400px) for display
   private async generateQRImage(url: string): Promise<string> {
     return QRCode.toDataURL(url, {
       width: 400,
@@ -243,7 +302,6 @@ export class QRService {
     });
   }
 
-  // Large size (800px) for printing
   private async generateQRImageLarge(url: string): Promise<string> {
     return QRCode.toDataURL(url, {
       width: 800,
@@ -251,6 +309,16 @@ export class QRService {
       color: { dark: '#000000', light: '#FFFFFF' },
     });
   }
+}
+
+/**
+ * Build the scan URL. Only the token goes in the query string — the
+ * legacy `signature` parameter is no longer generated. Older printed
+ * QRs still work because the scan page tolerates unknown query params
+ * and the backend validator no longer checks signatures.
+ */
+function buildScanUrl(token: string): string {
+  return `${config.FRONTEND_URL}/scan?token=${token}`;
 }
 
 export const qrService = new QRService();

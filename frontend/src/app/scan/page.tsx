@@ -25,6 +25,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 function ScanPageContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  // Signature is legacy — PR 6 made it optional. Read it so we can forward
+  // it on the off-chance a very old backend is somehow in the loop, but
+  // don't require it for the "valid QR" check below.
   const signature = searchParams.get('signature');
 
   const [employeeId, setEmployeeId] = useState('');
@@ -43,7 +46,7 @@ function ScanPageContent() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isNp = lang === 'NEPALI';
-  const isValidQR = token && signature;
+  const isValidQR = !!token;
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -76,7 +79,13 @@ function ScanPageContent() {
       async (position) => {
         setStep('processing');
         try {
-          const qrPayload = JSON.stringify({ token, signature });
+          // Include signature only when present, so old printed QRs that
+          // still carry ?signature= keep working against updated backends,
+          // and new scans without it work too. The backend ignores the
+          // signature value either way (PR 6).
+          const qrPayload = signature
+            ? JSON.stringify({ token, signature })
+            : JSON.stringify({ token });
           const response = await fetch(`${API_URL}/api/v1/attendance/scan-public`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
