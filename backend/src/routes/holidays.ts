@@ -175,7 +175,7 @@ router.post('/', validate(createHolidaySchema), async (req: AuthRequest, res: Re
 // PUT /api/holidays/:id
 router.put('/:id', validate(updateHolidaySchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const holiday = await holidayService.updateHoliday(req.params.id, req.body.isActive);
+    const holiday = await holidayService.updateHoliday(req.params.id, req.body.isActive, req.user!);
     res.json({ data: holiday });
   } catch (error) {
     next(error);
@@ -185,7 +185,7 @@ router.put('/:id', validate(updateHolidaySchema), async (req: AuthRequest, res: 
 // DELETE /api/holidays/:id
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await holidayService.deleteHoliday(req.params.id);
+    const result = await holidayService.deleteHoliday(req.params.id, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);

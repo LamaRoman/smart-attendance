@@ -4,6 +4,7 @@ import { bsToAD, adToBS, BSDate } from '../lib/nepali-date';
 import { config } from '../config';
 import { createLogger } from '../logger';
 import { getBuiltInHolidays, hasBuiltInData } from '../lib/nepal-holidays';
+import { NotFoundError } from '../lib/errors';
 import { JWTPayload } from '../lib/jwt';
 import { CreateHolidayInput } from '../schemas/holiday.schema';
 
@@ -86,9 +87,40 @@ export class HolidayService {
   }
 
   /**
-   * Toggle holiday active status
+   * Toggle holiday active status.
+   *
+   * Cross-org isolation:
+   *   - Org-scoped holidays (organizationId != null) can only be modified by
+   *     a caller in the same org.
+   *   - National holidays (organizationId == null) can only be modified by
+   *     SUPER_ADMIN. Without this gate, any ORG_ADMIN could disable Dashain
+   *     (or any national holiday) platform-wide via GET /holidays/master →
+   *     PUT /holidays/:id, since the master endpoint exposes every national
+   *     UUID to authenticated admins.
+   *
+   * Cross-org misses throw NotFoundError (not Forbidden) to avoid
+   * enumeration, matching the pattern used elsewhere in the service layer.
    */
-  async updateHoliday(holidayId: string, isActive: boolean) {
+  async updateHoliday(holidayId: string, isActive: boolean, currentUser: JWTPayload) {
+    const holiday = await prisma.holiday.findUnique({
+      where: { id: holidayId },
+      select: { organizationId: true },
+    });
+    if (!holiday) throw new NotFoundError('Holiday not found');
+
+    if (holiday.organizationId === null) {
+      // National holiday — SUPER_ADMIN only
+      if (currentUser.role !== 'SUPER_ADMIN') {
+        throw new NotFoundError('Holiday not found');
+      }
+    } else if (
+      currentUser.role !== 'SUPER_ADMIN' &&
+      holiday.organizationId !== currentUser.organizationId
+    ) {
+      // Org-scoped holiday belonging to a different org
+      throw new NotFoundError('Holiday not found');
+    }
+
     return prisma.holiday.update({
       where: { id: holidayId },
       data: { isActive },
@@ -96,9 +128,30 @@ export class HolidayService {
   }
 
   /**
-   * Delete holiday
+   * Delete holiday.
+   *
+   * Same cross-org isolation rules as updateHoliday: org-scoped holidays
+   * require same-org caller, national holidays (organizationId == null)
+   * require SUPER_ADMIN.
    */
-  async deleteHoliday(holidayId: string) {
+  async deleteHoliday(holidayId: string, currentUser: JWTPayload) {
+    const holiday = await prisma.holiday.findUnique({
+      where: { id: holidayId },
+      select: { organizationId: true },
+    });
+    if (!holiday) throw new NotFoundError('Holiday not found');
+
+    if (holiday.organizationId === null) {
+      if (currentUser.role !== 'SUPER_ADMIN') {
+        throw new NotFoundError('Holiday not found');
+      }
+    } else if (
+      currentUser.role !== 'SUPER_ADMIN' &&
+      holiday.organizationId !== currentUser.organizationId
+    ) {
+      throw new NotFoundError('Holiday not found');
+    }
+
     await prisma.holiday.delete({ where: { id: holidayId } });
     return { message: 'Holiday deleted' };
   }
