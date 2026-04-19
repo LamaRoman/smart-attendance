@@ -25,3 +25,4 @@ backend/prisma/seed-*.ts
 backend/prisma/cleanup-*.js
 backend/prisma/cleanup-*.ts
 backend/prisma/fix-*.ts
+frontend/tsconfig.tsbuildinfo
