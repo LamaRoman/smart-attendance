@@ -19,7 +19,7 @@ const AUTH_ROUTES = ['/login'];
 // Public routes (no auth needed)
 const PUBLIC_ROUTES = ['/', '/checkin', '/scan', '/reset-password', '/c'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('token')?.value;
 
@@ -31,7 +31,7 @@ export function middleware(request: NextRequest) {
 
   // If logged in and visiting login page, redirect to appropriate dashboard
   if (token && AUTH_ROUTES.some((route) => pathname.startsWith(route))) {
-    // We can't read the JWT payload in middleware easily, so redirect to a generic route
+    // We can't read the JWT payload in proxy easily, so redirect to a generic route
     // The auth-context will handle role-based routing
     return NextResponse.redirect(new URL('/admin', request.url));
   }
