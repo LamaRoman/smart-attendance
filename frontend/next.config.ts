@@ -35,6 +35,29 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(self), microphone=(), geolocation=(self), browsing-topics=()",
   },
+  // ─────────────────────────────────────────────────────────────────────────
+  // CSP rationale (reviewed 2026-04-19):
+  //
+  // `script-src` and `style-src` both retain `'unsafe-inline'`. This is a
+  // deliberate, documented decision, not an oversight.
+  //
+  // `script-src 'unsafe-inline'`: The app has zero inline <script> tags
+  // (verified). Dropping this would require moving CSP to proxy.ts with a
+  // per-request nonce + 'strict-dynamic'. That forces dynamic rendering on
+  // all 32 currently-static routes (disables ISR, CDN caching, and PPR),
+  // trading meaningful performance and cost for a marginal security gain.
+  //
+  // `style-src 'unsafe-inline'`: The app has ~5 dynamic inline styles for
+  // runtime values (progress bar widths, chart colors) that cannot be
+  // hoisted to stylesheets. Nonces for styles have the same dynamic-render
+  // cost. CSS-injection exploits via `style-src 'unsafe-inline'` require a
+  // pre-existing HTML-injection vuln; if that exists, an attacker already
+  // has XSS and this CSP directive is not the bottleneck.
+  //
+  // Revisit if: (a) an HTML-injection vector is discovered; (b) the app
+  // adopts a component library that requires nonces; or (c) compliance
+  // requires strict CSP. See nextjs.org/docs/app/guides/content-security-policy
+  // ─────────────────────────────────────────────────────────────────────────
   {
     key: "Content-Security-Policy",
     value: [
