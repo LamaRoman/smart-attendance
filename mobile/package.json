@@ -14,7 +14,7 @@
     "axios": "^1.14.0",
     "babel-preset-expo": "~54.0.10",
     "expo": "~54.0.33",
-    "expo-camera": "~17.0.10",
+    "expo-camera": "~55.0.15",
     "expo-constants": "~18.0.13",
     "expo-file-system": "~19.0.21",
     "expo-intent-launcher": "~13.0.8",
