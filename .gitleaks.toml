@@ -1,0 +1,50 @@
+# gitleaks configuration for smart-attendance
+# Extends the default ruleset; only add allowlist entries for known-safe
+# patterns in this repo.
+
+[extend]
+useDefault = true
+
+# --- Allowlist: expected-safe paths ---
+# Paths that contain token-shaped strings that aren't real credentials
+# (action SHAs, lockfile integrity hashes, test fixtures, etc.).
+[[allowlists]]
+description = "Safe paths"
+paths = [
+  '''(^|/)\.gitleaks\.toml$''',
+  '''(^|/)\.github/workflows/.*\.ya?ml$''',
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)yarn\.lock$''',
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/).*\.test\.(ts|tsx|js|jsx)$''',
+  '''(^|/).*\.spec\.(ts|tsx|js|jsx)$''',
+  '''(^|/)__fixtures__/''',
+  '''(^|/)__mocks__/''',
+]
+
+# --- Allowlist: dev seed credentials ---
+# Documented in handoff — local-only, never shipped. They exist in seed
+# scripts and docs so devs can log into a fresh local DB. Do NOT work
+# against prod.
+[[allowlists]]
+description = "Dev seed credentials (local-only)"
+regexes = [
+  '''Employee@123''',
+  '''OrgAdmin@123''',
+  '''SuperAdmin@123''',
+  '''sita@democompany\.com''',
+  '''orgadmin@democompany\.com''',
+  '''admin@smartattendance\.com''',
+]
+
+# --- Allowlist: historical leak, already remediated ---
+# All secrets in commit 59df8722278a1217f184c53fd1a63c51c445c0f5 were
+# rotated per the Tier 1 runbook (handoff 2026-04-19). They remain in git
+# history until a filter-repo rewrite is performed. Scoped to backend/.env
+# in that specific commit only.
+[[allowlists]]
+description = "Rotated secrets still present in commit 59df872 (history only)"
+paths = ['''(^|/)backend/\.env$''']
+commits = [
+  "59df8722278a1217f184c53fd1a63c51c445c0f5",
+]
