@@ -1,4 +1,5 @@
 import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
 import {
   getBSMonthADRange,
@@ -26,7 +27,7 @@ const log = createLogger('payroll-service');
  * "please retry" toast rather than a 500.
  */
 async function runSerializable<T>(
-  fn: (tx: any) => Promise<T>,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ctx: { op: string }
 ): Promise<T> {
   const MAX_ATTEMPTS = 3; // 1 initial + 2 retries
