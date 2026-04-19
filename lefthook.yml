@@ -1,0 +1,15 @@
+# Lefthook — fast, language-agnostic git hooks.
+# Install once per clone: `npx lefthook install` (or `lefthook install` if
+# installed globally). CI enforces the same scan as a safety net in case a
+# contributor skips the hook or uses --no-verify.
+
+pre-commit:
+  parallel: true
+  commands:
+    gitleaks:
+      # Only scans staged changes — fast enough for every commit.
+      # `--redact` keeps any accidental hit out of the terminal output.
+      run: gitleaks protect --staged --redact --config .gitleaks.toml
+      # Fail the commit on any finding. Override with `git commit --no-verify`
+      # if you genuinely need to bypass (CI will still catch it).
+      fail_text: "gitleaks found a secret in staged changes. Remove it or update .gitleaks.toml if it's a false positive."

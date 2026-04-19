@@ -1,0 +1,7 @@
+{
+  "name": "smart-attendance",
+  "private": true,
+  "devDependencies": {
+    "lefthook": "^2.1.6"
+  }
+}
