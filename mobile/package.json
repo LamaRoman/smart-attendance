@@ -16,7 +16,7 @@
     "expo": "~54.0.33",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
-    "expo-file-system": "~19.0.21",
+    "expo-file-system": "~55.0.16",
     "expo-intent-launcher": "~13.0.8",
     "expo-linking": "~8.0.11",
     "expo-local-authentication": "~17.0.8",
