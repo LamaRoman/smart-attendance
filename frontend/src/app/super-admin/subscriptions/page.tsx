@@ -45,7 +45,6 @@ const FEATURE_KEYS = [
   { key: 'featureReports', label: 'Basic Reports' },
   { key: 'featurePayrollWorkflow', label: 'Payroll Workflow' },
   { key: 'featureFileDownload', label: 'File Downloads' },
-  { key: 'featureTotp', label: 'TOTP Auth' },
   { key: 'featureNotifications', label: 'Notifications' },
   { key: 'featureOnboarding', label: 'Onboarding' },
   { key: 'featureManualCorrection', label: 'Manual Correction' },

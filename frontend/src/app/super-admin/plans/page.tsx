@@ -34,7 +34,6 @@ const FEATURE_GROUPS = [
   {
     label: 'Security & Tools',
     features: [
-      { key: 'featureTotp', label: 'TOTP Two-Factor Authentication' },
       { key: 'featureManualCorrection', label: 'Manual Attendance Correction' },
       { key: 'featureNotifications', label: 'Email Notifications' },
       { key: 'featureOnboarding', label: 'Employee Onboarding' },

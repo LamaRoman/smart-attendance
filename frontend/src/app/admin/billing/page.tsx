@@ -19,7 +19,6 @@ const FEATURES = [
   { label: 'Payroll Workflow', starter: false, ops: true },
   { label: 'Multi-Month and Annual Reports', starter: false, ops: true },
   { label: 'CSV and PDF Downloads', starter: false, ops: true },
-  { label: 'TOTP Auth', starter: false, ops: true },
   { label: 'Notifications', starter: false, ops: true },
   { label: 'Onboarding', starter: false, ops: true },
   { label: 'Manual Correction', starter: false, ops: true },

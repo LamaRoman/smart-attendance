@@ -21,7 +21,6 @@ interface PlanFeatures {
   featureFullPayroll: boolean;
   featurePayrollWorkflow: boolean;
   featureReports: boolean;
-  featureTotp: boolean;
   featureManualCorrection: boolean;
   featureNotifications: boolean;
   featureOnboarding: boolean;
@@ -55,7 +54,6 @@ interface Features {
   reports: boolean;
   staticQR: boolean;
   rotatingQR: boolean;
-  totp: boolean;
   manualCorrection: boolean;
   notifications: boolean;
   payrollWorkflow: boolean;
@@ -167,7 +165,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     reports: user?.planFeatures?.featureReports ?? false,
     staticQR: user?.organization?.staticQREnabled ?? false,
     rotatingQR: user?.organization?.rotatingQREnabled ?? false,
-    totp: user?.planFeatures?.featureTotp ?? false,
     manualCorrection: user?.planFeatures?.featureManualCorrection ?? false,
     notifications: user?.planFeatures?.featureNotifications ?? false,
     payrollWorkflow: user?.planFeatures?.featurePayrollWorkflow ?? false,

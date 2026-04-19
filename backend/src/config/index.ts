@@ -9,7 +9,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().default('24h'),
 
-  // QR / TOTP -- separate from JWT
+  // QR signing secret -- used for static/rotating QR codes, separate from JWT
   QR_SECRET: z.string().min(32, 'QR_SECRET must be at least 32 characters'),
 
   // App

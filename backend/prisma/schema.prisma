@@ -908,7 +908,6 @@ model PricingPlan {
   updatedAt DateTime @updatedAt
 
   subscriptions OrgSubscription[]
-  featureTotp   Boolean @default(false)
 
   @@map("pricing_plans")
 }
