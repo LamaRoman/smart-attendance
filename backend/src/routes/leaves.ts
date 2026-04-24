@@ -85,7 +85,7 @@ router.get('/my', validate(leaveListQuerySchema, 'query'), async (req: AuthReque
 // DELETE /api/leaves/:id — Cancel my pending leave
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await leaveService.cancelLeave(req.params.id, req.user!);
+    const result = await leaveService.cancelLeave(String(req.params.id), req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -128,7 +128,7 @@ router.put(
   validate(approveRejectLeaveSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const result = await leaveService.updateLeaveStatus(req.params.id, req.body.status, req.user!, req.body.rejectionMessage);
+      const result = await leaveService.updateLeaveStatus(String(req.params.id), req.body.status, req.user!, req.body.rejectionMessage);
       res.json({ data: result });
     } catch (error) {
       next(error);

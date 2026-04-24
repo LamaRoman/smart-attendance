@@ -42,7 +42,7 @@ router.post(
       }
 
       const document = await uploadDocument({
-        userId: req.params.id,
+        userId: String(req.params.id),
         uploaderId: req.user!.userId,
         uploaderRole: req.user!.role as Role,
         uploaderOrgId: req.user!.organizationId!,
@@ -63,7 +63,7 @@ router.post(
 router.get('/documents/user/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const documents = await listDocuments({
-      userId: req.params.id,
+      userId: String(req.params.id),
       requesterMembershipId: req.user!.membershipId || undefined,
       requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
@@ -78,7 +78,7 @@ router.get('/documents/user/:id', authenticate, async (req: AuthRequest, res: Re
 router.get('/documents/:id/download', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { url, originalName, mimeType } = await getDocumentForDownload({
-      documentId: req.params.id,
+      documentId: String(req.params.id),
       requesterMembershipId: req.user!.membershipId || undefined,
       requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,
@@ -95,7 +95,7 @@ router.get('/documents/:id/download', authenticate, async (req: AuthRequest, res
 router.delete('/documents/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const result = await deleteDocument({
-      documentId: req.params.id,
+      documentId: String(req.params.id),
       requesterMembershipId: req.user!.membershipId || undefined,
       requesterRole: req.user!.role as Role,
       requesterOrgId: req.user!.organizationId!,

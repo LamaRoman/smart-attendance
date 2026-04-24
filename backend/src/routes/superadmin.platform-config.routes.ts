@@ -32,7 +32,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 router.get('/:key', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const config = await prisma.platformConfig.findUnique({
-      where: { key: req.params.key },
+      where: { key: String(req.params.key) },
     });
     if (!config) {
       return res.status(404).json({ error: { message: 'Config key not found', code: 'NOT_FOUND' } });
@@ -54,7 +54,7 @@ router.patch('/:key', async (req: AuthRequest, res: Response, next: NextFunction
     }
 
     const existing = await prisma.platformConfig.findUnique({
-      where: { key: req.params.key },
+      where: { key: String(req.params.key) },
     });
 
     if (!existing) {
@@ -71,7 +71,7 @@ router.patch('/:key', async (req: AuthRequest, res: Response, next: NextFunction
     }
 
     const updated = await prisma.platformConfig.update({
-      where: { key: req.params.key },
+      where: { key: String(req.params.key) },
       data: {
         value: String(value),
         updatedBy: req.user!.userId,

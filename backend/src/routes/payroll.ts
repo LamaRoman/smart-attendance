@@ -56,7 +56,7 @@ empRouter.get('/my-payslip/:recordId/pdf', async (req: AuthRequest, res: Respons
       return res.status(400).json({ error: { message: 'No active membership' } });
     }
     const record = await pdfPrisma.payrollRecord.findUnique({
-      where: { id: req.params.recordId },
+      where: { id: String(req.params.recordId) },
       include: {
         membership: {
           select: {
@@ -149,7 +149,7 @@ router.put(
   validate(paySettingsSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const data = await payrollService.upsertPaySettings(req.params.userId, req.body, req.user!);
+      const data = await payrollService.upsertPaySettings(String(req.params.userId), req.body, req.user!);
       res.json({ data });
     } catch (error) {
       next(error);
@@ -174,7 +174,7 @@ router.post('/regenerate/:userId', requireOrgAdmin, async (req: AuthRequest, res
     const { bsYear, bsMonth, reason } = req.body;
     if (!bsYear || !bsMonth) throw new Error('bsYear and bsMonth are required');
     if (!reason) throw new Error('reason is required for audit trail');
-    const data = await payrollService.regenerateForEmployee(req.params.userId, Number(bsYear), Number(bsMonth), reason, req.user!);
+    const data = await payrollService.regenerateForEmployee(String(req.params.userId), Number(bsYear), Number(bsMonth), reason, req.user!);
     res.json({ data });
   } catch (error) {
     next(error);
@@ -198,7 +198,7 @@ router.put('/records/:id/status', requireFeature('featurePayrollWorkflow'), vali
     if (req.user!.role === 'ORG_ACCOUNTANT' && req.body.status === 'APPROVED') {
       return res.status(403).json({ error: { message: 'Accountants cannot approve payroll' } });
     }
-    const data = await payrollService.updateStatus(req.params.id, req.body.status, req.user!);
+    const data = await payrollService.updateStatus(String(req.params.id), req.body.status, req.user!);
     res.json({ data });
   } catch (error) {
     next(error);
@@ -207,7 +207,7 @@ router.put('/records/:id/status', requireFeature('featurePayrollWorkflow'), vali
 
 // GET /api/payroll/records/:id/audit
 router.get('/records/:id/audit', requireOrgAdminOrAccountant, async (req: AuthRequest, res: Response, next: NextFunction) => {  try {
-    const data = await payrollService.getAuditLog(req.params.id, req.user!);
+    const data = await payrollService.getAuditLog(String(req.params.id), req.user!);
     res.json({ data });
   } catch (error) {
     next(error);
@@ -283,7 +283,7 @@ router.get('/multi-month/export', requireFeature('featurePayrollWorkflow'), asyn
 router.get('/payslip/:recordId/pdf', requireFeature('featureFileDownload'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const record = await pdfPrisma.payrollRecord.findUnique({
-      where: { id: req.params.recordId },
+      where: { id: String(req.params.recordId) },
       include: {
         membership: {
           select: {

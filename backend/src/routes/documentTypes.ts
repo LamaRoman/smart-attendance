@@ -44,7 +44,7 @@ router.patch('/org/document-types/:id', authenticate, requireOrgAdmin, async (re
   try {
     const { name, nameNp, description, isRequired, isActive } = req.body;
     const docType = await updateDocumentType({
-      id: req.params.id,
+      id: String(req.params.id),
       organizationId: req.user!.organizationId!,
       name,
       nameNp,
@@ -61,7 +61,7 @@ router.patch('/org/document-types/:id', authenticate, requireOrgAdmin, async (re
 // ── DELETE /api/org/document-types/:id — Delete (admin only, only if unused) ──
 router.delete('/org/document-types/:id', authenticate, requireOrgAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const result = await deleteDocumentType(req.params.id, req.user!.organizationId!);
+    const result = await deleteDocumentType(String(req.params.id), req.user!.organizationId!);
     return res.json(result);
   } catch (err: any) {
     return res.status(err.status || 500).json({ error: err.message || 'Failed to delete document type' });

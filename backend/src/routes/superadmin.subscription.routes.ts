@@ -53,7 +53,7 @@ router.post('/run-trial-job', async (req: AuthRequest, res: Response, next: Next
 // GET /api/super-admin/subscriptions/:organizationId
 router.get('/:organizationId', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await superAdminSubscriptionService.getSubscription(req.params.organizationId);
+    const result = await superAdminSubscriptionService.getSubscription(String(req.params.organizationId));
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -63,7 +63,7 @@ router.get('/:organizationId', validate(orgIdParamSchema, 'params'), async (req:
 // POST /api/super-admin/subscriptions/:organizationId/assign-tier
 router.post('/:organizationId/assign-tier', validate(orgIdParamSchema, 'params'), validate(assignTierSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await superAdminSubscriptionService.assignTier(req.params.organizationId, req.body, req.user!);
+    const result = await superAdminSubscriptionService.assignTier(String(req.params.organizationId), req.body, req.user!);
     res.status(201).json({ data: result });
   } catch (error) {
     next(error);
@@ -73,7 +73,7 @@ router.post('/:organizationId/assign-tier', validate(orgIdParamSchema, 'params')
 // PATCH /api/super-admin/subscriptions/:organizationId/override-pricing
 router.patch('/:organizationId/override-pricing', validate(orgIdParamSchema, 'params'), validate(overridePricingSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await superAdminSubscriptionService.overridePricing(req.params.organizationId, req.body, req.user!);
+    const result = await superAdminSubscriptionService.overridePricing(String(req.params.organizationId), req.body, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -83,7 +83,7 @@ router.patch('/:organizationId/override-pricing', validate(orgIdParamSchema, 'pa
 // PATCH /api/super-admin/subscriptions/:organizationId/waive-setup-fee
 router.patch('/:organizationId/waive-setup-fee', validate(orgIdParamSchema, 'params'), validate(waiveSetupFeeSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await superAdminSubscriptionService.waiveSetupFee(req.params.organizationId, req.body, req.user!);
+    const result = await superAdminSubscriptionService.waiveSetupFee(String(req.params.organizationId), req.body, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -93,7 +93,7 @@ router.patch('/:organizationId/waive-setup-fee', validate(orgIdParamSchema, 'par
 // PATCH /api/super-admin/subscriptions/:organizationId/suspend
 router.patch('/:organizationId/suspend', validate(orgIdParamSchema, 'params'), validate(suspendSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await superAdminSubscriptionService.suspendSubscription(req.params.organizationId, req.body, req.user!);
+    const result = await superAdminSubscriptionService.suspendSubscription(String(req.params.organizationId), req.body, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -110,7 +110,7 @@ router.patch('/:organizationId/extend-trial', validate(orgIdParamSchema, 'params
       res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'days must be an integer between 1 and 365.' } });
       return;
     }
-    const result = await superAdminSubscriptionService.extendTrial(req.params.organizationId, { days, note }, req.user!);
+    const result = await superAdminSubscriptionService.extendTrial(String(req.params.organizationId), { days, note }, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -127,7 +127,7 @@ router.patch('/:organizationId/mark-expired', validate(orgIdParamSchema, 'params
       res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0].message } });
       return;
     }
-    const result = await superAdminSubscriptionService.markAsExpired(req.params.organizationId, parsed.data, req.user!);
+    const result = await superAdminSubscriptionService.markAsExpired(String(req.params.organizationId), parsed.data, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -137,7 +137,7 @@ router.patch('/:organizationId/mark-expired', validate(orgIdParamSchema, 'params
 // PATCH /api/super-admin/subscriptions/:organizationId/reactivate
 router.patch('/:organizationId/reactivate', validate(orgIdParamSchema, 'params'), validate(reactivateSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await superAdminSubscriptionService.reactivateSubscription(req.params.organizationId, req.body, req.user!);
+    const result = await superAdminSubscriptionService.reactivateSubscription(String(req.params.organizationId), req.body, req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -147,7 +147,7 @@ router.patch('/:organizationId/reactivate', validate(orgIdParamSchema, 'params')
 // POST /api/super-admin/subscriptions/:organizationId/notes
 router.post('/:organizationId/notes', validate(orgIdParamSchema, 'params'), validate(addNoteSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await superAdminSubscriptionService.addNote(req.params.organizationId, req.body, req.user!);
+    const result = await superAdminSubscriptionService.addNote(String(req.params.organizationId), req.body, req.user!);
     res.status(201).json({ data: result });
   } catch (error) {
     next(error);
@@ -157,7 +157,7 @@ router.post('/:organizationId/notes', validate(orgIdParamSchema, 'params'), vali
 // GET /api/super-admin/subscriptions/:organizationId/billing-log
 router.get('/:organizationId/billing-log', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await superAdminSubscriptionService.getBillingLog(req.params.organizationId);
+    const result = await superAdminSubscriptionService.getBillingLog(String(req.params.organizationId));
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -167,7 +167,7 @@ router.get('/:organizationId/billing-log', validate(orgIdParamSchema, 'params'),
 // PATCH /api/super-admin/subscriptions/:organizationId/feature-overrides
 router.patch('/:organizationId/feature-overrides', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { organizationId } = req.params;
+    const organizationId = String(req.params.organizationId);
     const allowedFields = [
       'overrideFeatureLeave', 'overrideFeatureManualCorrection',
       'overrideFeatureFullPayroll', 'overrideFeaturePayrollWorkflow', 'overrideFeatureReports',

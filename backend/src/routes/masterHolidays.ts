@@ -189,7 +189,7 @@ router.post('/', validate(createMasterHolidaySchema), async (req: AuthRequest, r
 // PATCH /api/super-admin/master-holidays/:id - Update master holiday (toggle active status)
 router.patch('/:id', validate(updateMasterHolidaySchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const { isActive } = req.body;
 
     // Verify it's a master holiday
@@ -225,7 +225,7 @@ router.patch('/:id', validate(updateMasterHolidaySchema), async (req: AuthReques
 // DELETE /api/super-admin/master-holidays/:id - Delete master holiday
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
 
     // Verify it's a master holiday
     const holiday = await prisma.holiday.findUnique({
@@ -269,7 +269,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 // GET /api/super-admin/master-holidays/stats/:bsYear - Get import statistics for a year
 router.get('/stats/:bsYear', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const bsYear = parseInt(req.params.bsYear);
+    const bsYear = parseInt(String(req.params.bsYear), 10);
 
     if (isNaN(bsYear) || bsYear < 2070 || bsYear > 2100) {
       return res.status(400).json({ error: { message: 'Invalid BS year' } });
