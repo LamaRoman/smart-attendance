@@ -175,14 +175,63 @@ export default function AdminQRPage() {
     if (!qrData?.qrImage) return;
     const w = window.open('', '_blank');
     if (!w) return;
+
+    // Build the print document safely. Previously this used document.write()
+    // with string concatenation of `user.organization.name`, which is
+    // ORG_ADMIN-settable free text with no character filtering. A malicious
+    // ORG_ADMIN could inject a script payload that would fire when
+    // SUPER_ADMIN (or anyone else viewing that org) printed the QR.
+    //
+    // Approach: write a fixed HTML scaffold (no user data) to guarantee
+    // head/body exist, then use createElement + textContent for everything
+    // dynamic. textContent cannot be interpreted as HTML — the user value
+    // is structurally inert.
     const orgName = user?.organization?.name || 'Smart Attendance';
-    w.document.write('<html><head><title>QR Code</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,sans-serif;margin:0;background:white}h1{margin-bottom:6px;font-size:26px;font-weight:500;color:#0f172a}h2{color:#475569;margin-bottom:28px;font-size:17px;font-weight:normal}img{max-width:420px;border-radius:14px}p{color:#64748b;margin-top:28px;font-size:14px}</style></head><body>');
-    w.document.write('<h1>' + orgName + '</h1>');
-    w.document.write('<h2>' + (isNp ? 'उपस्थिति जनाउन स्क्यान गर्नुहोस्' : 'Scan to record attendance') + '</h2>');
-    w.document.write('<img src="' + (qrData.qrImageLarge || qrData.qrImage) + '" alt="QR Code"/>');
-    w.document.write('<p>' + (isNp ? 'स्मार्ट उपस्थिति प्रणाली' : 'Smart Attendance System') + '</p>');
-    w.document.write('</body></html>');
-    w.document.close();
+    const qrSrc = qrData.qrImageLarge || qrData.qrImage;
+
+    // Defense in depth: only allow the data-URL format the backend emits.
+    // Protects against a future backend change / compromise that might
+    // return an attribute-breakout string or an unexpected scheme.
+    const QR_SRC_ALLOWED = /^data:image\/(png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
+    if (!QR_SRC_ALLOWED.test(qrSrc)) {
+      w.close();
+      setError(isNp ? 'QR कोड छवि मान्य छैन' : 'QR image is not in the expected format');
+      return;
+    }
+
+    const doc = w.document;
+    // Fixed scaffold — no user data interpolated. Ensures head/body exist
+    // across browsers regardless of blank-window defaults.
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><title>QR Code</title></head><body></body></html>');
+    doc.close();
+
+    const style = doc.createElement('style');
+    style.textContent =
+      'body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,sans-serif;margin:0;background:white}' +
+      'h1{margin-bottom:6px;font-size:26px;font-weight:500;color:#0f172a}' +
+      'h2{color:#475569;margin-bottom:28px;font-size:17px;font-weight:normal}' +
+      'img{max-width:420px;border-radius:14px}' +
+      'p{color:#64748b;margin-top:28px;font-size:14px}';
+    doc.head.appendChild(style);
+
+    const h1 = doc.createElement('h1');
+    h1.textContent = orgName;
+    doc.body.appendChild(h1);
+
+    const h2 = doc.createElement('h2');
+    h2.textContent = isNp ? 'उपस्थिति जनाउन स्क्यान गर्नुहोस्' : 'Scan to record attendance';
+    doc.body.appendChild(h2);
+
+    const img = doc.createElement('img');
+    img.src = qrSrc;
+    img.alt = 'QR Code';
+    doc.body.appendChild(img);
+
+    const p = doc.createElement('p');
+    p.textContent = isNp ? 'स्मार्ट उपस्थिति प्रणाली' : 'Smart Attendance System';
+    doc.body.appendChild(p);
+
     w.print();
   };
 
