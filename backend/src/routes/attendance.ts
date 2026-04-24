@@ -49,7 +49,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const org = await prisma.organization.findUnique({
-        where: { id: req.params.orgId },
+        where: { id: String(req.params.orgId) },
         select: { attendanceMode: true, geofenceEnabled: true },
       });
       if (!org) {
@@ -75,7 +75,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const org = await prisma.organization.findUnique({
-        where: { slug: req.params.slug.toLowerCase() },
+        where: { slug: String(req.params.slug).toLowerCase() },
         select: { id: true, attendanceMode: true, geofenceEnabled: true },
       });
       if (!org) {
@@ -250,7 +250,7 @@ router.put(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const result = await attendanceService.editAttendance(
-        req.params.id,
+        String(req.params.id),
         req.body,
         req.user!
       );
@@ -270,7 +270,7 @@ router.put(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const result = await attendanceService.acknowledgeAttendance(
-        req.params.id,
+        String(req.params.id),
         req.user!
       );
       res.json({ data: result });

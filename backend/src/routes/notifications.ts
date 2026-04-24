@@ -74,7 +74,7 @@ router.put('/read-all', async (req: AuthRequest, res: Response, next: NextFuncti
 router.put('/:id/read', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const organizationId = req.user!.organizationId!;
-    await notificationService.markAsRead(req.params.id, organizationId);
+    await notificationService.markAsRead(String(req.params.id), organizationId);
     res.json({ data: { success: true } });
   } catch (error) {
     next(error);
@@ -102,7 +102,7 @@ router.delete('/clear-read', async (req: AuthRequest, res: Response, next: NextF
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const organizationId = req.user!.organizationId!;
-    await notificationService.delete(req.params.id, organizationId);
+    await notificationService.delete(String(req.params.id), organizationId);
     res.json({ data: { success: true } });
   } catch (error) {
     next(error);

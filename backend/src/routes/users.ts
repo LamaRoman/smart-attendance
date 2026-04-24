@@ -169,7 +169,7 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
     } else if (!isSelf && isAdmin && req.body.email) {
       // Admin changing another user's email.
       const targetUser = await prisma.user.findUnique({
-        where: { id: req.params.id },
+        where: { id: String(req.params.id) },
         select: { email: true, firstName: true },
       });
       if (!targetUser) {
@@ -214,7 +214,7 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
     // Strip currentPassword before forwarding — it's a validation field, not a stored field.
     delete req.body.currentPassword;
 
-    const user = await userService.updateUser(req.params.id, req.body, req.user!);
+    const user = await userService.updateUser(String(req.params.id), req.body, req.user!);
 
     // If we successfully changed a self-email, notify the OLD address.
     // Fire-and-forget — don't block the response on email delivery.
@@ -240,7 +240,7 @@ router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSch
 // DELETE /api/users/:id — removes employee from organization (membership deactivated, user intact)
 router.delete('/:id', requireOrgAdmin, enforceOrgIsolation, validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await userService.removeFromOrganization(req.params.id, req.user!);
+    const result = await userService.removeFromOrganization(String(req.params.id), req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -250,7 +250,7 @@ router.delete('/:id', requireOrgAdmin, enforceOrgIsolation, validate(userIdParam
 // PATCH /api/users/:id/attendance-pin — admin resets an employee's PIN
 router.patch('/:id/attendance-pin', requireOrgAdmin, enforceOrgIsolation, validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await userService.resetAttendancePin(req.params.id, req.user!);
+    const result = await userService.resetAttendancePin(String(req.params.id), req.user!);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -260,7 +260,7 @@ router.patch('/:id/attendance-pin', requireOrgAdmin, enforceOrgIsolation, valida
 // PATCH /api/users/:id/status
 router.patch('/:id/status', requireOrgAdmin, enforceOrgIsolation, validate(userIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const user = await userService.updateUser(req.params.id, { isActive: req.body.isActive }, req.user!);
+    const user = await userService.updateUser(String(req.params.id), { isActive: req.body.isActive }, req.user!);
     res.json({ data: user });
   } catch (error) {
     next(error);

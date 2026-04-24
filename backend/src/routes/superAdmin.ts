@@ -32,7 +32,7 @@ router.get('/organizations', async (req: AuthRequest, res: Response, next: NextF
 // GET /api/super-admin/organizations/:id
 router.get('/organizations/:id', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const organization = await superAdminService.getOrganization(req.params.id);
+    const organization = await superAdminService.getOrganization(String(req.params.id));
     res.json({ data: { organization } });
   } catch (error) {
     next(error);
@@ -52,7 +52,7 @@ router.post('/organizations', validate(createOrganizationSchema), async (req: Au
 // PATCH /api/super-admin/organizations/:id
 router.patch('/organizations/:id', validate(orgIdParamSchema, 'params'), validate(updateOrganizationSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const organization = await superAdminService.updateOrganization(req.params.id, req.body);
+    const organization = await superAdminService.updateOrganization(String(req.params.id), req.body);
     res.json({ data: { message: 'Organization updated successfully', organization } });
   } catch (error) {
     next(error);
@@ -62,7 +62,7 @@ router.patch('/organizations/:id', validate(orgIdParamSchema, 'params'), validat
 // DELETE /api/super-admin/organizations/:id
 router.delete('/organizations/:id', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const organization = await superAdminService.deleteOrganization(req.params.id);
+    const organization = await superAdminService.deleteOrganization(String(req.params.id));
     res.json({ data: { message: 'Organization deactivated successfully', organization } });
   } catch (error) {
     next(error);
@@ -72,7 +72,7 @@ router.delete('/organizations/:id', validate(orgIdParamSchema, 'params'), async 
 // PATCH /api/super-admin/organizations/:id/toggle-status
 router.patch('/organizations/:id/toggle-status', validate(orgIdParamSchema, 'params'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const organization = await superAdminService.toggleStatus(req.params.id);
+    const organization = await superAdminService.toggleStatus(String(req.params.id));
     res.json({ data: { message: `Organization ${organization.isActive ? 'activated' : 'deactivated'}`, organization } });
   } catch (error) {
     next(error);

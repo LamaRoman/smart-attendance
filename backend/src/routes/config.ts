@@ -21,7 +21,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 // PUT /api/config/:key
 router.put('/:key', validate(updateConfigSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await configService.setConfig(req.params.key, req.body.value, req.user!);
+    const data = await configService.setConfig(String(req.params.key), req.body.value, req.user!);
     res.json({ data });
   } catch (error) {
     next(error);

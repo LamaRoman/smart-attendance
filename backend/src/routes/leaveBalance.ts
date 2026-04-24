@@ -104,7 +104,7 @@ router.put(
   enforceOrgIsolation,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { membershipId } = req.params;
+      const membershipId = String(req.params.membershipId);
       const { bsYear, note, ...adjustments } = req.body;
 
       if (!bsYear || isNaN(Number(bsYear))) {
