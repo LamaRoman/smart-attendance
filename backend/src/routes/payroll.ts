@@ -1,10 +1,8 @@
 import prisma from '../lib/prisma';
 import { Router, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { payrollService } from '../services/payroll.service';
 import { generatePayslipPDF } from '../services/payslip-pdf.service';
 import { validate } from '../middleware/validate';
-const pdfPrisma = new PrismaClient();
 import {
   paySettingsSchema,
   generatePayrollSchema,
@@ -28,7 +26,7 @@ empRouter.get('/my-payslips', async (req: AuthRequest, res: Response, next: Next
     if (!req.user!.membershipId) {
       return res.status(400).json({ error: { message: 'No active membership' } });
     }
-    const records = await pdfPrisma.payrollRecord.findMany({
+    const records = await prisma.payrollRecord.findMany({
       where: { membershipId: req.user!.membershipId },
       orderBy: [{ bsYear: 'desc' }, { bsMonth: 'desc' }],
       include: { organization: { select: { name: true } } },
@@ -55,7 +53,7 @@ empRouter.get('/my-payslip/:recordId/pdf', async (req: AuthRequest, res: Respons
     if (!req.user!.membershipId) {
       return res.status(400).json({ error: { message: 'No active membership' } });
     }
-    const record = await pdfPrisma.payrollRecord.findUnique({
+    const record = await prisma.payrollRecord.findUnique({
       where: { id: String(req.params.recordId) },
       include: {
         membership: {
@@ -282,7 +280,7 @@ router.get('/multi-month/export', requireFeature('featurePayrollWorkflow'), asyn
 // GET /api/payroll/payslip/:recordId/pdf
 router.get('/payslip/:recordId/pdf', requireFeature('featureFileDownload'), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const record = await pdfPrisma.payrollRecord.findUnique({
+    const record = await prisma.payrollRecord.findUnique({
       where: { id: String(req.params.recordId) },
       include: {
         membership: {
@@ -341,7 +339,7 @@ router.get('/export/detailed', requireFeature('featureFileDownload'), async (req
     const { bsYear, bsMonth } = req.query as any;
     if (!bsYear || !bsMonth) return res.status(400).json({ error: { message: 'bsYear and bsMonth required' } });
 
-    const records = await pdfPrisma.payrollRecord.findMany({
+    const records = await prisma.payrollRecord.findMany({
       where: { organizationId: req.user!.organizationId!, bsYear: Number(bsYear), bsMonth: Number(bsMonth) },
       include: {
         membership: {
@@ -439,7 +437,7 @@ router.get('/export/bank-sheet', requireFeature('featureFileDownload'), async (r
   try {
     const { bsYear, bsMonth } = req.query as any;
     if (!bsYear || !bsMonth) return res.status(400).json({ error: { message: 'bsYear and bsMonth required' } });
-    const records = await pdfPrisma.payrollRecord.findMany({
+    const records = await prisma.payrollRecord.findMany({
       where: { organizationId: req.user!.organizationId!, bsYear: Number(bsYear), bsMonth: Number(bsMonth) },
       include: {
         membership: {
@@ -485,7 +483,7 @@ router.get('/annual-report', requireFeature('featurePayrollWorkflow'), async (re
   try {
     const bsYear = Number(req.query.bsYear);
     if (!bsYear) return res.status(400).json({ error: { message: 'bsYear required' } });
-    const records = await pdfPrisma.payrollRecord.findMany({
+    const records = await prisma.payrollRecord.findMany({
       where: { organizationId: req.user!.organizationId!, bsYear },
       include: {
         membership: {
@@ -574,7 +572,7 @@ router.get('/annual-report/csv', requireFeature('featureFileDownload'), async (r
   try {
     const bsYear = Number(req.query.bsYear);
     if (!bsYear) return res.status(400).json({ error: { message: 'bsYear required' } });
-    const records = await pdfPrisma.payrollRecord.findMany({
+    const records = await prisma.payrollRecord.findMany({
       where: { organizationId: req.user!.organizationId!, bsYear },
       include: {
         membership: {
