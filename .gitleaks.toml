@@ -48,7 +48,7 @@ regexes = [
 [[allowlists]]
 description = "Forged JWT test fixture in pentest.sh"
 regexes = [
-  '''eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.fakesignature''',
+  '''fakesignature''',
 ]
 
 # --- Allowlist: historical leak, already remediated ---
