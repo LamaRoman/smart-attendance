@@ -40,6 +40,17 @@ regexes = [
   '''admin@smartattendance\.com''',
 ]
 
+# --- Allowlist: deliberate test fixtures ---
+# pentest.sh contains an intentionally-forged JWT used to verify that the
+# auth middleware rejects unsigned tokens. The trailing literal
+# "fakesignature" makes this safe to allowlist by regex — no real JWT
+# would carry that signature segment.
+[[allowlists]]
+description = "Forged JWT test fixture in pentest.sh"
+regexes = [
+  '''eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.fakesignature''',
+]
+
 # --- Allowlist: historical leak, already remediated ---
 # All secrets in commit 59df8722278a1217f184c53fd1a63c51c445c0f5 were
 # rotated per the Tier 1 runbook (handoff 2026-04-19). They remain in git
