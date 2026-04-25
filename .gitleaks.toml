@@ -20,6 +20,7 @@ paths = [
   '''(^|/).*\.spec\.(ts|tsx|js|jsx)$''',
   '''(^|/)__fixtures__/''',
   '''(^|/)__mocks__/''',
+  '''(^|/)pentest\.sh$''',
 ]
 
 # --- Allowlist: dev seed credentials ---
@@ -34,6 +35,8 @@ regexes = [
   '''SuperAdmin@123''',
   '''sita@democompany\.com''',
   '''orgadmin@democompany\.com''',
+  '''ram@othercompany\.com''',
+  '''orgadmin@othercompany\.com''',
   '''admin@smartattendance\.com''',
 ]
 
