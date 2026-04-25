@@ -61,7 +61,12 @@ export const sanitizeInput = (req: Request, _res: Response, next: NextFunction) 
       if (DANGEROUS_KEYS.has(k)) continue;
       clean[k] = deepCleanKeys(v);
     }
-    req.query = clean as any;
+    Object.defineProperty(req, 'query', {
+      value: clean,
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
   }
 
   next();
