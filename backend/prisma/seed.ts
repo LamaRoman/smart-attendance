@@ -41,6 +41,22 @@ function isSaturday(date: Date): boolean {
   return date.getDay() === 6;
 }
 
+/**
+ * Read a required env var, throwing with a clear message if missing.
+ * Used for seed credentials so we never fall back to a hardcoded
+ * password in source. See backend/.env.example for the full list.
+ */
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v || v.trim() === '') {
+    throw new Error(
+      `Missing required env var "${name}" for seeding. ` +
+      `See backend/.env.example for required SEED_* variables.`
+    );
+  }
+  return v;
+}
+
 // ============================================================
 // MAIN
 // ============================================================
@@ -49,10 +65,19 @@ async function main() {
   console.log('🌱 Seeding database...\n');
 
   // ============================================================
-  // 1. SUPER ADMIN
+  // SEED CREDENTIALS — read once from env, fail fast if missing.
+  // No fallback defaults: hardcoded passwords were removed in
+  // commit 4b0edb1 (2026-04-05). Set these in backend/.env.
   // ============================================================
   const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || 'admin@smartattendance.com';
-  const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@123';
+  const superAdminPassword = requireEnv('SUPER_ADMIN_PASSWORD');
+  const orgAdminPassword = requireEnv('SEED_ORG_ADMIN_PASSWORD');
+  const employeePassword = requireEnv('SEED_EMPLOYEE_PASSWORD');
+  const employeePin = requireEnv('SEED_EMPLOYEE_PIN');
+
+  // ============================================================
+  // 1. SUPER ADMIN
+  // ============================================================
 
   let superAdmin = await prisma.user.findUnique({ where: { email: superAdminEmail } });
   if (!superAdmin) {
@@ -230,7 +255,7 @@ async function main() {
     orgAdmin = await prisma.user.create({
       data: {
         email: orgAdminEmail,
-        password: await bcrypt.hash('OrgAdmin@123', 12),
+        password: await bcrypt.hash(orgAdminPassword, 12),
         firstName: 'Ram',
         lastName: 'Sharma',
         role: Role.ORG_ADMIN,
@@ -248,7 +273,7 @@ async function main() {
         shiftEndTime: '18:00',
       },
     });
-    console.log(`✅ Org admin created: ${orgAdminEmail} / OrgAdmin@123`);
+    console.log(`✅ Org admin created: ${orgAdminEmail} / ${orgAdminPassword}`);
   } else {
     console.log(`⏭  Org admin already exists: ${orgAdminEmail}`);
   }
@@ -264,7 +289,7 @@ async function main() {
     { email: 'anita@democompany.com',  firstName: 'Anita',  lastName: 'Gurung',  employeeId: 'EMP-10005', salary: 38000, isMarried: false, phone: '9841000006' },
   ];
 
-  const pinHash = await bcrypt.hash('1234', 12);
+  const pinHash = await bcrypt.hash(employeePin, 12);
   const membershipMap: Record<string, string> = {}; // email -> membershipId
 
   for (const emp of employeeDefs) {
@@ -276,7 +301,7 @@ async function main() {
           email: emp.email,
           firstName: emp.firstName,
           lastName: emp.lastName,
-          password: await bcrypt.hash('Employee@123', 12),
+          password: await bcrypt.hash(employeePassword, 12),
           role: Role.EMPLOYEE,
           isActive: true,
           phone: emp.phone,
@@ -836,7 +861,7 @@ async function main() {
     otherAdmin = await prisma.user.create({
       data: {
         email: otherAdminEmail,
-        password: await bcrypt.hash('OrgAdmin@123', 12),
+        password: await bcrypt.hash(orgAdminPassword, 12),
         firstName: 'Krishna',
         lastName: 'Thapa',
         role: Role.ORG_ADMIN,
@@ -854,7 +879,7 @@ async function main() {
         shiftEndTime: '18:00',
       },
     });
-    console.log(`✅ OrgB admin created: ${otherAdminEmail} / OrgAdmin@123`);
+    console.log(`✅ OrgB admin created: ${otherAdminEmail} / ${orgAdminPassword}`);
   } else {
     console.log(`⏭  OrgB admin already exists`);
   }
@@ -867,7 +892,7 @@ async function main() {
     otherEmp = await prisma.user.create({
       data: {
         email: otherEmpEmail,
-        password: await bcrypt.hash('Employee@123', 12),
+        password: await bcrypt.hash(employeePassword, 12),
         firstName: 'Ram',
         lastName: 'Bahadur',
         role: Role.EMPLOYEE,
@@ -885,7 +910,7 @@ async function main() {
         shiftEndTime: '18:00',
       },
     });
-    console.log(`✅ OrgB employee created: ${otherEmpEmail} / Employee@123`);
+    console.log(`✅ OrgB employee created: ${otherEmpEmail} / ${employeePassword}`);
   } else {
     console.log(`⏭  OrgB employee already exists`);
   }
@@ -897,13 +922,13 @@ async function main() {
   console.log('='.repeat(50));
   console.log('LOGIN CREDENTIALS');
   console.log('='.repeat(50));
-  console.log(`Super Admin:  admin@smartattendance.com / SuperAdmin@123`);
-  console.log(`Org Admin:    orgadmin@democompany.com / OrgAdmin@123`);
-  console.log(`Employee:     sita@democompany.com / Employee@123 / PIN: 1234`);
-  console.log(`Employee:     hari@democompany.com / Employee@123 / PIN: 1234`);
-  console.log(`Employee:     gita@democompany.com / Employee@123 / PIN: 1234`);
-  console.log(`Employee:     bikash@democompany.com / Employee@123 / PIN: 1234`);
-  console.log(`Employee:     anita@democompany.com / Employee@123 / PIN: 1234`);
+  console.log(`Super Admin:  ${superAdminEmail} / ${superAdminPassword}`);
+  console.log(`Org Admin:    orgadmin@democompany.com / ${orgAdminPassword}`);
+  console.log(`Employee:     sita@democompany.com / ${employeePassword} / PIN: ${employeePin}`);
+  console.log(`Employee:     hari@democompany.com / ${employeePassword} / PIN: ${employeePin}`);
+  console.log(`Employee:     gita@democompany.com / ${employeePassword} / PIN: ${employeePin}`);
+  console.log(`Employee:     bikash@democompany.com / ${employeePassword} / PIN: ${employeePin}`);
+  console.log(`Employee:     anita@democompany.com / ${employeePassword} / PIN: ${employeePin}`);
   console.log('='.repeat(50));
   console.log('WHAT WAS SEEDED');
   console.log('='.repeat(50));
@@ -913,7 +938,7 @@ async function main() {
   console.log('✅ 1 Active Subscription (Operations)');
   console.log('✅ 4 System Config entries');
   console.log('✅ 1 Org Admin');
-  console.log('✅ 5 Employees with PIN: 1234');
+  console.log(`✅ 5 Employees with PIN: ${employeePin}`);
   console.log('✅ 5 Pay Settings (realistic Nepal salaries)');
   console.log('✅ Attendance Records (30 working days per employee)');
   console.log('✅ Leave Balances (BS 2082)');
