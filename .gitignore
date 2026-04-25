@@ -27,3 +27,6 @@ backend/prisma/cleanup-*.ts
 backend/prisma/fix-*.ts
 frontend/tsconfig.tsbuildinfo
 HANDOFF-*.md
+
+# Pentest output — regenerated each run; archived by CI artifact upload
+pentest-report.md

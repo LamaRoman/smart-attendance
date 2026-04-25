@@ -20,6 +20,7 @@ paths = [
   '''(^|/).*\.spec\.(ts|tsx|js|jsx)$''',
   '''(^|/)__fixtures__/''',
   '''(^|/)__mocks__/''',
+  '''(^|/)pentest\.sh$''',
 ]
 
 # --- Allowlist: dev seed credentials ---
@@ -34,7 +35,20 @@ regexes = [
   '''SuperAdmin@123''',
   '''sita@democompany\.com''',
   '''orgadmin@democompany\.com''',
+  '''ram@othercompany\.com''',
+  '''orgadmin@othercompany\.com''',
   '''admin@smartattendance\.com''',
+]
+
+# --- Allowlist: deliberate test fixtures ---
+# pentest.sh contains an intentionally-forged JWT used to verify that the
+# auth middleware rejects unsigned tokens. The trailing literal
+# "fakesignature" makes this safe to allowlist by regex — no real JWT
+# would carry that signature segment.
+[[allowlists]]
+description = "Forged JWT test fixture in pentest.sh"
+regexes = [
+  '''eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.fakesignature''',
 ]
 
 # --- Allowlist: historical leak, already remediated ---

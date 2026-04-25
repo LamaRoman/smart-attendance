@@ -9,7 +9,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "db:seed": "node dist/prisma/seed.js",
+    "db:seed": "tsx prisma/seed.ts",
     "dev": "tsx watch src/server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -86,6 +86,6 @@
     "fast-xml-parser": ">=5.3.8"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts"
   }
 }
