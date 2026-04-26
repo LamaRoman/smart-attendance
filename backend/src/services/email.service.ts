@@ -4,7 +4,21 @@ import { config } from '../config';
 import { h, hUrl } from '../lib/email-escape';
 
 const log = createLogger('email-service');
-const resend = new Resend(config.RESEND_API_KEY || '');
+
+// Lazy Resend client — instantiated on first send, not at module load.
+// Module-load instantiation crashed when RESEND_API_KEY was unset because
+// Resend's constructor rejects empty/missing keys (it does NOT defer
+// validation to the .send() call). Lazy init lets the backend boot without
+// the key, which matches the config schema treating it as optional and
+// makes new-contributor setup easier (and unblocks CI without a fake key).
+let resendClient: Resend | null = null;
+function getResend(): Resend | null {
+  if (resendClient) return resendClient;
+  if (!config.RESEND_API_KEY) return null;
+  resendClient = new Resend(config.RESEND_API_KEY);
+  return resendClient;
+}
+
 const FROM_EMAIL = config.RESEND_FROM_EMAIL;
 const APP_NAME = 'Attend Xpress';
 
@@ -422,9 +436,17 @@ ${params.downloadUrl ? `<div style="margin:20px 0;text-align:center;"><a href="$
   // Core send method
   // ============================================================
   private async send(to: string, subject: string, htmlContent: string) {
+    const client = getResend();
+    if (!client) {
+      // Defence-in-depth: every public sender already checks isConfigured(),
+      // so this branch should be unreachable. Logged at warn so we'd notice
+      // if a future caller forgets the guard.
+      log.warn({ to, subject }, 'Email send invoked without RESEND_API_KEY; skipping');
+      return;
+    }
     try {
       const html = baseTemplate(htmlContent);
-      const result = await resend.emails.send({
+      const result = await client.emails.send({
         from: FROM_EMAIL,
         to,
         subject,
