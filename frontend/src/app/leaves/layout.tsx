@@ -1,9 +1,7 @@
-import RoleGuard from '@/components/RoleGuard';
+import RoleGuard from '@/components/RoleGuard'
 
 export default function LeavesRouteLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RoleGuard allowedRoles={['ORG_ADMIN','ORG_ACCOUNTANT' ,'EMPLOYEE']}>
-      {children}
-    </RoleGuard>
-  );
+    <RoleGuard allowedRoles={['ORG_ADMIN', 'ORG_ACCOUNTANT', 'EMPLOYEE']}>{children}</RoleGuard>
+  )
 }

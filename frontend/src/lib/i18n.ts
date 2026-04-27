@@ -3,7 +3,7 @@
 // All UI strings for Nepali and English
 // ============================================================
 
-export type Language = 'NEPALI' | 'ENGLISH';
+export type Language = 'NEPALI' | 'ENGLISH'
 
 const translations: Record<string, Record<Language, string>> = {
   // ===== Common =====
@@ -45,7 +45,10 @@ const translations: Record<string, Record<Language, string>> = {
   'common.view': { NEPALI: 'हेर्नुहोस्', ENGLISH: 'View' },
   'common.download': { NEPALI: 'डाउनलोड', ENGLISH: 'Download' },
   'common.upgrade': { NEPALI: 'अपग्रेड गर्नुहोस्', ENGLISH: 'Upgrade to Operations' },
-  'common.opsRequired': { NEPALI: 'Operations प्लान आवश्यक छ', ENGLISH: 'Requires Operations plan' },
+  'common.opsRequired': {
+    NEPALI: 'Operations प्लान आवश्यक छ',
+    ENGLISH: 'Requires Operations plan',
+  },
   'common.preview': { NEPALI: 'पूर्वावलोकन', ENGLISH: 'Preview' },
   'common.noData': { NEPALI: 'डाटा छैन', ENGLISH: 'No data' },
   'common.noRecord': { NEPALI: 'कुनै रेकर्ड छैन', ENGLISH: 'No record' },
@@ -64,7 +67,10 @@ const translations: Record<string, Record<Language, string>> = {
   'login.submit': { NEPALI: 'लग इन गर्नुहोस्', ENGLISH: 'Login' },
   'login.loggingIn': { NEPALI: 'लग इन हुँदैछ...', ENGLISH: 'Logging in...' },
   'login.failed': { NEPALI: 'लग इन असफल', ENGLISH: 'Login failed' },
-  'login.demo': { NEPALI: 'डेमो: orgadmin@democompany.com / OrgAdmin@123', ENGLISH: 'Demo: orgadmin@democompany.com / OrgAdmin@123' },
+  'login.demo': {
+    NEPALI: 'डेमो: orgadmin@democompany.com / OrgAdmin@123',
+    ENGLISH: 'Demo: orgadmin@democompany.com / OrgAdmin@123',
+  },
 
   // ===== Navigation =====
   'nav.dashboard': { NEPALI: 'ड्यासबोर्ड', ENGLISH: 'Dashboard' },
@@ -93,8 +99,14 @@ const translations: Record<string, Record<Language, string>> = {
   'attendance.clockedIn': { NEPALI: 'चेक इन भएको', ENGLISH: 'Clocked In' },
   'attendance.notClockedIn': { NEPALI: 'चेक इन भएको छैन', ENGLISH: 'Not Clocked In' },
   'attendance.scanQR': { NEPALI: 'QR कोड स्क्यान गर्नुहोस्', ENGLISH: 'Scan QR Code' },
-  'attendance.scanToClockIn': { NEPALI: 'चेक इन गर्न स्क्यान गर्नुहोस्', ENGLISH: 'Scan to Clock In' },
-  'attendance.scanToClockOut': { NEPALI: 'चेक आउट गर्न स्क्यान गर्नुहोस्', ENGLISH: 'Scan to Clock Out' },
+  'attendance.scanToClockIn': {
+    NEPALI: 'चेक इन गर्न स्क्यान गर्नुहोस्',
+    ENGLISH: 'Scan to Clock In',
+  },
+  'attendance.scanToClockOut': {
+    NEPALI: 'चेक आउट गर्न स्क्यान गर्नुहोस्',
+    ENGLISH: 'Scan to Clock Out',
+  },
   'attendance.since': { NEPALI: 'देखि', ENGLISH: 'Since' },
   'attendance.recentHistory': { NEPALI: 'हालको इतिहास', ENGLISH: 'Recent History' },
   'attendance.noRecords': { NEPALI: 'कुनै रेकर्ड छैन', ENGLISH: 'No records yet' },
@@ -132,7 +144,10 @@ const translations: Record<string, Record<Language, string>> = {
   'users.password': { NEPALI: 'पासवर्ड', ENGLISH: 'Password' },
   'users.activate': { NEPALI: 'सक्रिय गर्नुहोस्', ENGLISH: 'Activate' },
   'users.deactivate': { NEPALI: 'निष्क्रिय गर्नुहोस्', ENGLISH: 'Deactivate' },
-  'users.deleteConfirm': { NEPALI: 'के तपाईं यो प्रयोगकर्ता हटाउन चाहनुहुन्छ?', ENGLISH: 'Are you sure you want to delete this user?' },
+  'users.deleteConfirm': {
+    NEPALI: 'के तपाईं यो प्रयोगकर्ता हटाउन चाहनुहुन्छ?',
+    ENGLISH: 'Are you sure you want to delete this user?',
+  },
 
   // ===== Leave =====
   'leave.title': { NEPALI: 'बिदा व्यवस्थापन', ENGLISH: 'Leave Management' },
@@ -147,18 +162,33 @@ const translations: Record<string, Record<Language, string>> = {
   'leave.daysUsed': { NEPALI: 'प्रयोग भएका दिन', ENGLISH: 'Days Used' },
   'leave.approvedLeaves': { NEPALI: 'स्वीकृत बिदाहरू', ENGLISH: 'Approved leaves' },
   'leave.noRequests': { NEPALI: 'कुनै बिदा अनुरोध छैन', ENGLISH: 'No leave requests' },
-  'leave.noRequestsDesc': { NEPALI: 'तपाईंले अहिलेसम्म कुनै बिदा माग्नुभएको छैन।', ENGLISH: "You haven't requested any leaves yet." },
-  'leave.noRequestsAdmin': { NEPALI: 'कर्मचारीहरूबाट कुनै बिदा अनुरोध छैन।', ENGLISH: 'No leave requests from employees.' },
+  'leave.noRequestsDesc': {
+    NEPALI: 'तपाईंले अहिलेसम्म कुनै बिदा माग्नुभएको छैन।',
+    ENGLISH: "You haven't requested any leaves yet.",
+  },
+  'leave.noRequestsAdmin': {
+    NEPALI: 'कर्मचारीहरूबाट कुनै बिदा अनुरोध छैन।',
+    ENGLISH: 'No leave requests from employees.',
+  },
   'leave.type': { NEPALI: 'बिदाको प्रकार', ENGLISH: 'Leave Type' },
   'leave.startDate': { NEPALI: 'सुरु मिति', ENGLISH: 'Start Date' },
   'leave.endDate': { NEPALI: 'अन्तिम मिति', ENGLISH: 'End Date' },
   'leave.reason': { NEPALI: 'कारण', ENGLISH: 'Reason' },
-  'leave.reasonPlaceholder': { NEPALI: 'बिदाको कारण लेख्नुहोस्...', ENGLISH: 'Brief reason for leave...' },
+  'leave.reasonPlaceholder': {
+    NEPALI: 'बिदाको कारण लेख्नुहोस्...',
+    ENGLISH: 'Brief reason for leave...',
+  },
   'leave.duration': { NEPALI: 'अवधि', ENGLISH: 'Duration' },
   'leave.submitting': { NEPALI: 'पेश गर्दै...', ENGLISH: 'Submitting...' },
-  'leave.submitted': { NEPALI: 'बिदा अनुरोध सफलतापूर्वक पेश गरियो', ENGLISH: 'Leave request submitted successfully' },
+  'leave.submitted': {
+    NEPALI: 'बिदा अनुरोध सफलतापूर्वक पेश गरियो',
+    ENGLISH: 'Leave request submitted successfully',
+  },
   'leave.cancelled': { NEPALI: 'बिदा अनुरोध रद्द गरियो', ENGLISH: 'Leave request cancelled' },
-  'leave.cancelConfirm': { NEPALI: 'के तपाईं यो बिदा अनुरोध रद्द गर्न चाहनुहुन्छ?', ENGLISH: 'Cancel this leave request?' },
+  'leave.cancelConfirm': {
+    NEPALI: 'के तपाईं यो बिदा अनुरोध रद्द गर्न चाहनुहुन्छ?',
+    ENGLISH: 'Cancel this leave request?',
+  },
   'leave.fillAll': { NEPALI: 'कृपया सबै फिल्ड भर्नुहोस्', ENGLISH: 'Please fill in all fields' },
   'leave.approvedBy': { NEPALI: 'स्वीकृत गर्ने:', ENGLISH: 'Approved by' },
   'leave.rejectedBy': { NEPALI: 'अस्वीकृत गर्ने:', ENGLISH: 'Rejected by' },
@@ -182,7 +212,10 @@ const translations: Record<string, Record<Language, string>> = {
   'reports.avgHours': { NEPALI: 'औसत घण्टा', ENGLISH: 'Avg Hours' },
   'reports.attendanceRate': { NEPALI: 'उपस्थिति दर', ENGLISH: 'Attendance Rate' },
   'reports.weeklyBreakdown': { NEPALI: 'साप्ताहिक विवरण', ENGLISH: 'Weekly Breakdown' },
-  'reports.employeePerformance': { NEPALI: 'कर्मचारी कार्यसम्पादन', ENGLISH: 'Employee Performance' },
+  'reports.employeePerformance': {
+    NEPALI: 'कर्मचारी कार्यसम्पादन',
+    ENGLISH: 'Employee Performance',
+  },
   'reports.excellent': { NEPALI: 'उत्कृष्ट', ENGLISH: 'Excellent' },
   'reports.good': { NEPALI: 'राम्रो', ENGLISH: 'Good' },
   'reports.average': { NEPALI: 'औसत', ENGLISH: 'Average' },
@@ -218,23 +251,44 @@ const translations: Record<string, Record<Language, string>> = {
   'payroll.monthly': { NEPALI: 'मासिक', ENGLISH: 'Monthly' },
   'payroll.range': { NEPALI: 'दायरा', ENGLISH: 'Range' },
   'payroll.selectDate': { NEPALI: 'मिति छान्नुहोस्', ENGLISH: 'Select a date range' },
-  'payroll.selectDateHint': { NEPALI: 'माथि देखि/सम्म मिति छानेर "हेर्नुहोस्" थिच्नुहोस्', ENGLISH: 'Choose from/to dates above and click View' },
+  'payroll.selectDateHint': {
+    NEPALI: 'माथि देखि/सम्म मिति छानेर "हेर्नुहोस्" थिच्नुहोस्',
+    ENGLISH: 'Choose from/to dates above and click View',
+  },
   'payroll.noRecord': { NEPALI: 'कुनै रेकर्ड छैन', ENGLISH: 'No record' },
   'payroll.upgradeBtn': { NEPALI: 'अपग्रेड गर्नुहोस्', ENGLISH: 'Upgrade to Operations' },
-  'payroll.opsRequired': { NEPALI: 'Operations प्लान आवश्यक छ', ENGLISH: 'Requires Operations plan' },
-  'payroll.pdfAvailable': { NEPALI: 'PDF डाउनलोड Operations plan मा उपलब्ध छ', ENGLISH: 'PDF downloads are available on the Operations plan' },
+  'payroll.opsRequired': {
+    NEPALI: 'Operations प्लान आवश्यक छ',
+    ENGLISH: 'Requires Operations plan',
+  },
+  'payroll.pdfAvailable': {
+    NEPALI: 'PDF डाउनलोड Operations plan मा उपलब्ध छ',
+    ENGLISH: 'PDF downloads are available on the Operations plan',
+  },
   'payroll.multiMonth': { NEPALI: 'बहु-महिना तलब दृश्य', ENGLISH: 'Multi-Month Salary View' },
-  'payroll.multiMonthDesc': { NEPALI: 'कर्मचारीहरूको धेरै महिनाको तलब एकै पटक हेर्नुहोस्', ENGLISH: 'View salary across multiple months' },
-  'payroll.multiMonthUpgradeDesc': { NEPALI: 'एकै पटक धेरै महिनाको तलब तुलना गर्नुहोस् र CSV निर्यात गर्नुहोस्।', ENGLISH: 'Compare salaries across months side-by-side and export to CSV for payroll audits.' },
+  'payroll.multiMonthDesc': {
+    NEPALI: 'कर्मचारीहरूको धेरै महिनाको तलब एकै पटक हेर्नुहोस्',
+    ENGLISH: 'View salary across multiple months',
+  },
+  'payroll.multiMonthUpgradeDesc': {
+    NEPALI: 'एकै पटक धेरै महिनाको तलब तुलना गर्नुहोस् र CSV निर्यात गर्नुहोस्।',
+    ENGLISH: 'Compare salaries across months side-by-side and export to CSV for payroll audits.',
+  },
   'payroll.annualTax': { NEPALI: 'वार्षिक कर विवरण', ENGLISH: 'Annual Tax Details' },
   'payroll.annualReport': { NEPALI: 'वार्षिक कर रिपोर्ट', ENGLISH: 'Annual Tax Report' },
-  'payroll.annualReportDesc': { NEPALI: 'सबै कर्मचारीको वार्षिक TDS, SSF र खुद तलब एकै ठाउँमा हेर्नुहोस्।', ENGLISH: 'View all employee annual TDS, SSF and net salary in one place.' },
+  'payroll.annualReportDesc': {
+    NEPALI: 'सबै कर्मचारीको वार्षिक TDS, SSF र खुद तलब एकै ठाउँमा हेर्नुहोस्।',
+    ENGLISH: 'View all employee annual TDS, SSF and net salary in one place.',
+  },
   'payroll.viewReport': { NEPALI: 'रिपोर्ट हेर्नुहोस्', ENGLISH: 'View Report' },
   'payroll.csvDownload': { NEPALI: 'CSV डाउनलोड', ENGLISH: 'CSV Download' },
   'payroll.annualBasic': { NEPALI: 'वार्षिक आधारभूत', ENGLISH: 'Annual Basic' },
   'payroll.annualGross': { NEPALI: 'वार्षिक कुल', ENGLISH: 'Annual Gross' },
   'payroll.annualNet': { NEPALI: 'वार्षिक खुद', ENGLISH: 'Annual Net' },
-  'payroll.noYearData': { NEPALI: 'यो वर्षको तलब गणना गरिएको छैन', ENGLISH: 'No salary data for this year' },
+  'payroll.noYearData': {
+    NEPALI: 'यो वर्षको तलब गणना गरिएको छैन',
+    ENGLISH: 'No salary data for this year',
+  },
   'payroll.employee': { NEPALI: 'कर्मचारी', ENGLISH: 'Employee' },
   'payroll.basic': { NEPALI: 'आधारभूत', ENGLISH: 'Basic' },
   'payroll.gross': { NEPALI: 'कुल', ENGLISH: 'Gross' },
@@ -253,7 +307,10 @@ const translations: Record<string, Record<Language, string>> = {
   'payroll.totalDeductions': { NEPALI: 'जम्मा कटौती', ENGLISH: 'Total deductions' },
   'payroll.employer': { NEPALI: 'नियोक्ता', ENGLISH: 'Employer' },
   'payroll.employerContrib': { NEPALI: 'नियोक्ता योगदान', ENGLISH: 'Employer contribution' },
-  'payroll.marriedSlab': { NEPALI: '* विवाहित कर स्ल्याब लागू', ENGLISH: '* Married tax slab applied' },
+  'payroll.marriedSlab': {
+    NEPALI: '* विवाहित कर स्ल्याब लागू',
+    ENGLISH: '* Married tax slab applied',
+  },
   'payroll.viewOnly': { NEPALI: 'हेर्ने मात्र', ENGLISH: 'View only' },
 
   // ===== Documents =====
@@ -261,18 +318,34 @@ const translations: Record<string, Record<Language, string>> = {
   'documents.upload': { NEPALI: 'अपलोड गर्नुहोस्', ENGLISH: 'Upload' },
   'documents.uploadNew': { NEPALI: 'नयाँ कागजात अपलोड गर्नुहोस्', ENGLISH: 'Upload new document' },
   'documents.uploading': { NEPALI: 'अपलोड हुँदैछ...', ENGLISH: 'Uploading...' },
-  'documents.uploaded': { NEPALI: 'कागजात सफलतापूर्वक अपलोड भयो', ENGLISH: 'Document uploaded successfully' },
+  'documents.uploaded': {
+    NEPALI: 'कागजात सफलतापूर्वक अपलोड भयो',
+    ENGLISH: 'Document uploaded successfully',
+  },
   'documents.deleted': { NEPALI: 'कागजात मेटाइयो', ENGLISH: 'Document deleted' },
   'documents.noDocuments': { NEPALI: 'कुनै कागजात छैन', ENGLISH: 'No documents yet' },
-  'documents.uploadHint': { NEPALI: 'कागजात अपलोड गर्न माथिको बटन थिच्नुहोस्', ENGLISH: 'Upload documents using the button above' },
+  'documents.uploadHint': {
+    NEPALI: 'कागजात अपलोड गर्न माथिको बटन थिच्नुहोस्',
+    ENGLISH: 'Upload documents using the button above',
+  },
   'documents.type': { NEPALI: 'कागजात प्रकार', ENGLISH: 'Document Type' },
   'documents.optional': { NEPALI: 'ऐच्छिक', ENGLISH: 'optional' },
   'documents.notePlaceholder': { NEPALI: 'नोट थप्नुहोस्...', ENGLISH: 'Add a note...' },
-  'documents.noTypes': { NEPALI: 'अहिलेसम्म कुनै कागजात प्रकार सेट गरिएको छैन। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।', ENGLISH: 'No document types have been configured yet. Please ask your admin to set them up in Settings.' },
+  'documents.noTypes': {
+    NEPALI: 'अहिलेसम्म कुनै कागजात प्रकार सेट गरिएको छैन। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।',
+    ENGLISH:
+      'No document types have been configured yet. Please ask your admin to set them up in Settings.',
+  },
   'documents.viewOnly': { NEPALI: 'हेर्ने मात्र', ENGLISH: 'View only' },
-  'documents.previewUnavailable': { NEPALI: 'पूर्वावलोकन उपलब्ध छैन', ENGLISH: 'Preview not available' },
+  'documents.previewUnavailable': {
+    NEPALI: 'पूर्वावलोकन उपलब्ध छैन',
+    ENGLISH: 'Preview not available',
+  },
   'documents.confirmDelete': { NEPALI: 'पक्का?', ENGLISH: 'Confirm' },
-  'documents.dragOrClick': { NEPALI: 'फाइल छान्नुहोस् वा यहाँ ड्र्याग गर्नुहोस्', ENGLISH: 'Click to select or drag and drop' },
+  'documents.dragOrClick': {
+    NEPALI: 'फाइल छान्नुहोस् वा यहाँ ड्र्याग गर्नुहोस्',
+    ENGLISH: 'Click to select or drag and drop',
+  },
   'documents.view': { NEPALI: 'हेर्नुहोस्', ENGLISH: 'View' },
   'documents.delete': { NEPALI: 'मेटाउनुहोस्', ENGLISH: 'Delete' },
   'documents.description': { NEPALI: 'विवरण', ENGLISH: 'Description' },
@@ -301,51 +374,89 @@ const translations: Record<string, Record<Language, string>> = {
   'date.confirm': { NEPALI: 'छान्नुहोस्', ENGLISH: 'Confirm' },
 
   // ===== Scan Error Codes =====
-  'scan.error.ATTENDANCE_COMPLETE': { NEPALI: 'तपाईंले आजको उपस्थिति पूरा गर्नुभयो। भोलि भेटौंला!', ENGLISH: 'You have already completed your attendance for today. See you tomorrow!' },
-  'scan.error.DAILY_LIMIT_REACHED': { NEPALI: 'आजको उपस्थिति सीमा पुग्यो। प्रतिदिन एकपटक मात्र चेक इन/आउट गर्न सकिन्छ।', ENGLISH: 'Daily attendance limit reached. You can only clock in and out once per day.' },
-  'scan.error.COOLDOWN_ACTIVE': { NEPALI: 'कृपया फेरि स्क्यान गर्नु अघि केही मिनेट पर्खनुहोस्।', ENGLISH: 'Please wait a few minutes before scanning again.' },
-  'scan.error.CLOCKIN_CLOSED': { NEPALI: 'आजको चेक इन बन्द भयो। भोलि भेटौंला!', ENGLISH: 'Clock-in is closed for today. See you tomorrow!' },
-  'scan.error.INVALID_SCAN': { NEPALI: 'अमान्य कर्मचारी आईडी वा QR कोड', ENGLISH: 'Invalid employee ID or QR code.' },
-  'scan.error.PIN_NOT_SET': { NEPALI: 'उपस्थिति PIN सेट गरिएको छैन। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।', ENGLISH: 'Attendance PIN not set. Please contact your administrator.' },
-  'scan.error.OUTSIDE_GEOFENCE': { NEPALI: 'तपाईं कार्यालय क्षेत्र बाहिर हुनुहुन्छ।', ENGLISH: 'You are outside the office area.' },
-  'scan.error.QR_REVOKED': { NEPALI: 'यो QR कोड रद्द गरिएको छ।', ENGLISH: 'This QR code has been revoked.' },
-  'scan.error.QR_EXPIRED': { NEPALI: 'यो QR कोड म्याद सकिएको छ।', ENGLISH: 'This QR code has expired.' },
-  'scan.error.LOCATION_REQUIRED': { NEPALI: 'स्थान आवश्यक छ। कृपया GPS सक्षम गर्नुहोस्।', ENGLISH: 'Location is required. Please enable GPS on your device.' },
-  'scan.error.GPS_LOW_ACCURACY': { NEPALI: 'GPS संकेत कमजोर छ। खुला ठाउँमा जानुहोस्।', ENGLISH: 'GPS signal is too weak. Please move to an open area and try again.' },
-  'scan.error.GEOFENCE_NOT_CONFIGURED': { NEPALI: 'कार्यालय स्थान सेट गरिएको छैन। प्रशासकलाई सम्पर्क गर्नुहोस्।', ENGLISH: 'Office location is not configured. Please contact your administrator.' },
-
+  'scan.error.ATTENDANCE_COMPLETE': {
+    NEPALI: 'तपाईंले आजको उपस्थिति पूरा गर्नुभयो। भोलि भेटौंला!',
+    ENGLISH: 'You have already completed your attendance for today. See you tomorrow!',
+  },
+  'scan.error.DAILY_LIMIT_REACHED': {
+    NEPALI: 'आजको उपस्थिति सीमा पुग्यो। प्रतिदिन एकपटक मात्र चेक इन/आउट गर्न सकिन्छ।',
+    ENGLISH: 'Daily attendance limit reached. You can only clock in and out once per day.',
+  },
+  'scan.error.COOLDOWN_ACTIVE': {
+    NEPALI: 'कृपया फेरि स्क्यान गर्नु अघि केही मिनेट पर्खनुहोस्।',
+    ENGLISH: 'Please wait a few minutes before scanning again.',
+  },
+  'scan.error.CLOCKIN_CLOSED': {
+    NEPALI: 'आजको चेक इन बन्द भयो। भोलि भेटौंला!',
+    ENGLISH: 'Clock-in is closed for today. See you tomorrow!',
+  },
+  'scan.error.INVALID_SCAN': {
+    NEPALI: 'अमान्य कर्मचारी आईडी वा QR कोड',
+    ENGLISH: 'Invalid employee ID or QR code.',
+  },
+  'scan.error.PIN_NOT_SET': {
+    NEPALI: 'उपस्थिति PIN सेट गरिएको छैन। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।',
+    ENGLISH: 'Attendance PIN not set. Please contact your administrator.',
+  },
+  'scan.error.OUTSIDE_GEOFENCE': {
+    NEPALI: 'तपाईं कार्यालय क्षेत्र बाहिर हुनुहुन्छ।',
+    ENGLISH: 'You are outside the office area.',
+  },
+  'scan.error.QR_REVOKED': {
+    NEPALI: 'यो QR कोड रद्द गरिएको छ।',
+    ENGLISH: 'This QR code has been revoked.',
+  },
+  'scan.error.QR_EXPIRED': {
+    NEPALI: 'यो QR कोड म्याद सकिएको छ।',
+    ENGLISH: 'This QR code has expired.',
+  },
+  'scan.error.LOCATION_REQUIRED': {
+    NEPALI: 'स्थान आवश्यक छ। कृपया GPS सक्षम गर्नुहोस्।',
+    ENGLISH: 'Location is required. Please enable GPS on your device.',
+  },
+  'scan.error.GPS_LOW_ACCURACY': {
+    NEPALI: 'GPS संकेत कमजोर छ। खुला ठाउँमा जानुहोस्।',
+    ENGLISH: 'GPS signal is too weak. Please move to an open area and try again.',
+  },
+  'scan.error.GEOFENCE_NOT_CONFIGURED': {
+    NEPALI: 'कार्यालय स्थान सेट गरिएको छैन। प्रशासकलाई सम्पर्क गर्नुहोस्।',
+    ENGLISH: 'Office location is not configured. Please contact your administrator.',
+  },
 
   'scan.gps.loading': { NEPALI: 'स्थान पहिचान हुँदैछ...', ENGLISH: 'Getting your location...' },
   'scan.gps.ready': { NEPALI: 'स्थान पुष्टि भयो ✓', ENGLISH: 'Location verified ✓' },
-  'scan.gps.denied': { NEPALI: 'स्थान अनुमति चाहिन्छ — कृपया ब्राउजरमा GPS सक्षम गर्नुहोस्', ENGLISH: 'Location access required — please enable GPS in your browser settings' },
+  'scan.gps.denied': {
+    NEPALI: 'स्थान अनुमति चाहिन्छ — कृपया ब्राउजरमा GPS सक्षम गर्नुहोस्',
+    ENGLISH: 'Location access required — please enable GPS in your browser settings',
+  },
   // ===== Footer =====
   'footer.copyright': { NEPALI: '© सर्वाधिकार सुरक्षित', ENGLISH: '© All rights reserved' },
   'footer.version': { NEPALI: 'संस्करण', ENGLISH: 'Version' },
-};
+}
 
 /**
  * Get translated string
  */
 export function t(key: string, lang: Language = 'NEPALI'): string {
-  const entry = translations[key];
+  const entry = translations[key]
   if (!entry) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn(`[i18n] Missing translation key: "${key}"`);
+      console.warn(`[i18n] Missing translation key: "${key}"`)
     }
-    return key;
+    return key
   }
-  return entry[lang] || entry['ENGLISH'] || key;
+  return entry[lang] || entry['ENGLISH'] || key
 }
 
 /**
  * Get all translations for a language (useful for passing to components)
  */
 export function getTranslations(lang: Language): Record<string, string> {
-  const result: Record<string, string> = {};
+  const result: Record<string, string> = {}
   for (const [key, value] of Object.entries(translations)) {
-    result[key] = value[lang] || value['ENGLISH'] || key;
+    result[key] = value[lang] || value['ENGLISH'] || key
   }
-  return result;
+  return result
 }
 
-export default translations;
+export default translations

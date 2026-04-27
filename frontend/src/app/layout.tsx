@@ -1,6 +1,6 @@
-import type { Metadata, Viewport } from 'next';
-import { AuthProvider } from '@/contexts/auth-context';
-import './globals.css';
+import type { Metadata, Viewport } from 'next'
+import { AuthProvider } from '@/contexts/auth-context'
+import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Smart Attendance',
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Attendance',
   },
-};
+}
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -19,13 +19,9 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: '#3b82f6',
-};
+}
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -35,5 +31,5 @@ export default function RootLayout({
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
-  );
+  )
 }

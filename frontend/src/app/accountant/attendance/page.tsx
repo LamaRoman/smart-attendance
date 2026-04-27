@@ -1,223 +1,239 @@
-'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/contexts/auth-context';
-import { api } from '@/lib/api';
-import AccountantLayout from '@/components/AccountantLayout';
-import BSDatePicker, { adToBS, BS_MONTHS_NP, BS_MONTHS_EN, toNepaliDigits } from '@/components/BSDatePicker';
+'use client'
+import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@/contexts/auth-context'
+import { api } from '@/lib/api'
+import AccountantLayout from '@/components/AccountantLayout'
+import BSDatePicker, {
+  adToBS,
+  BS_MONTHS_NP,
+  BS_MONTHS_EN,
+  toNepaliDigits,
+} from '@/components/BSDatePicker'
 import {
-  Clock, RefreshCw, X, AlertCircle, CheckCircle,
-  Save, Lock, Filter, CheckSquare,
-} from 'lucide-react';
+  Clock,
+  RefreshCw,
+  X,
+  AlertCircle,
+  CheckCircle,
+  Save,
+  Lock,
+  Filter,
+  CheckSquare,
+} from 'lucide-react'
 
 interface AttendanceRecord {
-  id: string;
-  checkInTime: string;
-  checkOutTime: string | null;
-  duration: number | null;
-  status: string;
-  isManualEntry?: boolean;
-  modificationNote?: string | null;
-  originalCheckOut?: string | null;
-  reviewedByAccountant: boolean;
-  reviewedAt: string | null;
-  user: { firstName: string; lastName: string; employeeId: string };
+  id: string
+  checkInTime: string
+  checkOutTime: string | null
+  duration: number | null
+  status: string
+  isManualEntry?: boolean
+  modificationNote?: string | null
+  originalCheckOut?: string | null
+  reviewedByAccountant: boolean
+  reviewedAt: string | null
+  user: { firstName: string; lastName: string; employeeId: string }
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  CHECKED_IN:  'bg-emerald-100 text-emerald-700 border-emerald-200',
+  CHECKED_IN: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   CHECKED_OUT: 'bg-sky-100 text-sky-700 border-sky-200',
   AUTO_CLOSED: 'bg-amber-100 text-amber-700 border-amber-200',
-};
+}
 
 export default function AccountantAttendancePage() {
-  const { language, calendarMode } = useAuth();
-  const isNp = language === 'NEPALI';
-  const isBs = calendarMode === 'NEPALI';
+  const { language, calendarMode } = useAuth()
+  const isNp = language === 'NEPALI'
+  const isBs = calendarMode === 'NEPALI'
 
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  const [filterAutoOnly, setFilterAutoOnly] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [records, setRecords] = useState<AttendanceRecord[]>([])
+  const [loading, setLoading] = useState(false)
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
+  const [filterAutoOnly, setFilterAutoOnly] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   // Edit modal state
-  const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
-  const [editForm, setEditForm] = useState({ checkOutTime: '', note: '' });
-  const [editSaving, setEditSaving] = useState(false);
+  const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null)
+  const [editForm, setEditForm] = useState({ checkOutTime: '', note: '' })
+  const [editSaving, setEditSaving] = useState(false)
 
   // Acknowledge state
-  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
-  const [bulkAcknowledging, setBulkAcknowledging] = useState(false);
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null)
+  const [bulkAcknowledging, setBulkAcknowledging] = useState(false)
 
   const loadRecords = useCallback(async (date: string) => {
-    setLoading(true);
-    const res = await api.get('/api/v1/attendance?date=' + date);
+    setLoading(true)
+    const res = await api.get('/api/v1/attendance?date=' + date)
     if (res.data) {
-      setRecords((res.data as { records: AttendanceRecord[] }).records);
-      setLastRefreshed(new Date());
+      setRecords((res.data as { records: AttendanceRecord[] }).records)
+      setLastRefreshed(new Date())
     }
-    setLoading(false);
-  }, []);
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
-    loadRecords(selectedDate);
-  }, [selectedDate, loadRecords]);
+    loadRecords(selectedDate)
+  }, [selectedDate, loadRecords])
 
   useEffect(() => {
-    const interval = setInterval(() => loadRecords(selectedDate), 60000);
-    return () => clearInterval(interval);
-  }, [selectedDate, loadRecords]);
+    const interval = setInterval(() => loadRecords(selectedDate), 60000)
+    return () => clearInterval(interval)
+  }, [selectedDate, loadRecords])
 
   const toLocalDatetimeStr = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const offset = d.getTimezoneOffset();
-    const local = new Date(d.getTime() - offset * 60000);
-    return local.toISOString().slice(0, 16);
-  };
+    const d = new Date(dateStr)
+    const offset = d.getTimezoneOffset()
+    const local = new Date(d.getTime() - offset * 60000)
+    return local.toISOString().slice(0, 16)
+  }
 
   const formatTime = (dateStr: string) =>
-    new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
 
   const formatDuration = (mins: number) => {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return isNp ? `${h} घण्टा ${m} मि` : `${h}h ${m}m`;
-  };
+    const h = Math.floor(mins / 60)
+    const m = mins % 60
+    return isNp ? `${h} घण्टा ${m} मि` : `${h}h ${m}m`
+  }
 
   const formatDateDisplay = (dateStr: string) => {
-    const d = new Date(dateStr);
+    const d = new Date(dateStr)
     if (isBs) {
-      const bs = adToBS(d);
+      const bs = adToBS(d)
       return isNp
         ? `${BS_MONTHS_NP[bs.month - 1]} ${toNepaliDigits(bs.day)}`
-        : `${BS_MONTHS_EN[bs.month - 1]} ${bs.day}`;
+        : `${BS_MONTHS_EN[bs.month - 1]} ${bs.day}`
     }
-    return d.toLocaleDateString(isNp ? 'ne-NP' : 'en-US', { month: 'short', day: 'numeric' });
-  };
+    return d.toLocaleDateString(isNp ? 'ne-NP' : 'en-US', { month: 'short', day: 'numeric' })
+  }
 
   const openEdit = (record: AttendanceRecord) => {
-    setEditRecord(record);
+    setEditRecord(record)
     setEditForm({
       checkOutTime: record.checkOutTime ? toLocalDatetimeStr(record.checkOutTime) : '',
       note: '',
-    });
-    setError('');
-  };
+    })
+    setError('')
+  }
 
   const submitEdit = async () => {
-    if (!editRecord) return;
+    if (!editRecord) return
     if (!editForm.note || editForm.note.length < 3) {
-      setError(isNp ? 'कारण आवश्यक छ (कम्तिमा ३ अक्षर)' : 'Reason is required (min 3 characters)');
-      return;
+      setError(isNp ? 'कारण आवश्यक छ (कम्तिमा ३ अक्षर)' : 'Reason is required (min 3 characters)')
+      return
     }
     if (!editForm.checkOutTime) {
-      setError(isNp ? 'चेकआउट समय आवश्यक छ' : 'Check-out time is required');
-      return;
+      setError(isNp ? 'चेकआउट समय आवश्यक छ' : 'Check-out time is required')
+      return
     }
-    setEditSaving(true);
+    setEditSaving(true)
     const res = await api.put('/api/v1/attendance/' + editRecord.id + '/edit', {
       checkOutTime: new Date(editForm.checkOutTime).toISOString(),
       note: editForm.note,
-    });
-    setEditSaving(false);
+    })
+    setEditSaving(false)
     if (res.error) {
-      setError(res.error.message);
+      setError(res.error.message)
     } else {
-      setSuccess(isNp ? 'रेकर्ड अपडेट भयो' : 'Record updated successfully');
-      setEditRecord(null);
-      loadRecords(selectedDate);
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess(isNp ? 'रेकर्ड अपडेट भयो' : 'Record updated successfully')
+      setEditRecord(null)
+      loadRecords(selectedDate)
+      setTimeout(() => setSuccess(''), 3000)
     }
-  };
+  }
 
   const acknowledgeRecord = async (id: string) => {
-    setAcknowledgingId(id);
-    const res = await api.put('/api/v1/attendance/' + id + '/acknowledge', {});
-    setAcknowledgingId(null);
+    setAcknowledgingId(id)
+    const res = await api.put('/api/v1/attendance/' + id + '/acknowledge', {})
+    setAcknowledgingId(null)
     if (res.error) {
-      setError(res.error.message);
+      setError(res.error.message)
     } else {
       setRecords((prev) =>
         prev.map((r) =>
-          r.id === id ? { ...r, reviewedByAccountant: true, reviewedAt: new Date().toISOString() } : r
-        )
-      );
-      setSuccess(isNp ? 'रेकर्ड स्वीकृत गरियो' : 'Record acknowledged');
-      setTimeout(() => setSuccess(''), 3000);
+          r.id === id
+            ? { ...r, reviewedByAccountant: true, reviewedAt: new Date().toISOString() }
+            : r,
+        ),
+      )
+      setSuccess(isNp ? 'रेकर्ड स्वीकृत गरियो' : 'Record acknowledged')
+      setTimeout(() => setSuccess(''), 3000)
     }
-  };
+  }
 
   const acknowledgeAll = async () => {
-    const unreviewed = records.filter(
-      (r) => r.status === 'AUTO_CLOSED' && !r.reviewedByAccountant
-    );
-    if (unreviewed.length === 0) return;
-    setBulkAcknowledging(true);
-    let successCount = 0;
+    const unreviewed = records.filter((r) => r.status === 'AUTO_CLOSED' && !r.reviewedByAccountant)
+    if (unreviewed.length === 0) return
+    setBulkAcknowledging(true)
+    let successCount = 0
     for (const r of unreviewed) {
-      const res = await api.put('/api/v1/attendance/' + r.id + '/acknowledge', {});
-      if (!res.error) successCount++;
+      const res = await api.put('/api/v1/attendance/' + r.id + '/acknowledge', {})
+      if (!res.error) successCount++
     }
-    setBulkAcknowledging(false);
-    await loadRecords(selectedDate);
+    setBulkAcknowledging(false)
+    await loadRecords(selectedDate)
     setSuccess(
       isNp
         ? `${successCount} रेकर्डहरू स्वीकृत गरियो`
-        : `${successCount} record${successCount === 1 ? '' : 's'} acknowledged`
-    );
-    setTimeout(() => setSuccess(''), 3000);
-  };
+        : `${successCount} record${successCount === 1 ? '' : 's'} acknowledged`,
+    )
+    setTimeout(() => setSuccess(''), 3000)
+  }
 
   const displayedRecords = filterAutoOnly
     ? records.filter((r) => r.status === 'AUTO_CLOSED')
-    : records;
+    : records
 
-  const autoClosedCount = records.filter((r) => r.status === 'AUTO_CLOSED').length;
-  const unreviewedCount = records.filter((r) => r.status === 'AUTO_CLOSED' && !r.reviewedByAccountant).length;
+  const autoClosedCount = records.filter((r) => r.status === 'AUTO_CLOSED').length
+  const unreviewedCount = records.filter(
+    (r) => r.status === 'AUTO_CLOSED' && !r.reviewedByAccountant,
+  ).length
 
   return (
     <AccountantLayout>
       <div className="space-y-6">
-
         {/* Page header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
               {isNp ? 'उपस्थिति रेकर्ड' : 'Attendance records'}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="mt-1 text-sm text-slate-500">
               {isNp
                 ? 'AUTO_CLOSED रेकर्डहरू समीक्षा र स्वीकृत गर्नुहोस्'
                 : 'Review and acknowledge AUTO_CLOSED records'}
             </p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-wrap items-center gap-3">
             {isBs ? (
               <div className="w-56">
-                <BSDatePicker value={selectedDate} onChange={(adDateStr) => setSelectedDate(adDateStr)} />
+                <BSDatePicker
+                  value={selectedDate}
+                  onChange={(adDateStr) => setSelectedDate(adDateStr)}
+                />
               </div>
             ) : (
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
               />
             )}
             <button
               onClick={() => setFilterAutoOnly(!filterAutoOnly)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
                 filterAutoOnly
-                  ? 'bg-amber-50 border-amber-300 text-amber-700'
-                  : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                  ? 'border-amber-300 bg-amber-50 text-amber-700'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
-              <Filter className="w-4 h-4" />
+              <Filter className="h-4 w-4" />
               {isNp ? 'AUTO_CLOSED मात्र' : 'AUTO_CLOSED only'}
               {autoClosedCount > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
                   {autoClosedCount}
                 </span>
               )}
@@ -226,26 +242,34 @@ export default function AccountantAttendancePage() {
               <button
                 onClick={acknowledgeAll}
                 disabled={bulkAcknowledging}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-green-300 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700 transition-colors hover:bg-green-100 disabled:opacity-50"
               >
-                <CheckSquare className="w-4 h-4" />
+                <CheckSquare className="h-4 w-4" />
                 {bulkAcknowledging
-                  ? (isNp ? 'स्वीकृत गर्दै...' : 'Acknowledging...')
-                  : (isNp ? `सबै स्वीकृत (${unreviewedCount})` : `Acknowledge all (${unreviewedCount})`)}
+                  ? isNp
+                    ? 'स्वीकृत गर्दै...'
+                    : 'Acknowledging...'
+                  : isNp
+                    ? `सबै स्वीकृत (${unreviewedCount})`
+                    : `Acknowledge all (${unreviewedCount})`}
               </button>
             )}
             {lastRefreshed && (
               <span className="text-xs text-slate-400">
                 {isNp ? 'अपडेट:' : 'Updated'}{' '}
-                {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {lastRefreshed.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                })}
               </span>
             )}
             <button
               onClick={() => loadRecords(selectedDate)}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               {isNp ? 'रिफ्रेश' : 'Refresh'}
             </button>
           </div>
@@ -253,26 +277,26 @@ export default function AccountantAttendancePage() {
 
         {/* Alerts */}
         {error && (
-          <div className="flex items-center justify-between p-4 bg-rose-50 rounded-lg border border-rose-200">
+          <div className="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+              <AlertCircle className="h-5 w-5 shrink-0 text-rose-500" />
               <span className="text-sm font-medium text-rose-700">{error}</span>
             </div>
-            <button onClick={() => setError('')} className="text-rose-400 hover:text-rose-600 ml-4">
-              <X className="w-4 h-4" />
+            <button onClick={() => setError('')} className="ml-4 text-rose-400 hover:text-rose-600">
+              <X className="h-4 w-4" />
             </button>
           </div>
         )}
         {success && (
-          <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-            <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+          <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <CheckCircle className="h-5 w-5 shrink-0 text-emerald-500" />
             <span className="text-sm font-medium text-emerald-700">{success}</span>
           </div>
         )}
 
         {/* Accountant notice */}
-        <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
-          <Lock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <p className="text-xs text-amber-700">
             {isNp
               ? 'लेखापालले AUTO_CLOSED रेकर्डहरूको check-out समय सच्याउन र स्वीकृत गर्न सक्छन्। एकपटक स्वीकृत भएपछि सम्पादन बन्द हुन्छ। प्रशासकले मात्र पुनः सम्पादन गर्न सक्छन्।'
@@ -281,18 +305,22 @@ export default function AccountantAttendancePage() {
         </div>
 
         {/* Records table */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="w-8 h-8 border-2 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-800" />
             </div>
           ) : displayedRecords.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-              <Clock className="w-10 h-10 mb-3 opacity-30" />
+              <Clock className="mb-3 h-10 w-10 opacity-30" />
               <p className="text-sm">
                 {filterAutoOnly
-                  ? (isNp ? 'यस मितिमा AUTO_CLOSED रेकर्ड छैन' : 'No AUTO_CLOSED records for this date')
-                  : (isNp ? 'यस मितिमा कुनै रेकर्ड छैन' : 'No records for this date')}
+                  ? isNp
+                    ? 'यस मितिमा AUTO_CLOSED रेकर्ड छैन'
+                    : 'No AUTO_CLOSED records for this date'
+                  : isNp
+                    ? 'यस मितिमा कुनै रेकर्ड छैन'
+                    : 'No records for this date'}
               </p>
             </div>
           ) : (
@@ -311,7 +339,7 @@ export default function AccountantAttendancePage() {
                     ].map((h, i) => (
                       <th
                         key={i}
-                        className={`py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider ${
+                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-400 ${
                           i === 0 ? 'text-left' : i === 6 ? 'text-center' : 'text-left'
                         }`}
                       >
@@ -324,31 +352,38 @@ export default function AccountantAttendancePage() {
                   {displayedRecords.map((r) => (
                     <tr
                       key={r.id}
-                      className={`hover:bg-slate-50/50 transition-colors ${
+                      className={`transition-colors hover:bg-slate-50/50 ${
                         r.reviewedByAccountant ? 'opacity-60' : ''
                       }`}
                     >
-                      <td className="py-3 px-4">
+                      <td className="px-4 py-3">
                         <div className="font-medium text-slate-900">
                           {r.user.firstName} {r.user.lastName}
                         </div>
                         <div className="text-xs text-slate-400">{r.user.employeeId}</div>
                         {r.modificationNote && (
-                          <div className="text-[10px] text-slate-400 mt-0.5 italic truncate max-w-[180px]" title={r.modificationNote}>
+                          <div
+                            className="mt-0.5 max-w-[180px] truncate text-[10px] italic text-slate-400"
+                            title={r.modificationNote}
+                          >
                             ✎ {r.modificationNote}
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-slate-600">
+                      <td className="px-4 py-3 text-slate-600">
                         {formatDateDisplay(r.checkInTime)}
                       </td>
-                      <td className="py-3 px-4">
-                        <span className="text-slate-900 font-medium">{formatTime(r.checkInTime)}</span>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-slate-900">
+                          {formatTime(r.checkInTime)}
+                        </span>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="px-4 py-3">
                         {r.checkOutTime ? (
                           <>
-                            <span className="text-slate-900 font-medium">{formatTime(r.checkOutTime)}</span>
+                            <span className="font-medium text-slate-900">
+                              {formatTime(r.checkOutTime)}
+                            </span>
                             {r.originalCheckOut && (
                               <div className="text-[10px] text-slate-400 line-through">
                                 {formatTime(r.originalCheckOut)}
@@ -359,61 +394,75 @@ export default function AccountantAttendancePage() {
                           <span className="text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-slate-600">
+                      <td className="px-4 py-3 text-slate-600">
                         {r.duration != null ? formatDuration(r.duration) : '—'}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
-                            STATUS_COLORS[r.status] || 'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}>
+                          <span
+                            className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${
+                              STATUS_COLORS[r.status] ||
+                              'border-slate-200 bg-slate-100 text-slate-600'
+                            }`}
+                          >
                             {r.status === 'AUTO_CLOSED'
-                              ? (isNp ? 'स्वतः बन्द' : 'AUTO CLOSED')
+                              ? isNp
+                                ? 'स्वतः बन्द'
+                                : 'AUTO CLOSED'
                               : r.status === 'CHECKED_IN'
-                              ? (isNp ? 'भित्र छ' : 'CHECKED IN')
-                              : r.status === 'CHECKED_OUT'
-                              ? (isNp ? 'बाहिर गयो' : 'CHECKED OUT')
-                              : r.status}
+                                ? isNp
+                                  ? 'भित्र छ'
+                                  : 'CHECKED IN'
+                                : r.status === 'CHECKED_OUT'
+                                  ? isNp
+                                    ? 'बाहिर गयो'
+                                    : 'CHECKED OUT'
+                                  : r.status}
                           </span>
                           {r.reviewedByAccountant && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-200">
-                              <CheckCircle className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1 rounded border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                              <CheckCircle className="h-3 w-3" />
                               {isNp ? 'स्वीकृत' : 'Acknowledged'}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="px-4 py-3">
                         {r.status === 'AUTO_CLOSED' ? (
                           r.reviewedByAccountant ? (
                             <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                              <Lock className="w-3 h-3" />
+                              <Lock className="h-3 w-3" />
                               {isNp ? 'बन्द' : 'Locked'}
                             </span>
                           ) : (
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => openEdit(r)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
                               >
-                                <Save className="w-3.5 h-3.5" />
+                                <Save className="h-3.5 w-3.5" />
                                 {isNp ? 'सच्याउनुहोस्' : 'Correct'}
                               </button>
                               <button
                                 onClick={() => acknowledgeRecord(r.id)}
                                 disabled={acknowledgingId === r.id}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-green-700 border border-green-200 bg-green-50 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700 transition-colors hover:bg-green-100 disabled:opacity-50"
                               >
-                                <CheckSquare className="w-3.5 h-3.5" />
+                                <CheckSquare className="h-3.5 w-3.5" />
                                 {acknowledgingId === r.id
                                   ? '...'
-                                  : (isNp ? 'स्वीकृत' : 'Acknowledge')}
+                                  : isNp
+                                    ? 'स्वीकृत'
+                                    : 'Acknowledge'}
                               </button>
                             </div>
                           )
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-slate-300" title={isNp ? 'सम्पादन अनुमति छैन' : 'No edit permission'}>
-                            <Lock className="w-3 h-3" />
+                          <span
+                            className="inline-flex items-center gap-1 text-xs text-slate-300"
+                            title={isNp ? 'सम्पादन अनुमति छैन' : 'No edit permission'}
+                          >
+                            <Lock className="h-3 w-3" />
                           </span>
                         )}
                       </td>
@@ -424,39 +473,43 @@ export default function AccountantAttendancePage() {
             </div>
           )}
         </div>
-
       </div>
 
       {/* Edit Modal */}
       {editRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+          <div className="w-full max-w-md space-y-5 rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
                   {isNp ? 'चेकआउट समय सच्याउनुहोस्' : 'Correct check-out time'}
                 </h2>
-                <p className="text-sm text-slate-500 mt-0.5">
+                <p className="mt-0.5 text-sm text-slate-500">
                   {editRecord.user.firstName} {editRecord.user.lastName}
-                  <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">
+                  <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
                     AUTO_CLOSED
                   </span>
                 </p>
               </div>
               <button
-                onClick={() => { setEditRecord(null); setError(''); }}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400"
+                onClick={() => {
+                  setEditRecord(null)
+                  setError('')
+                }}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Original check-in — read only for context */}
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="text-xs text-slate-500 mb-1">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="mb-1 text-xs text-slate-500">
                 {isNp ? 'चेक इन समय (परिवर्तन हुँदैन)' : 'Check-in time (read only)'}
               </p>
-              <p className="text-sm font-medium text-slate-900">{formatTime(editRecord.checkInTime)}</p>
+              <p className="text-sm font-medium text-slate-900">
+                {formatTime(editRecord.checkInTime)}
+              </p>
             </div>
 
             {/* Check-out field */}
@@ -471,7 +524,7 @@ export default function AccountantAttendancePage() {
                 type="datetime-local"
                 value={editForm.checkOutTime}
                 onChange={(e) => setEditForm({ ...editForm, checkOutTime: e.target.value })}
-                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
               />
               <p className="text-xs text-amber-600">
                 {isNp
@@ -490,37 +543,39 @@ export default function AccountantAttendancePage() {
                 placeholder={isNp ? 'परिवर्तनको कारण लेख्नुहोस्' : 'Reason for this correction'}
                 value={editForm.note}
                 onChange={(e) => setEditForm({ ...editForm, note: e.target.value })}
-                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
               />
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-rose-50 rounded-lg border border-rose-200">
-                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+              <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
                 <p className="text-xs text-rose-700">{error}</p>
               </div>
             )}
 
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => { setEditRecord(null); setError(''); }}
-                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                onClick={() => {
+                  setEditRecord(null)
+                  setError('')
+                }}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
               >
                 {isNp ? 'रद्द' : 'Cancel'}
               </button>
               <button
                 onClick={submitEdit}
                 disabled={editSaving}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
-                {editSaving ? (isNp ? 'सेभ...' : 'Saving...') : (isNp ? 'सेभ' : 'Save')}
+                <Save className="h-4 w-4" />
+                {editSaving ? (isNp ? 'सेभ...' : 'Saving...') : isNp ? 'सेभ' : 'Save'}
               </button>
             </div>
           </div>
         </div>
       )}
-
     </AccountantLayout>
-  );
+  )
 }

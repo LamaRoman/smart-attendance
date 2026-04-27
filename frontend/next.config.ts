@@ -1,39 +1,35 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
-const isProd = process.env.NODE_ENV === "production";
+const isProd = process.env.NODE_ENV === 'production'
 
-const backendUrl = isProd
-  ? "https://api.zentaralabs.com"
-  : "http://localhost:5001";
+const backendUrl = isProd ? 'https://api.zentaralabs.com' : 'http://localhost:5001'
 
-const frontendUrl = isProd
-  ? "https://zentaralabs.com"
-  : "http://localhost:3000";
+const frontendUrl = isProd ? 'https://zentaralabs.com' : 'http://localhost:3000'
 
 const securityHeaders = [
   {
-    key: "X-DNS-Prefetch-Control",
-    value: "on",
+    key: 'X-DNS-Prefetch-Control',
+    value: 'on',
   },
   {
-    key: "Strict-Transport-Security",
-    value: "max-age=63072000; includeSubDomains; preload",
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload',
   },
   {
-    key: "X-Frame-Options",
-    value: "SAMEORIGIN",
+    key: 'X-Frame-Options',
+    value: 'SAMEORIGIN',
   },
   {
-    key: "X-Content-Type-Options",
-    value: "nosniff",
+    key: 'X-Content-Type-Options',
+    value: 'nosniff',
   },
   {
-    key: "Referrer-Policy",
-    value: "strict-origin-when-cross-origin",
+    key: 'Referrer-Policy',
+    value: 'strict-origin-when-cross-origin',
   },
   {
-    key: "Permissions-Policy",
-    value: "camera=(self), microphone=(), geolocation=(self), browsing-topics=()",
+    key: 'Permissions-Policy',
+    value: 'camera=(self), microphone=(), geolocation=(self), browsing-topics=()',
   },
   // ─────────────────────────────────────────────────────────────────────────
   // CSP rationale (reviewed 2026-04-19):
@@ -59,7 +55,7 @@ const securityHeaders = [
   // requires strict CSP. See nextjs.org/docs/app/guides/content-security-policy
   // ─────────────────────────────────────────────────────────────────────────
   {
-    key: "Content-Security-Policy",
+    key: 'Content-Security-Policy',
     value: [
       `default-src 'self'`,
       `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
@@ -71,9 +67,9 @@ const securityHeaders = [
       `object-src 'none'`,
       `base-uri 'self'`,
       `form-action 'self'`,
-    ].join("; "),
+    ].join('; '),
   },
-];
+]
 
 const nextConfig: NextConfig = {
   turbopack: {
@@ -82,11 +78,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
+        source: '/(.*)',
         headers: securityHeaders,
       },
-    ];
+    ]
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig
