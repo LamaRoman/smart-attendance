@@ -108,7 +108,7 @@ export function calculateTDS(
     remaining -= taxable
   }
 
-  return tax / 12 // Monthly instalment
+  return Math.round(tax / 12) // Monthly instalment, whole rupees (matches backend)
 }
 
 /** Format a number as currency with two decimal places. */
@@ -132,12 +132,12 @@ export function paySettingsFromApi(existing: any): PaySettings {
     otherAllowances: Number(existing.otherAllowances) || 0,
     overtimeRatePerHour: Number(existing.overtimeRatePerHour) || 0,
     ssfEnabled: existing.ssfEnabled ?? true,
-    employeeSsfRate: Number(existing.employeeSsfRate) ?? 11,
-    employerSsfRate: Number(existing.employerSsfRate) ?? 20,
+    employeeSsfRate: Number(existing.employeeSsfRate) || 11,
+    employerSsfRate: Number(existing.employerSsfRate) || 20,
     tdsEnabled: existing.tdsEnabled ?? true,
     pfEnabled: existing.pfEnabled ?? false,
-    employeePfRate: Number(existing.employeePfRate) ?? 10,
-    employerPfRate: Number(existing.employerPfRate) ?? 10,
+    employeePfRate: Number(existing.employeePfRate) || 10,
+    employerPfRate: Number(existing.employerPfRate) || 10,
     citEnabled: existing.citEnabled ?? false,
     citAmount: Number(existing.citAmount) || 0,
     isMarried: existing.isMarried ?? false,
