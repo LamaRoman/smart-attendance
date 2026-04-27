@@ -1,9 +1,25 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import Constants from 'expo-constants';
 import { TokenStorage } from './auth';
 
 // ─── Config ─────────────────────────────────────────────────────────────────
-// Change this to your Railway URL for production builds
-const BASE_URL = __DEV__ ? 'http://192.168.1.65:5001' : 'https://api.zentaralabs.com';
+// Dynamically resolves the dev machine's IP from the Expo dev server host.
+// This means you never need to manually update the IP when switching networks.
+const getDevBaseUrl = (): string => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ??
+    (Constants as any).manifest?.debuggerHost;
+
+  if (hostUri) {
+    const ip = hostUri.split(':')[0]; // strip port, keep IP
+    return `http://${ip}:5001`;
+  }
+  // Fallback: emulator localhost tunnel
+  return 'http://localhost:5001';
+};
+
+const BASE_URL = __DEV__ ? getDevBaseUrl() : 'https://api.zentaralabs.com';
 // ─── Create instance ─────────────────────────────────────────────────────────
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
