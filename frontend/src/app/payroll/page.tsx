@@ -97,8 +97,11 @@ export default function PayrollPage() {
       form.transportAllowance +
       form.medicalAllowance +
       form.otherAllowances
-    const employeeSsf = form.ssfEnabled ? (gross * form.employeeSsfRate) / 100 : 0
-    const employeePf = form.pfEnabled ? (gross * form.employeePfRate) / 100 : 0
+    // SSF/PF are calculated on basic salary only, matching the backend's
+    // effectiveBasic logic. Live preview assumes full attendance, so basic
+    // alone is the right base here.
+    const employeeSsf = form.ssfEnabled ? (form.basicSalary * form.employeeSsfRate) / 100 : 0
+    const employeePf = form.pfEnabled ? (form.basicSalary * form.employeePfRate) / 100 : 0
     const citDeduction = form.citEnabled ? form.citAmount : 0
     const tds = form.tdsEnabled
       ? calculateTDS(
@@ -119,8 +122,8 @@ export default function PayrollPage() {
       tds,
       totalDeductions,
       net: gross - totalDeductions,
-      employerSsf: form.ssfEnabled ? (gross * form.employerSsfRate) / 100 : 0,
-      employerPf: form.pfEnabled ? (gross * form.employerPfRate) / 100 : 0,
+      employerSsf: form.ssfEnabled ? (form.basicSalary * form.employerSsfRate) / 100 : 0,
+      employerPf: form.pfEnabled ? (form.basicSalary * form.employerPfRate) / 100 : 0,
     }
   }, [form])
 
