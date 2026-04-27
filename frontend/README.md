@@ -5,6 +5,7 @@ Staff attendance tracking with QR code scanning.
 ## Day 1: Foundation
 
 What's included:
+
 - Next.js 14 with App Router
 - Prisma with PostgreSQL (Users + UserSession tables)
 - JWT authentication
@@ -13,28 +14,33 @@ What's included:
 ## Setup
 
 1. **Install dependencies:**
+
 ```bash
 npm install
 ```
 
 2. **Set up environment:**
+
 ```bash
 cp .env.example .env
 # Edit .env with your PostgreSQL connection string
 ```
 
 3. **Set up database:**
+
 ```bash
 npx prisma generate
 npx prisma migrate dev --name init
 ```
 
 4. **Seed test data:**
+
 ```bash
 npm run db:seed
 ```
 
 5. **Start development server:**
+
 ```bash
 npm run dev
 ```

@@ -1,14 +1,19 @@
-'use client';
-import { Zap, X, Lock, Eye } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+'use client'
+import { Zap, X, Lock, Eye } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface UpgradePromptProps {
-  mode: 'banner' | 'modal' | 'inline';
-  code: 'FEATURE_NOT_AVAILABLE' | 'PREVIEW_ONLY' | 'SUBSCRIPTION_INACTIVE' | 'NO_SUBSCRIPTION' | 'EMPLOYEE_LIMIT_REACHED';
-  message?: string;
-  feature?: string;
-  onDismiss?: () => void;
-  isNp?: boolean;
+  mode: 'banner' | 'modal' | 'inline'
+  code:
+    | 'FEATURE_NOT_AVAILABLE'
+    | 'PREVIEW_ONLY'
+    | 'SUBSCRIPTION_INACTIVE'
+    | 'NO_SUBSCRIPTION'
+    | 'EMPLOYEE_LIMIT_REACHED'
+  message?: string
+  feature?: string
+  onDismiss?: () => void
+  isNp?: boolean
 }
 
 const LABELS = {
@@ -42,9 +47,12 @@ const LABELS = {
     icon: Lock,
     color: 'amber',
   },
-};
+}
 
-const COLOR_MAP: Record<string, { bg: string; border: string; icon: string; btn: string; text: string }> = {
+const COLOR_MAP: Record<
+  string,
+  { bg: string; border: string; icon: string; btn: string; text: string }
+> = {
   amber: {
     bg: 'bg-amber-50',
     border: 'border-amber-200',
@@ -66,7 +74,7 @@ const COLOR_MAP: Record<string, { bg: string; border: string; icon: string; btn:
     btn: 'bg-red-600 hover:bg-red-700 text-white',
     text: 'text-red-800',
   },
-};
+}
 
 export default function UpgradePrompt({
   mode = 'banner',
@@ -75,85 +83,89 @@ export default function UpgradePrompt({
   onDismiss,
   isNp = false,
 }: UpgradePromptProps) {
-  const router = useRouter();
-  const meta = LABELS[code] ?? LABELS['FEATURE_NOT_AVAILABLE'];
-  const colors = COLOR_MAP[meta.color];
-  const Icon = meta.icon;
-  const label = isNp ? meta.np : meta.en;
-  const displayMessage = message ?? label;
+  const router = useRouter()
+  const meta = LABELS[code] ?? LABELS['FEATURE_NOT_AVAILABLE']
+  const colors = COLOR_MAP[meta.color]
+  const Icon = meta.icon
+  const label = isNp ? meta.np : meta.en
+  const displayMessage = message ?? label
 
-  const handleUpgrade = () => router.push('/admin/pay');
+  const handleUpgrade = () => router.push('/admin/pay')
 
   // ── Inline mode — small pill inside a card ────────────────
   if (mode === 'inline') {
     return (
-      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${colors.bg} ${colors.border}`}>
-        <Icon className={`w-4 h-4 shrink-0 ${colors.icon}`} />
+      <div
+        className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${colors.bg} ${colors.border}`}
+      >
+        <Icon className={`h-4 w-4 shrink-0 ${colors.icon}`} />
         <p className={`text-xs font-medium ${colors.text} flex-1`}>{displayMessage}</p>
         <button
           onClick={handleUpgrade}
-          className="text-xs font-semibold text-violet-600 hover:text-violet-800 whitespace-nowrap"
+          className="whitespace-nowrap text-xs font-semibold text-violet-600 hover:text-violet-800"
         >
           {isNp ? 'अपग्रेड' : 'Upgrade →'}
         </button>
       </div>
-    );
+    )
   }
 
   // ── Banner mode — full-width bar ──────────────────────────
   if (mode === 'banner') {
     return (
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${colors.bg} ${colors.border} mb-4`}>
-        <Icon className={`w-5 h-5 shrink-0 ${colors.icon}`} />
+      <div
+        className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${colors.bg} ${colors.border} mb-4`}
+      >
+        <Icon className={`h-5 w-5 shrink-0 ${colors.icon}`} />
         <p className={`text-sm font-medium ${colors.text} flex-1`}>{displayMessage}</p>
         <div className="flex items-center gap-2">
           <button
             onClick={handleUpgrade}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${colors.btn}`}
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${colors.btn}`}
           >
             {isNp ? 'अपग्रेड गर्नुहोस्' : 'Upgrade Plan'}
           </button>
           {onDismiss && (
             <button onClick={onDismiss} className={`${colors.icon} hover:opacity-70`}>
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
       </div>
-    );
+    )
   }
 
   // ── Modal mode — centered overlay ─────────────────────────
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
-        <div className="flex flex-col items-center text-center gap-4">
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center ${colors.bg}`}>
-            <Icon className={`w-7 h-7 ${colors.icon}`} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className={`flex h-14 w-14 items-center justify-center rounded-full ${colors.bg}`}>
+            <Icon className={`h-7 w-7 ${colors.icon}`} />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">{label}</h3>
+            <h3 className="mb-1 text-base font-bold text-slate-900">{label}</h3>
             <p className="text-sm text-slate-500">{displayMessage}</p>
           </div>
-          <div className="flex gap-3 w-full mt-2">
+          <div className="mt-2 flex w-full gap-3">
             {onDismiss && (
               <button
                 onClick={onDismiss}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50"
+                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 {isNp ? 'बन्द' : 'Dismiss'}
               </button>
             )}
             <button
               onClick={handleUpgrade}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-xl"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
             >
-              <Zap className="w-4 h-4" />
+              <Zap className="h-4 w-4" />
               {isNp ? 'अपग्रेड गर्नुहोस्' : 'Upgrade Now'}
             </button>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

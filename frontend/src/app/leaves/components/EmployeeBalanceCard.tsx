@@ -1,12 +1,12 @@
-'use client';
+'use client'
 
-import { Sun, Thermometer, Umbrella } from 'lucide-react';
-import { LeaveBalance } from '../types';
-import { CURRENT_BS_YEAR } from '../constants';
+import { Sun, Thermometer, Umbrella } from 'lucide-react'
+import { LeaveBalance } from '../types'
+import { CURRENT_BS_YEAR } from '../constants'
 
 interface Props {
-  balance: LeaveBalance;
-  isNepali: boolean;
+  balance: LeaveBalance
+  isNepali: boolean
 }
 
 function BalanceColumn({
@@ -17,50 +17,48 @@ function BalanceColumn({
   total,
   barColor,
 }: {
-  icon: typeof Sun;
-  iconColor: string;
-  label: string;
-  available: number;
-  total: number;
-  barColor: string;
+  icon: typeof Sun
+  iconColor: string
+  label: string
+  available: number
+  total: number
+  barColor: string
 }) {
-  const pct = Math.round((available / Math.max(1, total)) * 100);
+  const pct = Math.round((available / Math.max(1, total)) * 100)
   return (
     <div className="p-4 text-center">
-      <div className="flex items-center justify-center gap-1.5 mb-2">
-        <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+      <div className="mb-2 flex items-center justify-center gap-1.5">
+        <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
         <span className="text-xs font-medium text-slate-600">{label}</span>
       </div>
-      <p className={`text-2xl font-bold ${iconColor.replace('text-', 'text-').replace('-500', '-700')}`}>
+      <p
+        className={`text-2xl font-bold ${iconColor.replace('text-', 'text-').replace('-500', '-700')}`}
+      >
         {available}
       </p>
-      <p className="text-xs text-slate-400 mt-0.5">of {total}</p>
-      <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden mx-4">
+      <p className="mt-0.5 text-xs text-slate-400">of {total}</p>
+      <div className="mx-4 mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
         <div
           className={`h-full rounded-full ${
-            available === 0
-              ? 'bg-rose-400'
-              : pct < 30
-              ? 'bg-amber-400'
-              : barColor
+            available === 0 ? 'bg-rose-400' : pct < 30 ? 'bg-amber-400' : barColor
           }`}
           style={{ width: `${pct}%` }}
         />
       </div>
     </div>
-  );
+  )
 }
 
 export default function EmployeeBalanceCard({ balance, isNepali }: Props) {
   return (
-    <div className="mb-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
+    <div className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
         <h3 className="text-sm font-semibold text-slate-900">
           {isNepali
             ? `${CURRENT_BS_YEAR} — मेरो बिदा ब्यालेन्स`
             : `${CURRENT_BS_YEAR} — My Leave Balance`}
         </h3>
-        <p className="text-xs text-slate-400 mt-0.5">
+        <p className="mt-0.5 text-xs text-slate-400">
           {isNepali ? 'उपलब्ध / जम्मा' : 'Available / Total'}
         </p>
       </div>
@@ -91,5 +89,5 @@ export default function EmployeeBalanceCard({ balance, isNepali }: Props) {
         />
       </div>
     </div>
-  );
+  )
 }

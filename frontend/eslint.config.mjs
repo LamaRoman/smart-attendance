@@ -6,13 +6,7 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   prettier,
 
-  globalIgnores([
-    '.next/**',
-    'out/**',
-    'build/**',
-    'next-env.d.ts',
-    'node_modules/**',
-  ]),
+  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'node_modules/**']),
 
   // React 19 / React Compiler rules: relaxed to warn while we work through
   // the migration debt. Tracked as a separate roadmap step.

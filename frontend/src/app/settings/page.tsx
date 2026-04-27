@@ -1,12 +1,12 @@
-'use client';
+'use client'
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/auth-context';
-import AdminLayout from '@/components/AdminLayout';
-import { api } from '@/lib/api';
-import dynamic from 'next/dynamic';
-import DocumentTypeManager from '@/components/DocumentTypeManager';
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/auth-context'
+import AdminLayout from '@/components/AdminLayout'
+import { api } from '@/lib/api'
+import dynamic from 'next/dynamic'
+import DocumentTypeManager from '@/components/DocumentTypeManager'
 
 import {
   ArrowLeft,
@@ -31,36 +31,33 @@ import {
   Clock,
   Gift,
   BookOpen,
-} from 'lucide-react';
+} from 'lucide-react'
 
-const GeofenceMap = dynamic(
-  () => import('@/components/GeoFenceMap'),
-  { ssr: false }
-);
+const GeofenceMap = dynamic(() => import('@/components/GeoFenceMap'), { ssr: false })
 
 interface OrgSettings {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  calendarMode: 'NEPALI' | 'ENGLISH';
-  language: 'NEPALI' | 'ENGLISH';
-  isActive: boolean;
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  calendarMode: 'NEPALI' | 'ENGLISH'
+  language: 'NEPALI' | 'ENGLISH'
+  isActive: boolean
 }
 
 export default function OrgSettingsPage() {
-  const { user, isLoading, logout, isAdmin, language: currentLang, refreshUser } = useAuth();
-  const router = useRouter();
-  const isNepali = currentLang === 'NEPALI';
+  const { user, isLoading, logout, isAdmin, language: currentLang, refreshUser } = useAuth()
+  const router = useRouter()
+  const isNepali = currentLang === 'NEPALI'
 
-  const [settings, setSettings] = useState<OrgSettings | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<OrgSettings | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -88,20 +85,20 @@ export default function OrgSettingsPage() {
     annualLeaveEntitlement: 18,
     sickLeaveEntitlement: 12,
     casualLeaveEntitlement: 6,
-  });
+  })
 
   useEffect(() => {
     if (!isLoading && (!user || !isAdmin)) {
-      router.push('/login');
+      router.push('/login')
     }
-  }, [user, isLoading, isAdmin, router]);
+  }, [user, isLoading, isAdmin, router])
 
   const loadSettings = useCallback(async () => {
-    setLoading(true);
-    const res = await api.get('/api/v1/org-settings');
+    setLoading(true)
+    const res = await api.get('/api/v1/org-settings')
     if (res.data) {
-      const data = res.data as any;
-      setSettings(data);
+      const data = res.data as any
+      setSettings(data)
       setFormData({
         name: data.name,
         email: data.email || '',
@@ -127,29 +124,29 @@ export default function OrgSettingsPage() {
         annualLeaveEntitlement: data.annualLeaveEntitlement ?? 18,
         sickLeaveEntitlement: data.sickLeaveEntitlement ?? 12,
         casualLeaveEntitlement: data.casualLeaveEntitlement ?? 6,
-      });
-      const configRes = await api.get('/api/v1/config');
+      })
+      const configRes = await api.get('/api/v1/config')
       if (configRes.data) {
-        const configMap = (configRes.data as any).configMap || {};
-        setFormData(prev => ({
+        const configMap = (configRes.data as any).configMap || {}
+        setFormData((prev) => ({
           ...prev,
           notificationRetentionDays: configMap.notificationRetentionDays
             ? parseInt(configMap.notificationRetentionDays)
             : 30,
-        }));
+        }))
       }
-      setLastRefreshed(new Date());
+      setLastRefreshed(new Date())
     }
-    setLoading(false);
-  }, []);
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
-    if (user && isAdmin) loadSettings();
-  }, [user, isAdmin, loadSettings]);
+    if (user && isAdmin) loadSettings()
+  }, [user, isAdmin, loadSettings])
 
   const handleSave = async () => {
-    setSaving(true);
-    setError('');
+    setSaving(true)
+    setError('')
 
     const res = await api.put('/api/v1/org-settings', {
       name: formData.name,
@@ -175,18 +172,18 @@ export default function OrgSettingsPage() {
       annualLeaveEntitlement: formData.annualLeaveEntitlement,
       sickLeaveEntitlement: formData.sickLeaveEntitlement,
       casualLeaveEntitlement: formData.casualLeaveEntitlement,
-    });
+    })
 
     await api.put('/api/v1/config/notificationRetentionDays', {
       value: String(Math.min(90, Math.max(7, formData.notificationRetentionDays))),
-    });
+    })
 
     if (res.error) {
-      setError(res.error.message);
+      setError(res.error.message)
     } else {
-      setSuccess(isNepali ? 'सेटिङ्स सफलतापूर्वक अपडेट गरियो।' : 'Settings updated successfully.');
-      const updated = res.data as any;
-      setSettings(updated);
+      setSuccess(isNepali ? 'सेटिङ्स सफलतापूर्वक अपडेट गरियो।' : 'Settings updated successfully.')
+      const updated = res.data as any
+      setSettings(updated)
       setFormData({
         name: updated.name,
         email: updated.email || '',
@@ -212,14 +209,14 @@ export default function OrgSettingsPage() {
         annualLeaveEntitlement: updated.annualLeaveEntitlement ?? 18,
         sickLeaveEntitlement: updated.sickLeaveEntitlement ?? 12,
         casualLeaveEntitlement: updated.casualLeaveEntitlement ?? 6,
-      });
-      await refreshUser();
-      setLastRefreshed(new Date());
-      setTimeout(() => setSuccess(''), 5000);
+      })
+      await refreshUser()
+      setLastRefreshed(new Date())
+      setTimeout(() => setSuccess(''), 5000)
     }
 
-    setSaving(false);
-  };
+    setSaving(false)
+  }
 
   const getCurrentLocation = () => {
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
@@ -229,42 +226,45 @@ export default function OrgSettingsPage() {
             ...formData,
             officeLat: pos.coords.latitude.toString(),
             officeLng: pos.coords.longitude.toString(),
-          });
+          })
         },
         () => {
-          setError(isNepali ? 'स्थान प्राप्त गर्न सकिएन' : 'Could not get location');
-        }
-      );
+          setError(isNepali ? 'स्थान प्राप्त गर्न सकिएन' : 'Could not get location')
+        },
+      )
     }
-  };
+  }
 
   const handleMapLocationChange = (lat: number, lng: number) => {
-    setFormData({ ...formData, officeLat: lat.toString(), officeLng: lng.toString() });
-  };
+    setFormData({ ...formData, officeLat: lat.toString(), officeLng: lng.toString() })
+  }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-12 h-12 rounded-full border-2 border-slate-100 border-t-slate-800 animate-spin" />
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="h-12 w-12 animate-spin rounded-full border-2 border-slate-100 border-t-slate-800" />
       </div>
-    );
+    )
   }
 
-  if (!user || !isAdmin) return null;
+  if (!user || !isAdmin) return null
 
   return (
     <AdminLayout>
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">
-              <button onClick={() => router.push('/admin')} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <ArrowLeft className="w-5 h-5 text-slate-600" />
+              <button
+                onClick={() => router.push('/admin')}
+                className="rounded-lg p-2 transition-colors hover:bg-slate-100"
+              >
+                <ArrowLeft className="h-5 w-5 text-slate-600" />
               </button>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-900">
-                  <Settings className="w-5 h-5 text-white" />
+                <div className="rounded-lg bg-slate-900 p-2">
+                  <Settings className="h-5 w-5 text-white" />
                 </div>
                 <div>
                   <h1 className="text-base font-semibold text-slate-900">
@@ -278,74 +278,96 @@ export default function OrgSettingsPage() {
               {lastRefreshed && (
                 <span className="text-xs text-slate-400">
                   {isNepali ? 'पछिल्लो अपडेट:' : 'Updated'}{' '}
-                  {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  {lastRefreshed.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })}
                 </span>
               )}
-              <button onClick={loadSettings} disabled={loading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <button
+                onClick={loadSettings}
+                disabled={loading}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
                 {isNepali ? 'रिफ्रेश' : 'Refresh'}
               </button>
-              <button onClick={logout} className="p-2 hover:bg-rose-50 rounded-lg transition-colors text-slate-400 hover:text-rose-600">
-                <LogOut className="w-5 h-5" />
+              <button
+                onClick={logout}
+                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+              >
+                <LogOut className="h-5 w-5" />
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         {error && (
-          <div className="mb-6 flex items-center justify-between p-4 bg-rose-50 rounded-lg border border-rose-200">
+          <div className="mb-6 flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-rose-500" />
+              <AlertCircle className="h-5 w-5 text-rose-500" />
               <span className="text-sm font-medium text-rose-700">{error}</span>
             </div>
-            <button onClick={() => setError('')} className="text-rose-400 hover:text-rose-600"><X className="w-4 h-4" /></button>
+            <button onClick={() => setError('')} className="text-rose-400 hover:text-rose-600">
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
         {success && (
-          <div className="mb-6 flex items-center gap-3 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-            <CheckCircle className="w-5 h-5 text-emerald-500" />
+          <div className="mb-6 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <CheckCircle className="h-5 w-5 text-emerald-500" />
             <span className="text-sm font-medium text-emerald-700">{success}</span>
           </div>
         )}
 
         <div className="space-y-6">
-
           {/* ── Language & Calendar ── */}
-          <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
+          <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+            <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-slate-800"><Languages className="w-5 h-5 text-white" /></div>
+                <div className="rounded-lg bg-slate-800 p-2.5">
+                  <Languages className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
                     {isNepali ? 'भाषा र क्यालेन्डर' : 'Language & Calendar'}
                   </h2>
-                  <p className="text-sm text-slate-500 mt-0.5">
-                    {isNepali ? 'तपाईंको संगठनको प्राथमिकता सेट गर्नुहोस्' : 'Set your organization preferences'}
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    {isNepali
+                      ? 'तपाईंको संगठनको प्राथमिकता सेट गर्नुहोस्'
+                      : 'Set your organization preferences'}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="p-6 space-y-8">
+            <div className="space-y-8 p-6">
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <Globe className="w-4 h-4 text-slate-400" />
+                  <Globe className="h-4 w-4 text-slate-400" />
                   {isNepali ? 'प्रदर्शन भाषा' : 'Display language'}
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   {(['NEPALI', 'ENGLISH'] as const).map((lang) => (
-                    <button key={lang} onClick={() => setFormData({ ...formData, language: lang })}
-                      className={`group relative p-5 rounded-xl border-2 transition-all duration-200 ${formData.language === lang ? 'border-slate-800 bg-slate-50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
+                    <button
+                      key={lang}
+                      onClick={() => setFormData({ ...formData, language: lang })}
+                      className={`group relative rounded-xl border-2 p-5 transition-all duration-200 ${formData.language === lang ? 'border-slate-800 bg-slate-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                    >
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-slate-800 mb-2">{lang === 'NEPALI' ? 'नेपाली' : 'English'}</div>
-                        <div className="text-xs text-slate-500">{lang === 'NEPALI' ? 'Nepali' : 'अंग्रेजी'}</div>
+                        <div className="mb-2 text-2xl font-bold text-slate-800">
+                          {lang === 'NEPALI' ? 'नेपाली' : 'English'}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {lang === 'NEPALI' ? 'Nepali' : 'अंग्रेजी'}
+                        </div>
                       </div>
                       {formData.language === lang && (
-                        <div className="absolute top-3 right-3">
-                          <div className="w-5 h-5 bg-slate-800 rounded-full flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" />
+                        <div className="absolute right-3 top-3">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800">
+                            <Check className="h-3 w-3 text-white" />
                           </div>
                         </div>
                       )}
@@ -355,21 +377,28 @@ export default function OrgSettingsPage() {
               </div>
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <Calendar className="h-4 w-4 text-slate-400" />
                   {isNepali ? 'क्यालेन्डर मोड' : 'Calendar mode'}
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   {(['NEPALI', 'ENGLISH'] as const).map((mode) => (
-                    <button key={mode} onClick={() => setFormData({ ...formData, calendarMode: mode })}
-                      className={`group relative p-5 rounded-xl border-2 transition-all duration-200 ${formData.calendarMode === mode ? 'border-slate-800 bg-slate-50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
+                    <button
+                      key={mode}
+                      onClick={() => setFormData({ ...formData, calendarMode: mode })}
+                      className={`group relative rounded-xl border-2 p-5 transition-all duration-200 ${formData.calendarMode === mode ? 'border-slate-800 bg-slate-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                    >
                       <div className="text-center">
-                        <div className="text-lg font-semibold text-slate-800 mb-2">{mode === 'NEPALI' ? 'बि.सं.' : 'A.D.'}</div>
-                        <div className="text-xs text-slate-500">{mode === 'NEPALI' ? 'Bikram Sambat' : 'Gregorian'}</div>
+                        <div className="mb-2 text-lg font-semibold text-slate-800">
+                          {mode === 'NEPALI' ? 'बि.सं.' : 'A.D.'}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {mode === 'NEPALI' ? 'Bikram Sambat' : 'Gregorian'}
+                        </div>
                       </div>
                       {formData.calendarMode === mode && (
-                        <div className="absolute top-3 right-3">
-                          <div className="w-5 h-5 bg-slate-800 rounded-full flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" />
+                        <div className="absolute right-3 top-3">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800">
+                            <Check className="h-3 w-3 text-white" />
                           </div>
                         </div>
                       )}
@@ -381,69 +410,94 @@ export default function OrgSettingsPage() {
           </div>
 
           {/* ── Organization Info ── */}
-          <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
+          <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+            <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-slate-800"><Building className="w-5 h-5 text-white" /></div>
+                <div className="rounded-lg bg-slate-800 p-2.5">
+                  <Building className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
                     {isNepali ? 'संगठन विवरण' : 'Organization details'}
                   </h2>
-                  <p className="text-sm text-slate-500 mt-0.5">
-                    {isNepali ? 'तपाईंको संगठनको आधारभूत जानकारी' : 'Basic information about your organization'}
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    {isNepali
+                      ? 'तपाईंको संगठनको आधारभूत जानकारी'
+                      : 'Basic information about your organization'}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="p-6 space-y-5">
+            <div className="space-y-5 p-6">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <Building className="w-4 h-4 text-slate-400" />
+                  <Building className="h-4 w-4 text-slate-400" />
                   {isNepali ? 'संगठनको नाम' : 'Organization name'}
                 </label>
-                <input type="text" value={formData.name} readOnly
-                  className="w-full px-4 py-3 text-base bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all placeholder:text-slate-300"
-                  placeholder={isNepali ? 'तपाईंको संगठनको नाम' : 'Your organization name'} />
+                <input
+                  type="text"
+                  value={formData.name}
+                  readOnly
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-base transition-all placeholder:text-slate-300 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                  placeholder={isNepali ? 'तपाईंको संगठनको नाम' : 'Your organization name'}
+                />
               </div>
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <Mail className="w-4 h-4 text-slate-400" />{isNepali ? 'इमेल' : 'Email'}
+                    <Mail className="h-4 w-4 text-slate-400" />
+                    {isNepali ? 'इमेल' : 'Email'}
                   </label>
-                  <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                    placeholder="info@company.com" />
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                    placeholder="info@company.com"
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <Phone className="w-4 h-4 text-slate-400" />{isNepali ? 'फोन' : 'Phone'}
+                    <Phone className="h-4 w-4 text-slate-400" />
+                    {isNepali ? 'फोन' : 'Phone'}
                   </label>
-                  <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                    placeholder="+977 1 2345678" />
+                  <input
+                    type="text"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                    placeholder="+977 1 2345678"
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <MapPin className="w-4 h-4 text-slate-400" />{isNepali ? 'ठेगाना' : 'Address'}
+                  <MapPin className="h-4 w-4 text-slate-400" />
+                  {isNepali ? 'ठेगाना' : 'Address'}
                 </label>
-                <input type="text" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                  placeholder={isNepali ? 'काठमाडौं, नेपाल' : 'Kathmandu, Nepal'} />
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                  placeholder={isNepali ? 'काठमाडौं, नेपाल' : 'Kathmandu, Nepal'}
+                />
               </div>
             </div>
           </div>
 
           {/* ── Work Schedule ── */}
-          <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
+          <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+            <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-slate-800"><Clock className="w-5 h-5 text-white" /></div>
+                <div className="rounded-lg bg-slate-800 p-2.5">
+                  <Clock className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
                     {isNepali ? 'कार्य समयतालिका' : 'Work Schedule'}
                   </h2>
-                  <p className="text-sm text-slate-500 mt-0.5">
+                  <p className="mt-0.5 text-sm text-slate-500">
                     {isNepali
                       ? 'कार्यालयको समय, ढिलो सीमा र ग्रेस पिरियड सेट गर्नुहोस्'
                       : 'Set office hours, late threshold, and grace periods'}
@@ -452,17 +506,20 @@ export default function OrgSettingsPage() {
               </div>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="space-y-5 p-6">
               {/* Opening / Closing times */}
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <Clock className="w-4 h-4 text-slate-400" />
+                    <Clock className="h-4 w-4 text-slate-400" />
                     {isNepali ? 'खुल्ने समय' : 'Opening Time'}
                   </label>
-                  <input type="time" value={formData.workStartTime}
+                  <input
+                    type="time"
+                    value={formData.workStartTime}
                     onChange={(e) => setFormData({ ...formData, workStartTime: e.target.value })}
-                    className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" />
+                    className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                  />
                   <p className="text-xs text-slate-500">
                     {isNepali
                       ? 'कर्मचारीहरू यो समय पछि आए ढिलो मानिन्छ'
@@ -471,12 +528,15 @@ export default function OrgSettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <Clock className="w-4 h-4 text-slate-400" />
+                    <Clock className="h-4 w-4 text-slate-400" />
                     {isNepali ? 'बन्द हुने समय' : 'Closing Time'}
                   </label>
-                  <input type="time" value={formData.workEndTime}
+                  <input
+                    type="time"
+                    value={formData.workEndTime}
                     onChange={(e) => setFormData({ ...formData, workEndTime: e.target.value })}
-                    className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" />
+                    className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                  />
                   <p className="text-xs text-slate-500">
                     {isNepali
                       ? 'कार्यालय बन्द हुने समय — AUTO_CLOSED रेकर्डहरू यहाँ सीमित हुन्छन्'
@@ -488,7 +548,7 @@ export default function OrgSettingsPage() {
               {/* Working Days */}
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <Clock className="w-4 h-4 text-slate-400" />
+                  <Clock className="h-4 w-4 text-slate-400" />
                   {isNepali ? 'कार्य दिनहरू' : 'Working Days'}
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -501,36 +561,36 @@ export default function OrgSettingsPage() {
                     { day: 5, en: 'Fri', np: 'शुक्र' },
                     { day: 6, en: 'Sat', np: 'शनि' },
                   ].map(({ day, en, np }) => {
-                    const activeDays = formData.workingDays.split(',').map(Number);
-                    const isActive = activeDays.includes(day);
+                    const activeDays = formData.workingDays.split(',').map(Number)
+                    const isActive = activeDays.includes(day)
                     return (
                       <button
                         key={day}
                         type="button"
                         onClick={() => {
-                          const current = formData.workingDays.split(',').map(Number);
+                          const current = formData.workingDays.split(',').map(Number)
                           const updated = isActive
                             ? current.filter((d) => d !== day)
-                            : [...current, day].sort();
+                            : [...current, day].sort()
                           if (updated.length > 0) {
-                            setFormData({ ...formData, workingDays: updated.join(',') });
+                            setFormData({ ...formData, workingDays: updated.join(',') })
                           }
                         }}
-                        className={`px-4 py-2.5 rounded-lg text-sm font-semibold border transition-all duration-150 ${
+                        className={`rounded-lg border px-4 py-2.5 text-sm font-semibold transition-all duration-150 ${
                           isActive
-                            ? 'bg-slate-800 text-white border-slate-800'
-                            : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                            ? 'border-slate-800 bg-slate-800 text-white'
+                            : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300'
                         }`}
                       >
                         {isNepali ? np : en}
                       </button>
-                    );
+                    )
                   })}
                 </div>
                 <p className="text-xs text-slate-500">
                   {isNepali
                     ? 'कार्य दिन चयन गर्नुहोस्। बिदाका दिनहरू तलब गणनामा अनुपस्थितिमा गनिँदैन।'
-                    : 'Select working days. Non-working days are paid holidays and won\'t count as absences.'}
+                    : "Select working days. Non-working days are paid holidays and won't count as absences."}
                 </p>
               </div>
 
@@ -538,14 +598,24 @@ export default function OrgSettingsPage() {
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <Clock className="w-4 h-4 text-slate-400" />
+                    <Clock className="h-4 w-4 text-slate-400" />
                     {isNepali ? 'ढिलो आगमन सीमा (मिनेट)' : 'Late Threshold (Minutes)'}
                   </label>
-                  <input type="number" min="0" max="60" step="5"
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    step="5"
                     value={formData.lateThresholdMinutes}
-                    onChange={(e) => setFormData({ ...formData, lateThresholdMinutes: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                    placeholder="10" />
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        lateThresholdMinutes: parseInt(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                    placeholder="10"
+                  />
                   <p className="text-xs text-slate-500">
                     {isNepali
                       ? 'यो मिनेट भन्दा बढी ढिलो भएमा सूचना पठाउनुहोस्। (डिफल्ट: १०)'
@@ -554,13 +624,25 @@ export default function OrgSettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <Clock className="w-4 h-4 text-slate-400" />
+                    <Clock className="h-4 w-4 text-slate-400" />
                     {isNepali ? 'सूचना राख्ने दिन' : 'Notification Retention (days)'}
                   </label>
-                  <input type="number" min="7" max="90"
+                  <input
+                    type="number"
+                    min="7"
+                    max="90"
                     value={formData.notificationRetentionDays ?? 30}
-                    onChange={(e) => setFormData({ ...formData, notificationRetentionDays: Math.min(90, Math.max(7, parseInt(e.target.value) || 30)) })}
-                    className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" />
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        notificationRetentionDays: Math.min(
+                          90,
+                          Math.max(7, parseInt(e.target.value) || 30),
+                        ),
+                      })
+                    }
+                    className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                  />
                   <p className="text-xs text-slate-500">
                     {isNepali
                       ? 'सूचनाहरू यो दिन पछि स्वतः हटाइनेछ। (न्यूनतम: ७, अधिकतम: ९०)'
@@ -570,11 +652,11 @@ export default function OrgSettingsPage() {
               </div>
 
               {/* Overtime grace periods */}
-              <div className="pt-2 pb-1">
-                <p className="text-sm font-medium text-slate-700 mb-1">
+              <div className="pb-1 pt-2">
+                <p className="mb-1 text-sm font-medium text-slate-700">
                   {isNepali ? 'ओभरटाइम ग्रेस पिरियड' : 'Overtime Grace Periods'}
                 </p>
-                <p className="text-xs text-slate-400 mb-4">
+                <p className="mb-4 text-xs text-slate-400">
                   {isNepali
                     ? 'यी मिनेटहरूलाई ओभरटाइम गणनामा समावेश गरिँदैन। सानो अन्तरलाई ओभरटाइम मान्नबाट रोक्छ।'
                     : 'Minutes within these windows are not counted as overtime — prevents minor time differences from inflating overtime pay.'}
@@ -582,14 +664,24 @@ export default function OrgSettingsPage() {
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                      <Clock className="w-4 h-4 text-slate-400" />
+                      <Clock className="h-4 w-4 text-slate-400" />
                       {isNepali ? 'सुरु ग्रेस (मिनेट)' : 'Early Clock-in Grace (min)'}
                     </label>
-                    <input type="number" min="0" max="60" step="5"
+                    <input
+                      type="number"
+                      min="0"
+                      max="60"
+                      step="5"
                       value={formData.earlyClockInGraceMinutes}
-                      onChange={(e) => setFormData({ ...formData, earlyClockInGraceMinutes: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                      placeholder="15" />
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          earlyClockInGraceMinutes: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                      placeholder="15"
+                    />
                     <p className="text-xs text-slate-500">
                       {isNepali
                         ? 'शुरु समय भन्दा यति मिनेट अगाडि आएमा ओभरटाइम मानिँदैन। (डिफल्ट: १५)'
@@ -598,14 +690,24 @@ export default function OrgSettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                      <Clock className="w-4 h-4 text-slate-400" />
+                      <Clock className="h-4 w-4 text-slate-400" />
                       {isNepali ? 'अन्त ग्रेस (मिनेट)' : 'Late Clock-out Grace (min)'}
                     </label>
-                    <input type="number" min="0" max="120" step="5"
+                    <input
+                      type="number"
+                      min="0"
+                      max="120"
+                      step="5"
                       value={formData.lateClockOutGraceMinutes}
-                      onChange={(e) => setFormData({ ...formData, lateClockOutGraceMinutes: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                      placeholder="30" />
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          lateClockOutGraceMinutes: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                      placeholder="30"
+                    />
                     <p className="text-xs text-slate-500">
                       {isNepali
                         ? 'अन्त समय पछि यति मिनेटसम्म ओभरटाइम मानिँदैन। (डिफल्ट: ३०)'
@@ -616,14 +718,14 @@ export default function OrgSettingsPage() {
               </div>
 
               {/* Dashain Bonus */}
-              <div className="pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Gift className="w-4 h-4 text-amber-500" />
+              <div className="border-t border-slate-100 pt-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-amber-500" />
                   <p className="text-sm font-medium text-slate-700">
                     {isNepali ? 'दशैं बोनस सेटिङ' : 'Dashain Bonus Settings'}
                   </p>
                 </div>
-                <p className="text-xs text-slate-400 mb-4">
+                <p className="mb-4 text-xs text-slate-400">
                   {isNepali
                     ? 'दशैं बोनस कुन महिनामा दिने र कति प्रतिशत दिने भनेर सेट गर्नुहोस्।'
                     : 'Configure which BS month the Dashain bonus is paid and the percentage of basic salary.'}
@@ -631,13 +733,15 @@ export default function OrgSettingsPage() {
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                      <Calendar className="w-4 h-4 text-slate-400" />
+                      <Calendar className="h-4 w-4 text-slate-400" />
                       {isNepali ? 'बोनस महिना (वि.सं.)' : 'Bonus Month (BS)'}
                     </label>
                     <select
                       value={formData.dashainBonusMonth}
-                      onChange={(e) => setFormData({ ...formData, dashainBonusMonth: parseInt(e.target.value) })}
-                      className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white"
+                      onChange={(e) =>
+                        setFormData({ ...formData, dashainBonusMonth: parseInt(e.target.value) })
+                      }
+                      className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
                     >
                       {[
                         { value: 1, en: 'Baishakh', np: 'बैशाख' },
@@ -666,14 +770,24 @@ export default function OrgSettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                      <Clock className="w-4 h-4 text-slate-400" />
+                      <Clock className="h-4 w-4 text-slate-400" />
                       {isNepali ? 'बोनस प्रतिशत' : 'Bonus Percentage'}
                     </label>
-                    <input type="number" min="0" max="200" step="5"
+                    <input
+                      type="number"
+                      min="0"
+                      max="200"
+                      step="5"
                       value={formData.dashainBonusPercent}
-                      onChange={(e) => setFormData({ ...formData, dashainBonusPercent: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 text-base border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                      placeholder="100" />
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          dashainBonusPercent: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                      placeholder="100"
+                    />
                     <p className="text-xs text-slate-500">
                       {isNepali
                         ? 'मूल तलबको कति प्रतिशत बोनस दिने। नेपाल कानून: १००%। (डिफल्ट: १००)'
@@ -686,15 +800,17 @@ export default function OrgSettingsPage() {
           </div>
 
           {/* ── Leave Policy ── */}
-          <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
+          <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+            <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-slate-800"><BookOpen className="w-5 h-5 text-white" /></div>
+                <div className="rounded-lg bg-slate-800 p-2.5">
+                  <BookOpen className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
                     {isNepali ? 'बिदा नीति' : 'Leave Policy'}
                   </h2>
-                  <p className="text-sm text-slate-500 mt-0.5">
+                  <p className="mt-0.5 text-sm text-slate-500">
                     {isNepali
                       ? 'बिदा ब्यालेन्स ट्र्याकिङ सक्रिय गर्नुहोस् र वार्षिक अधिकार सेट गर्नुहोस्'
                       : 'Enable leave balance tracking and configure annual entitlements'}
@@ -703,15 +819,14 @@ export default function OrgSettingsPage() {
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
-
+            <div className="space-y-6 p-6">
               {/* Master toggle */}
-              <div className="flex items-start justify-between gap-4 p-4 rounded-xl border-2 border-slate-100 bg-slate-50/50">
+              <div className="flex items-start justify-between gap-4 rounded-xl border-2 border-slate-100 bg-slate-50/50 p-4">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
                     {isNepali ? 'बिदा ब्यालेन्स ट्र्याकिङ' : 'Leave Balance Tracking'}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
                     {isNepali
                       ? 'सक्रिय भएमा कर्मचारीहरूले आफ्नो बिदा ब्यालेन्स देख्न सक्छन् र प्रशासकले ब्यालेन्स व्यवस्थापन गर्न सक्छन्। बन्द भएमा बिदा अनुरोध सामान्य रूपमा काम गर्छ तर ब्यालेन्स कतै देखिँदैन।'
                       : 'When enabled, employees can see their leave balances and admins can manage them. When disabled, leave requests work normally but no balance is tracked or shown anywhere.'}
@@ -719,12 +834,18 @@ export default function OrgSettingsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, leaveBalanceEnabled: !formData.leaveBalanceEnabled })}
-                  className="shrink-0 mt-0.5"
+                  onClick={() =>
+                    setFormData({ ...formData, leaveBalanceEnabled: !formData.leaveBalanceEnabled })
+                  }
+                  className="mt-0.5 shrink-0"
                 >
                   <div className="relative">
-                    <div className={`w-11 h-6 rounded-full transition-colors duration-200 ${formData.leaveBalanceEnabled ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                      <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 absolute top-1 ${formData.leaveBalanceEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <div
+                      className={`h-6 w-11 rounded-full transition-colors duration-200 ${formData.leaveBalanceEnabled ? 'bg-slate-800' : 'bg-slate-200'}`}
+                    >
+                      <div
+                        className={`absolute top-1 h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.leaveBalanceEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+                      />
                     </div>
                   </div>
                 </button>
@@ -733,39 +854,44 @@ export default function OrgSettingsPage() {
               {/* Policy fields — only shown when enabled */}
               {formData.leaveBalanceEnabled && (
                 <div className="space-y-5">
-
                   {/* Template picker */}
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
                       {isNepali ? 'टेम्प्लेट' : 'Quick Template'}
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setFormData({
-                          ...formData,
-                          annualLeaveEntitlement: 18,
-                          sickLeaveEntitlement: 12,
-                          casualLeaveEntitlement: 6,
-                        })}
-                        className="flex flex-col gap-1 p-4 rounded-xl border-2 border-slate-200 hover:border-slate-400 transition-all text-left"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            annualLeaveEntitlement: 18,
+                            sickLeaveEntitlement: 12,
+                            casualLeaveEntitlement: 6,
+                          })
+                        }
+                        className="flex flex-col gap-1 rounded-xl border-2 border-slate-200 p-4 text-left transition-all hover:border-slate-400"
                       >
                         <span className="text-sm font-semibold text-slate-800">
                           {isNepali ? 'नेपाल श्रम ऐन २०७४' : 'Nepal Labor Act 2074'}
                         </span>
                         <span className="text-xs text-slate-400">
-                          {isNepali ? 'वार्षिक १८, बिरामी १२, आकस्मिक ६' : 'Annual 18, Sick 12, Casual 6'}
+                          {isNepali
+                            ? 'वार्षिक १८, बिरामी १२, आकस्मिक ६'
+                            : 'Annual 18, Sick 12, Casual 6'}
                         </span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFormData({
-                          ...formData,
-                          annualLeaveEntitlement: 0,
-                          sickLeaveEntitlement: 0,
-                          casualLeaveEntitlement: 0,
-                        })}
-                        className="flex flex-col gap-1 p-4 rounded-xl border-2 border-slate-200 hover:border-slate-400 transition-all text-left"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            annualLeaveEntitlement: 0,
+                            sickLeaveEntitlement: 0,
+                            casualLeaveEntitlement: 0,
+                          })
+                        }
+                        className="flex flex-col gap-1 rounded-xl border-2 border-slate-200 p-4 text-left transition-all hover:border-slate-400"
                       >
                         <span className="text-sm font-semibold text-slate-800">
                           {isNepali ? 'कस्टम' : 'Custom'}
@@ -779,7 +905,7 @@ export default function OrgSettingsPage() {
 
                   {/* Entitlement fields */}
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
                       {isNepali ? 'वार्षिक अधिकार (दिन)' : 'Annual Entitlement (days)'}
                     </p>
                     <div className="grid grid-cols-3 gap-4">
@@ -788,10 +914,17 @@ export default function OrgSettingsPage() {
                           {isNepali ? 'वार्षिक बिदा' : 'Annual Leave'}
                         </label>
                         <input
-                          type="number" min="0" max="60"
+                          type="number"
+                          min="0"
+                          max="60"
                           value={formData.annualLeaveEntitlement}
-                          onChange={(e) => setFormData({ ...formData, annualLeaveEntitlement: parseInt(e.target.value) || 0 })}
-                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              annualLeaveEntitlement: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
                         />
                         <p className="text-[10px] text-slate-400">
                           {isNepali ? 'श्रम ऐन न्यूनतम: १८' : 'Labor Act min: 18'}
@@ -802,10 +935,17 @@ export default function OrgSettingsPage() {
                           {isNepali ? 'बिरामी बिदा' : 'Sick Leave'}
                         </label>
                         <input
-                          type="number" min="0" max="60"
+                          type="number"
+                          min="0"
+                          max="60"
                           value={formData.sickLeaveEntitlement}
-                          onChange={(e) => setFormData({ ...formData, sickLeaveEntitlement: parseInt(e.target.value) || 0 })}
-                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              sickLeaveEntitlement: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
                         />
                         <p className="text-[10px] text-slate-400">
                           {isNepali ? 'श्रम ऐन न्यूनतम: १२' : 'Labor Act min: 12'}
@@ -816,93 +956,138 @@ export default function OrgSettingsPage() {
                           {isNepali ? 'आकस्मिक बिदा' : 'Casual Leave'}
                         </label>
                         <input
-                          type="number" min="0" max="60"
+                          type="number"
+                          min="0"
+                          max="60"
                           value={formData.casualLeaveEntitlement}
-                          onChange={(e) => setFormData({ ...formData, casualLeaveEntitlement: parseInt(e.target.value) || 0 })}
-                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              casualLeaveEntitlement: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
                         />
                         <p className="text-[10px] text-slate-400">
-                          {isNepali ? 'ऐनमा परिभाषित छैन — संस्था अनुसार' : 'Not in Act — org practice'}
+                          {isNepali
+                            ? 'ऐनमा परिभाषित छैन — संस्था अनुसार'
+                            : 'Not in Act — org practice'}
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Legal accumulation caps info box */}
-                  <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
-                    <CheckCircle className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                  <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
                     <div>
-                      <p className="text-xs font-semibold text-blue-800 mb-1">
-                        {isNepali ? 'संचय सीमा — नेपाल श्रम ऐन २०७४' : 'Accumulation Caps — Nepal Labor Act 2074'}
+                      <p className="mb-1 text-xs font-semibold text-blue-800">
+                        {isNepali
+                          ? 'संचय सीमा — नेपाल श्रम ऐन २०७४'
+                          : 'Accumulation Caps — Nepal Labor Act 2074'}
                       </p>
-                      <p className="text-xs text-blue-700 leading-relaxed">
+                      <p className="text-xs leading-relaxed text-blue-700">
                         {isNepali
                           ? 'वार्षिक बिदा अधिकतम ९० दिनसम्म संचय हुन सक्छ। बिरामी बिदा अधिकतम ४५ दिनसम्म। यी सीमाहरू कानूनले तोकेकाले परिवर्तन हुँदैन। सीमा नाघेका दिनहरू वर्षको अन्तमा नगद भुक्तानी (encashment) गर्नुपर्छ।'
                           : 'Annual leave accumulates up to 90 days maximum. Sick leave up to 45 days. These caps are set by law and cannot be changed. Excess days must be encashed at year end.'}
                       </p>
                     </div>
                   </div>
-
                 </div>
               )}
             </div>
           </div>
 
           {/* ── Geofencing ── */}
-          <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
+          <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+            <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-slate-800"><Compass className="w-5 h-5 text-white" /></div>
+                <div className="rounded-lg bg-slate-800 p-2.5">
+                  <Compass className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
                     {isNepali ? 'जियोफेन्सिङ' : 'Geofencing'}
                   </h2>
-                  <p className="text-sm text-slate-500 mt-0.5">
-                    {isNepali ? 'कर्मचारीहरू कार्यालय नजिक मात्र चेक इन गर्न सक्छन्' : 'Employees can only check in when near the office'}
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    {isNepali
+                      ? 'कर्मचारीहरू कार्यालय नजिक मात्र चेक इन गर्न सक्छन्'
+                      : 'Employees can only check in when near the office'}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="p-6">
-              <label className="flex items-center gap-3 cursor-pointer group mb-6">
+              <label className="group mb-6 flex cursor-pointer items-center gap-3">
                 <div className="relative">
-                  <input type="checkbox" checked={formData.geofenceEnabled}
-                    onChange={(e) => setFormData({ ...formData, geofenceEnabled: e.target.checked })}
-                    className="sr-only" />
-                  <div className={`w-10 h-6 rounded-full transition-colors duration-200 ${formData.geofenceEnabled ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 absolute top-1 ${formData.geofenceEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                  <input
+                    type="checkbox"
+                    checked={formData.geofenceEnabled}
+                    onChange={(e) =>
+                      setFormData({ ...formData, geofenceEnabled: e.target.checked })
+                    }
+                    className="sr-only"
+                  />
+                  <div
+                    className={`h-6 w-10 rounded-full transition-colors duration-200 ${formData.geofenceEnabled ? 'bg-slate-800' : 'bg-slate-200'}`}
+                  >
+                    <div
+                      className={`absolute top-1 h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.geofenceEnabled ? 'translate-x-5' : 'translate-x-1'}`}
+                    />
                   </div>
                 </div>
-                <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                <span className="text-sm font-medium text-slate-700 transition-colors group-hover:text-slate-900">
                   {isNepali ? 'जियोफेन्सिङ सक्रिय गर्नुहोस्' : 'Enable geofencing'}
                 </span>
               </label>
 
               {/* Attendance Mode */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
                   {isNepali ? 'उपस्थिति विधि' : 'Attendance Method'}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {(['QR_ONLY', 'MOBILE_ONLY', 'BOTH'] as const).map((mode) => {
-                    const labels = { QR_ONLY: isNepali ? 'QR मात्र' : 'QR Only', MOBILE_ONLY: isNepali ? 'मोबाइल मात्र' : 'Mobile Only', BOTH: isNepali ? 'दुवै' : 'Both' };
-                    const descs = { QR_ONLY: isNepali ? 'QR स्क्यान गरेर' : 'Scan QR code', MOBILE_ONLY: isNepali ? 'GPS बाट' : 'GPS check-in', BOTH: isNepali ? 'QR वा GPS' : 'QR or GPS' };
+                    const labels = {
+                      QR_ONLY: isNepali ? 'QR मात्र' : 'QR Only',
+                      MOBILE_ONLY: isNepali ? 'मोबाइल मात्र' : 'Mobile Only',
+                      BOTH: isNepali ? 'दुवै' : 'Both',
+                    }
+                    const descs = {
+                      QR_ONLY: isNepali ? 'QR स्क्यान गरेर' : 'Scan QR code',
+                      MOBILE_ONLY: isNepali ? 'GPS बाट' : 'GPS check-in',
+                      BOTH: isNepali ? 'QR वा GPS' : 'QR or GPS',
+                    }
                     return (
-                      <button key={mode} type="button"
+                      <button
+                        key={mode}
+                        type="button"
                         onClick={() => setFormData({ ...formData, attendanceMode: mode })}
-                        className={'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center ' + (formData.attendanceMode === mode ? 'border-slate-800 bg-slate-50' : 'border-slate-200 hover:border-slate-300')}>
-                        <span className={'text-sm font-semibold ' + (formData.attendanceMode === mode ? 'text-slate-900' : 'text-slate-600')}>{labels[mode]}</span>
+                        className={
+                          'flex flex-col items-center gap-1 rounded-xl border-2 p-3 text-center transition-all ' +
+                          (formData.attendanceMode === mode
+                            ? 'border-slate-800 bg-slate-50'
+                            : 'border-slate-200 hover:border-slate-300')
+                        }
+                      >
+                        <span
+                          className={
+                            'text-sm font-semibold ' +
+                            (formData.attendanceMode === mode ? 'text-slate-900' : 'text-slate-600')
+                          }
+                        >
+                          {labels[mode]}
+                        </span>
                         <span className="text-[11px] text-slate-400">{descs[mode]}</span>
                       </button>
-                    );
+                    )
                   })}
                 </div>
-
               </div>
 
               {formData.geofenceEnabled && (
-                <div className="space-y-5 animate-in slide-in-from-top-2 duration-200">
+                <div className="animate-in slide-in-from-top-2 space-y-5 duration-200">
                   <div className="space-y-3">
                     <p className="text-xs text-slate-500">
                       {isNepali
@@ -910,61 +1095,92 @@ export default function OrgSettingsPage() {
                         : 'Click on the map or drag the marker to set location. Dashed circle shows geofence area.'}
                     </p>
                     {formData.officeLat && formData.officeLng && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
-                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                      <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                        <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
                         <span>
                           {isNepali ? 'हालको स्थान: ' : 'Current location: '}
                           <span className="font-mono font-medium">
-                            {Number(formData.officeLat).toFixed(6)}, {Number(formData.officeLng).toFixed(6)}
+                            {Number(formData.officeLat).toFixed(6)},{' '}
+                            {Number(formData.officeLng).toFixed(6)}
                           </span>
-                          {' · '}{formData.geofenceRadius}m {isNepali ? 'दायरा' : 'radius'}
+                          {' · '}
+                          {formData.geofenceRadius}m {isNepali ? 'दायरा' : 'radius'}
                         </span>
                       </div>
                     )}
                     <GeofenceMap
                       latitude={formData.officeLat ? Number(formData.officeLat) : 27.7172}
-                      longitude={formData.officeLng ? Number(formData.officeLng) : 85.3240}
+                      longitude={formData.officeLng ? Number(formData.officeLng) : 85.324}
                       radius={formData.geofenceRadius}
                       onLocationChange={handleMapLocationChange}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-500">{isNepali ? 'अक्षांश' : 'Latitude'}</label>
+                      <label className="text-xs font-medium text-slate-500">
+                        {isNepali ? 'अक्षांश' : 'Latitude'}
+                      </label>
                       <div className="relative">
-                        <input type="number" step="any" value={formData.officeLat}
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData.officeLat}
                           onChange={(e) => setFormData({ ...formData, officeLat: e.target.value })}
                           placeholder="27.7172"
-                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 pl-8" />
-                        <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 pl-8 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                        />
+                        <MapPin className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-500">{isNepali ? 'देशान्तर' : 'Longitude'}</label>
+                      <label className="text-xs font-medium text-slate-500">
+                        {isNepali ? 'देशान्तर' : 'Longitude'}
+                      </label>
                       <div className="relative">
-                        <input type="number" step="any" value={formData.officeLng}
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData.officeLng}
                           onChange={(e) => setFormData({ ...formData, officeLng: e.target.value })}
                           placeholder="85.3240"
-                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 pl-8" />
-                        <Compass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 pl-8 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                        />
+                        <Compass className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       </div>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-slate-500">{isNepali ? 'अनुमति दायरा' : 'Allowed radius'}</label>
-                      <span className="text-sm font-medium text-slate-700">{formData.geofenceRadius}m</span>
+                      <label className="text-xs font-medium text-slate-500">
+                        {isNepali ? 'अनुमति दायरा' : 'Allowed radius'}
+                      </label>
+                      <span className="text-sm font-medium text-slate-700">
+                        {formData.geofenceRadius}m
+                      </span>
                     </div>
-                    <input type="range" min="50" max="500" step="10" value={formData.geofenceRadius}
-                      onChange={(e) => setFormData({ ...formData, geofenceRadius: Number(e.target.value) })}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-800" />
-                    <div className="flex justify-between text-[10px] text-slate-400 px-1">
-                      <span>50m</span><span>275m</span><span>500m</span>
+                    <input
+                      type="range"
+                      min="50"
+                      max="500"
+                      step="10"
+                      value={formData.geofenceRadius}
+                      onChange={(e) =>
+                        setFormData({ ...formData, geofenceRadius: Number(e.target.value) })
+                      }
+                      className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-slate-800"
+                    />
+                    <div className="flex justify-between px-1 text-[10px] text-slate-400">
+                      <span>50m</span>
+                      <span>275m</span>
+                      <span>500m</span>
                     </div>
                   </div>
-                  <button type="button" onClick={getCurrentLocation}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors">
-                    <LocateFixed className="w-4 h-4" />
+                  <button
+                    type="button"
+                    onClick={getCurrentLocation}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
+                  >
+                    <LocateFixed className="h-4 w-4" />
                     {isNepali ? 'हालको स्थान प्रयोग गर्नुहोस्' : 'Use current location'}
                   </button>
                 </div>
@@ -973,22 +1189,33 @@ export default function OrgSettingsPage() {
           </div>
 
           {/* ── Document Type Manager ── */}
-          <div className="bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden p-5">
+          <div className="overflow-hidden rounded-xl border border-slate-100 bg-white p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
             <DocumentTypeManager language={formData.language} />
           </div>
 
           {/* ── Save ── */}
           <div className="flex justify-end gap-3 pt-4">
-            <button onClick={() => router.push('/admin')}
-              className="px-6 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all">
+            <button
+              onClick={() => router.push('/admin')}
+              className="rounded-lg border border-slate-200 px-6 py-2.5 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50"
+            >
               {isNepali ? 'रद्द गर्नुहोस्' : 'Cancel'}
             </button>
-            <button onClick={handleSave} disabled={saving}
-              className="relative overflow-hidden group flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-lg text-sm font-medium hover:from-slate-900 hover:to-slate-800 transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="group relative flex items-center gap-2 overflow-hidden rounded-lg bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:from-slate-900 hover:to-slate-800 hover:shadow disabled:opacity-50"
+            >
               {saving ? (
-                <><RefreshCw className="w-4 h-4 animate-spin" /><span>{isNepali ? 'सेभ हुँदैछ...' : 'Saving...'}</span></>
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>{isNepali ? 'सेभ हुँदैछ...' : 'Saving...'}</span>
+                </>
               ) : (
-                <><Save className="w-4 h-4 group-hover:scale-110 transition-transform" /><span>{isNepali ? 'सेभ गर्नुहोस्' : 'Save changes'}</span></>
+                <>
+                  <Save className="h-4 w-4 transition-transform group-hover:scale-110" />
+                  <span>{isNepali ? 'सेभ गर्नुहोस्' : 'Save changes'}</span>
+                </>
               )}
             </button>
           </div>
@@ -996,22 +1223,37 @@ export default function OrgSettingsPage() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-12 border-t border-slate-200 pt-8 pb-6">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="mt-12 border-t border-slate-200 pb-6 pt-8">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-slate-100"><Shield className="w-4 h-4 text-slate-600" /></div>
+            <div className="rounded-lg bg-slate-100 p-2">
+              <Shield className="h-4 w-4 text-slate-600" />
+            </div>
             <div>
-              <p className="text-xs font-medium text-slate-900">{isNepali ? 'संगठन सेटिङ्स' : 'Organization settings'}</p>
-              <p className="text-[10px] text-slate-500">{isNepali ? 'स्मार्ट उपस्थिति प्रणाली' : 'Smart Attendance System'}</p>
+              <p className="text-xs font-medium text-slate-900">
+                {isNepali ? 'संगठन सेटिङ्स' : 'Organization settings'}
+              </p>
+              <p className="text-[10px] text-slate-500">
+                {isNepali ? 'स्मार्ट उपस्थिति प्रणाली' : 'Smart Attendance System'}
+              </p>
             </div>
           </div>
         </div>
       </footer>
 
       <style jsx>{`
-        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-        .animate-shimmer { animation: shimmer 2s infinite; }
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
       `}</style>
     </AdminLayout>
-  );
+  )
 }
