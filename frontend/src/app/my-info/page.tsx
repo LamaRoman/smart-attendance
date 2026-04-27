@@ -24,6 +24,28 @@ import {
 } from 'lucide-react';
 import PoweredBy from '@/components/PoweredBy';
 import { adToBS, toNepaliDigits, BS_MONTHS_NP } from '@/components/BSDatePicker';
+
+type FeedbackMsg = { type: 'success' | 'error'; text: string };
+
+function Feedback({ msg }: { msg: FeedbackMsg }) {
+  return (
+    <div
+      className={
+        'flex items-center gap-2 p-3 rounded-lg text-sm ' +
+        (msg.type === 'success'
+          ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+          : 'bg-red-50 border border-red-200 text-red-700')
+      }
+    >
+      {msg.type === 'success' ? (
+        <CheckCircle className="w-4 h-4 shrink-0" />
+      ) : (
+        <AlertCircle className="w-4 h-4 shrink-0" />
+      )}
+      {msg.text}
+    </div>
+  );
+}
 export default function MyInfoPage() {
   const { user, isLoading, language, calendarMode, refreshUser } = useAuth();
   const router = useRouter();
@@ -195,17 +217,6 @@ export default function MyInfoPage() {
   };
   const inputClass = 'w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-colors bg-white';
   const pinInputClass = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-colors bg-white text-center tracking-widest font-medium';
-
-  const Feedback = ({ msg }: { msg: { type: 'success' | 'error'; text: string } }) => (
-    <div className={'flex items-center gap-2 p-3 rounded-lg text-sm ' + (
-      msg.type === 'success'
-        ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-        : 'bg-red-50 border border-red-200 text-red-700'
-    )}>
-      {msg.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-      {msg.text}
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">

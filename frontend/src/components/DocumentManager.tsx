@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  FileText, Image, Upload, Trash2, Eye, X,
+  FileText, Image as ImageIcon, Upload, Trash2, Eye, X,
   AlertCircle, CheckCircle2, FolderOpen, Loader2,
 } from 'lucide-react';
 import { t, Language } from '@/lib/i18n';
@@ -75,14 +75,16 @@ export default function DocumentManager({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  const typeColorMap = useRef<Record<string, string>>({});
-  let colorIdx = 0;
-  const getColorForType = (typeId: string) => {
-    if (!typeColorMap.current[typeId]) {
-      typeColorMap.current[typeId] = getTypeColor(colorIdx++);
-    }
-    return typeColorMap.current[typeId];
-  };
+// Deterministic color assignment — same typeId always gets the same color,
+// no state, safe to call during render.
+const getColorForType = (typeId: string): string => {
+  let hash = 0;
+  for (let i = 0; i < typeId.length; i++) {
+    hash = (hash << 5) - hash + typeId.charCodeAt(i);
+    hash |= 0;
+  }
+  return TYPE_COLORS[Math.abs(hash) % TYPE_COLORS.length];
+};
 
   const fetchDocTypes = useCallback(async () => {
     try {
@@ -305,7 +307,7 @@ export default function DocumentManager({
               <div className="flex items-center justify-center gap-2">
                 {selectedFile.type === 'application/pdf'
                   ? <FileText className="w-5 h-5 text-rose-500" />
-                  : <Image className="w-5 h-5 text-blue-500" />}
+                  : <ImageIcon className="w-5 h-5 text-blue-500" />}
                 <span className="text-sm text-slate-700">{selectedFile.name}</span>
                 <span className="text-xs text-slate-400">({formatBytes(selectedFile.size)})</span>
               </div>
@@ -396,7 +398,7 @@ export default function DocumentManager({
                 >
                   {isPdf
                     ? <FileText className="w-4 h-4 text-rose-500" />
-                    : <Image className="w-4 h-4 text-blue-500" />}
+                    : <ImageIcon className="w-4 h-4 text-blue-500" />}
                 </button>
 
                 <div className="flex-1 min-w-0">
@@ -471,7 +473,7 @@ export default function DocumentManager({
               <div className="flex items-center gap-2 min-w-0">
                 {previewDoc.mimeType === 'application/pdf'
                   ? <FileText className="w-4 h-4 text-rose-500 shrink-0" />
-                  : <Image className="w-4 h-4 text-blue-500 shrink-0" />}
+                  : <ImageIcon className="w-4 h-4 text-blue-500 shrink-0" />}
                 <span className="text-sm font-medium text-slate-800 truncate">{previewDoc.originalName}</span>
                 <span className="text-xs text-slate-400 shrink-0">{formatBytes(previewDoc.fileSize)}</span>
               </div>
