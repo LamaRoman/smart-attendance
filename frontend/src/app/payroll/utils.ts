@@ -108,7 +108,7 @@ export function calculateTDS(
     remaining -= taxable
   }
 
-  return tax / 12 // Monthly instalment
+  return Math.round(tax / 12) // Monthly instalment, whole rupees (matches backend)
 }
 
 /** Format a number as currency with two decimal places. */
