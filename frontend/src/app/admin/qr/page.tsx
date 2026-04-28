@@ -52,12 +52,18 @@ function useCountdown(expiresAt: string | null, onExpire: () => void) {
         onExpireRef.current()
         return
       }
-      const h = Math.floor(diff / 3600000)
-      const m = Math.floor((diff % 3600000) / 60000)
-      const s = Math.floor((diff % 60000) / 1000)
-      setTimeLeft(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`,
-      )
+      const totalSeconds = Math.floor(diff / 1000)
+      const d = Math.floor(totalSeconds / 86400)
+      const h = Math.floor((totalSeconds % 86400) / 3600)
+      const m = Math.floor((totalSeconds % 3600) / 60)
+      const s = totalSeconds % 60
+      if (d > 0) {
+        setTimeLeft(`${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`)
+      } else {
+        setTimeLeft(
+          `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`,
+        )
+      }
     }
 
     tick()
@@ -104,15 +110,20 @@ export default function AdminQRPage() {
     setGenerating(false)
   }, [qrData, isNp])
 
-  const isStatic = qrData?.qrCode?.expiresAt === null
-  const timeLeft = useCountdown(isStatic ? null : (qrData?.qrCode?.expiresAt ?? null), handleExpire)
+  const isStatic = qrData?.isStatic ?? !qrData?.qrCode?.expiresAt
+  // CHANGED: always pass expiresAt regardless of isStatic, so both static and rotating show a timer
+  const timeLeft = useCountdown(qrData?.qrCode?.expiresAt ?? null, handleExpire)
 
-  // Urgency colour: red < 1h, amber < 3h, green otherwise
+  // CHANGED: handle both HH:MM:SS and Xd XXh XXm formats for colour
   const countdownColor = () => {
     if (!timeLeft) return ''
-    const [h] = timeLeft.split(':').map(Number)
-    if (h < 1) return 'text-rose-600'
-    if (h < 3) return 'text-amber-600'
+    const dMatch = timeLeft.match(/^(\d+)d/)
+    const hMatch = timeLeft.match(/(\d+)h/)
+    const totalHours = dMatch
+      ? parseInt(dMatch[1]) * 24 + (hMatch ? parseInt(hMatch[1]) : 0)
+      : parseInt(timeLeft.split(':')[0])
+    if (totalHours < 1) return 'text-rose-600'
+    if (totalHours < 3) return 'text-amber-600'
     return 'text-emerald-600'
   }
 
@@ -183,22 +194,9 @@ export default function AdminQRPage() {
     const w = window.open('', '_blank')
     if (!w) return
 
-    // Build the print document safely. Previously this used document.write()
-    // with string concatenation of `user.organization.name`, which is
-    // ORG_ADMIN-settable free text with no character filtering. A malicious
-    // ORG_ADMIN could inject a script payload that would fire when
-    // SUPER_ADMIN (or anyone else viewing that org) printed the QR.
-    //
-    // Approach: write a fixed HTML scaffold (no user data) to guarantee
-    // head/body exist, then use createElement + textContent for everything
-    // dynamic. textContent cannot be interpreted as HTML — the user value
-    // is structurally inert.
     const orgName = user?.organization?.name || 'Smart Attendance'
     const qrSrc = qrData.qrImageLarge || qrData.qrImage
 
-    // Defense in depth: only allow the data-URL format the backend emits.
-    // Protects against a future backend change / compromise that might
-    // return an attribute-breakout string or an unexpected scheme.
     const QR_SRC_ALLOWED = /^data:image\/(png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$/
     if (!QR_SRC_ALLOWED.test(qrSrc)) {
       w.close()
@@ -207,8 +205,6 @@ export default function AdminQRPage() {
     }
 
     const doc = w.document
-    // Fixed scaffold — no user data interpolated. Ensures head/body exist
-    // across browsers regardless of blank-window defaults.
     doc.open()
     doc.write('<!DOCTYPE html><html><head><title>QR Code</title></head><body></body></html>')
     doc.close()
@@ -339,25 +335,7 @@ export default function AdminQRPage() {
                     : 'Temporary QR (24h)'}
               </div>
 
-              {/* Countdown timer — only for rotating QR */}
-              {!isStatic && timeLeft && (
-                <div className="mb-5 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5">
-                  <Clock className={`h-3.5 w-3.5 ${countdownColor()}`} />
-                  <span className="text-xs text-slate-500">
-                    {isNp ? 'समाप्त हुन्छ:' : 'Expires in:'}
-                  </span>
-                  <span
-                    className={`font-mono text-sm font-semibold tabular-nums ${countdownColor()}`}
-                  >
-                    {timeLeft}
-                  </span>
-                  {generating && (
-                    <span className="ml-1 text-xs text-slate-400">
-                      {isNp ? '(नवीकरण हुँदैछ...)' : '(renewing...)'}
-                    </span>
-                  )}
-                </div>
-              )}
+              {/* REMOVED: separate countdown timer block — timer now lives in the Expires stat card */}
 
               {/* Stats */}
               <div className="grid w-full max-w-xl grid-cols-2 gap-3 md:grid-cols-4">
@@ -380,19 +358,13 @@ export default function AdminQRPage() {
                     })}
                   </p>
                 </div>
+                {/* CHANGED: Expires card now shows live countdown timer for both static and rotating */}
                 <div className="rounded-lg bg-slate-50 p-3">
                   <p className="mb-0.5 text-[10px] uppercase tracking-wider text-slate-400">
                     {isNp ? 'समाप्ति' : 'Expires'}
                   </p>
-                  <p className="text-sm font-medium text-slate-900">
-                    {isStatic
-                      ? isNp
-                        ? 'कहिल्यै'
-                        : 'Never'
-                      : new Date(qrData.qrCode.expiresAt!).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                  <p className={`font-mono text-sm font-medium tabular-nums ${countdownColor()}`}>
+                    {timeLeft || (isNp ? 'कहिल्यै' : 'Never')}
                   </p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-3">
