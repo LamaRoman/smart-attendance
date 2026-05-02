@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { Bell, Check, Trash2, Clock, AlertCircle } from 'lucide-react'
@@ -26,17 +26,33 @@ export default function NotificationBell() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
+  const loadUnreadCount = useCallback(async () => {
+    const res = await api.get('/api/v1/notifications/count')
+    if (res.data) {
+      setUnreadCount((res.data as any).count)
+    }
+  }, [])
+
+  const loadNotifications = useCallback(async () => {
+    setLoading(true)
+    const res = await api.get('/api/v1/notifications/unread')
+    if (res.data) {
+      setNotifications(res.data as any)
+    }
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     loadUnreadCount()
     const interval = setInterval(loadUnreadCount, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [loadUnreadCount])
 
   useEffect(() => {
     if (isOpen) {
       loadNotifications()
     }
-  }, [isOpen])
+  }, [isOpen, loadNotifications])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -47,22 +63,6 @@ export default function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  const loadUnreadCount = async () => {
-    const res = await api.get('/api/v1/notifications/count')
-    if (res.data) {
-      setUnreadCount((res.data as any).count)
-    }
-  }
-
-  const loadNotifications = async () => {
-    setLoading(true)
-    const res = await api.get('/api/v1/notifications/unread')
-    if (res.data) {
-      setNotifications(res.data as any)
-    }
-    setLoading(false)
-  }
 
   const markAsRead = async (id: string) => {
     await api.put(`/api/v1/notifications/${id}/read`)
