@@ -20,6 +20,7 @@ These are validated at boot by Zod (`src/config/index.ts`). The server will exit
 | `REDIS_URL` | strongly recommended | Required for horizontal scaling. Without it, scan and login lockouts fall back to per-instance memory state and an attacker rotating between instances bypasses them. |
 | `RESEND_API_KEY` | optional | Disables email sending if absent. |
 | `RESEND_FROM_EMAIL` | no (default `noreply@zentaralabs.com`) | |
+| `SLACK_ALERT_WEBHOOK_URL` | strongly recommended | When set, cron-job failures (billing, trial expiry, grace period, midnight auto-close, abandoned, price expiry) are posted to a Slack channel via [incoming webhook](https://api.slack.com/messaging/webhooks). Without it, failures still log at warn level but you'll need to be watching the log aggregator to notice. |
 | `CALENDARIFIC_API_KEY` | optional | Disables holiday sync if absent. |
 | `AWS_*` | optional | Document upload disabled if absent. `AWS_REGION` defaults to `ap-south-1`, `AWS_S3_BUCKET` to `smart-hr-documents`. |
 | `APP_DOWNLOAD_URL` | optional | Included in welcome emails. |
@@ -120,6 +121,7 @@ Rotating `JWT_SECRET` invalidates every issued JWT. Every active user is forced 
 - [ ] `JWT_SECRET` is at least 32 characters and stored in your secret manager (not committed)
 - [ ] `DATABASE_URL` points at a pooled connection
 - [ ] `REDIS_URL` is set (multi-instance deploys without this are silently insecure — see `lib/lockout.ts` and `lib/scan-lockout.ts`)
+- [ ] `SLACK_ALERT_WEBHOOK_URL` is set (without it, cron-job failures only show up in logs — billing failures are a revenue risk worth alerting on)
 - [ ] `NODE_ENV=production` is set so HTTPS redirect and HSTS engage
 - [ ] `TZ=Asia/Kathmandu` is set so the midnight auto-close cron fires at the right wall-clock time
 - [ ] Reverse proxy in front of the container terminates TLS (the app trusts `X-Forwarded-*` via `trust proxy`)
@@ -172,6 +174,7 @@ If `pentest.sh` is configured against the staging URL, run it too — it covers 
 | Every login returns 401 | `JWT_SECRET` was rotated | Expected — all sessions invalidated. Tell the team. |
 | Cron jobs (billing, trial expiry) appear skipped | Container logs at the cron firing time, server `TZ` | Container restart during firing window, or wrong `TZ` |
 | Mobile app can't reach API after a build | `EXPO_PUBLIC_API_URL` in the EAS build profile | Build was made against the wrong API URL — needs a new EAS build |
+| Cron job alerts stopped arriving in Slack | Webhook still valid? Slack workspace admin didn't revoke it? Try `curl -X POST -H 'Content-Type: application/json' -d '{"text":"test"}' $SLACK_ALERT_WEBHOOK_URL` | Webhook revoked, channel deleted, or workspace re-invitation invalidated the URL |
 
 ---
 

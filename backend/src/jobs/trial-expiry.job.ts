@@ -150,14 +150,10 @@ export async function runTrialExpiryJob(): Promise<void> {
 
 // ── Schedule ─────────────────────────────────────────────────
 
+import { withJobAlerts } from './withJobAlerts';
+
 export function startTrialExpiryJob(): void {
-  cron.schedule('15 2 * * *', async () => {
-    try {
-      await runTrialExpiryJob();
-    } catch (err) {
-      log.error({ err }, 'Trial expiry job failed');
-    }
-  });
+  cron.schedule('15 2 * * *', withJobAlerts('trial-expiry-job', runTrialExpiryJob));
 
   log.info('Trial expiry job scheduled — runs daily at 08:00 NPT');
 }

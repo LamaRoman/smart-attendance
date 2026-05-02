@@ -10,6 +10,7 @@ import cron from 'node-cron';
 import prisma from '../lib/prisma';
 import { invalidatePlanCache } from '../services/plan.service';
 import { createLogger } from '../logger';
+import { withJobAlerts } from './withJobAlerts';
 
 const log = createLogger('price-expiry-job');
 
@@ -66,6 +67,10 @@ export async function runPriceExpiryJob(): Promise<void> {
 
 export function startPriceExpiryJob(): void {
   // 03:00 UTC = 08:45 NPT
-  cron.schedule('0 3 * * *', runPriceExpiryJob, { timezone: 'UTC' });
+  cron.schedule(
+    '0 3 * * *',
+    withJobAlerts('price-expiry-job', runPriceExpiryJob, { severity: 'critical' }),
+    { timezone: 'UTC' }
+  );
   log.info('Price expiry job scheduled — daily at 08:45 NPT');
 }

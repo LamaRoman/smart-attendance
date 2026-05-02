@@ -15,6 +15,7 @@ import prisma from '../lib/prisma';
 import { SubscriptionStatus } from '@prisma/client';
 import { createLogger } from '../logger';
 import { invalidatePlanCache } from '../services/plan.service';
+import { withJobAlerts } from './withJobAlerts';
 
 const log = createLogger('abandoned-job');
 
@@ -99,12 +100,6 @@ export async function runAbandonedJob(): Promise<void> {
 }
 
 export function startAbandonedJob(): void {
-  cron.schedule('15 3 * * *', async () => {
-    try {
-      await runAbandonedJob();
-    } catch (err) {
-      log.error({ err }, 'Abandoned job failed');
-    }
-  });
+  cron.schedule('15 3 * * *', withJobAlerts('abandoned-job', runAbandonedJob));
   log.info('Abandoned job scheduled — runs daily at 09:00 NPT');
 }

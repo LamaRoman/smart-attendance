@@ -13,6 +13,8 @@
 import cron from 'node-cron';
 import prisma from '../lib/prisma';
 import { createLogger } from '../logger';
+import { withJobAlerts } from './withJobAlerts';
+import { alerter } from '../lib/alerter';
 
 const log = createLogger('midnight-autoclose-job');
 
@@ -137,19 +139,23 @@ export function startMidnightAutoCloseJob(): void {
       }
     } catch (err) {
       log.error({ err }, 'Startup catch-up failed');
+      // Fire-and-forget alert; alerter never throws.
+      alerter.send({
+        source: 'midnight-autoclose-startup',
+        title: 'Auto-close startup catch-up failed',
+        severity: 'critical',
+        error: err,
+      });
     }
   }, 5000); // 5s delay — let DB connections stabilize
 
   // ── Midnight cron ─────────────────────────────────────────
   // '0 0 * * *' = midnight in server local time.
   // Requires TZ=Asia/Kathmandu in Railway environment variables.
-  cron.schedule('0 0 * * *', async () => {
-    try {
-      await runAutoClose('midnight-cron');
-    } catch (err) {
-      log.error({ err }, 'Midnight auto-close cron failed');
-    }
-  });
+  cron.schedule(
+    '0 0 * * *',
+    withJobAlerts('midnight-autoclose-job', runMidnightAutoCloseJob, { severity: 'critical' })
+  );
 
   log.info(
     'Auto-close job initialized — startup catch-up in 5s, cron at 00:00 NPT'

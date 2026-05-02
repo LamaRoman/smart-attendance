@@ -12,6 +12,7 @@ import prisma from '../lib/prisma';
 import { emailService } from '../services/email.service';
 import { invalidatePlanCache } from '../services/plan.service';
 import { createLogger } from '../logger';
+import { withJobAlerts } from './withJobAlerts';
 
 const log = createLogger('billing-job');
 
@@ -194,6 +195,10 @@ export async function runBillingJob(): Promise<void> {
 
 export function startBillingJob(): void {
   // 02:45 UTC = 08:30 NPT
-  cron.schedule('45 2 * * *', runBillingJob, { timezone: 'UTC' });
+  cron.schedule(
+    '45 2 * * *',
+    withJobAlerts('billing-job', runBillingJob, { severity: 'critical' }),
+    { timezone: 'UTC' }
+  );
   log.info('Billing job scheduled — daily at 08:30 NPT');
 }
