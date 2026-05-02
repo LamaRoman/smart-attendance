@@ -10,6 +10,7 @@ import { generalRateLimiter } from './middleware/rateLimiter';
 import { sanitizeInput } from './middleware/sanitize';
 import { errorHandler } from './middleware/errorHandler';
 import prisma from './lib/prisma';
+import { redisClient } from './lib/redis';
 import notificationRoutes from './routes/notifications';
 import { notificationService } from './services/notification.service';
 import { startTrialExpiryJob } from './jobs/trial-expiry.job';
@@ -189,23 +190,38 @@ v1Router.use('/super-admin/platform-config', platformConfigRouter);
 v1Router.use('/super-admin/plans', superAdminPlansRouter);
 
 v1Router.get('/health', async (req, res) => {
+  let dbStatus: 'connected' | 'disconnected' = 'disconnected';
+  let redisStatus: 'connected' | 'disconnected' | 'not_configured' = 'not_configured';
+
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({
-      status: 'ok',
-      version: 'v1',
-      timestamp: new Date().toISOString(),
-      uptime: Math.floor(process.uptime()),
-      database: 'connected',
-    });
+    dbStatus = 'connected';
   } catch {
-    res.status(503).json({
-      status: 'degraded',
-      version: 'v1',
-      timestamp: new Date().toISOString(),
-      database: 'disconnected',
-    });
+    /* fall through */
   }
+
+  if (redisClient) {
+    try {
+      await redisClient.ping();
+      redisStatus = 'connected';
+    } catch {
+      redisStatus = 'disconnected';
+    }
+  }
+
+  // DB is fatal. Redis is fatal only if it was configured (a degraded
+  // Redis means lockouts silently fall back to per-instance memory state,
+  // which breaks horizontal scaling — surface that to the load balancer).
+  const healthy = dbStatus === 'connected' && redisStatus !== 'disconnected';
+
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
+    version: 'v1',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    database: dbStatus,
+    redis: redisStatus,
+  });
 });
 
 // Version header middleware

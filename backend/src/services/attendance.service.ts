@@ -74,7 +74,7 @@ export class AttendanceService {
   // ======== QR / mobile scans ========
 
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
-    checkScanLockout(input.employeeId);
+    await checkScanLockout(input.employeeId);
 
     const qrOrgId = await this.validateQRPayloadAndGetOrg(input.qrPayload);
 
@@ -113,7 +113,7 @@ export class AttendanceService {
 
     const isPinValid = await verifyPassword(input.pin, membership.attendancePinHash);
     if (!isPinValid) {
-      recordFailedScanAttempt(input.employeeId);
+      await recordFailedScanAttempt(input.employeeId);
       await this.logAudit({
         employeeId: input.employeeId,
         userId: membership.user.id,
@@ -130,7 +130,7 @@ export class AttendanceService {
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
-    clearFailedScanAttempts(input.employeeId);
+    await clearFailedScanAttempts(input.employeeId);
 
     await this.incrementQRScanCount(input.qrPayload);
 
@@ -216,7 +216,7 @@ export class AttendanceService {
   }
 
   async mobileCheckin(input: MobileCheckinInput, ipAddress?: string, userAgent?: string) {
-    checkScanLockout(input.employeeId);
+    await checkScanLockout(input.employeeId);
 
     if (!input.organizationId) {
       throw new ValidationError(
@@ -260,7 +260,7 @@ export class AttendanceService {
 
     const isPinValid = await verifyPassword(input.pin, membership.attendancePinHash);
     if (!isPinValid) {
-      recordFailedScanAttempt(input.employeeId);
+      await recordFailedScanAttempt(input.employeeId);
       await this.logAudit({
         employeeId: input.employeeId,
         userId: membership.user.id,
@@ -277,7 +277,7 @@ export class AttendanceService {
       throw new ValidationError('Invalid employee ID or PIN', 'INVALID_SCAN');
     }
 
-    clearFailedScanAttempts(input.employeeId);
+    await clearFailedScanAttempts(input.employeeId);
 
     const org = await prisma.organization.findUnique({
       where: { id: membership.organizationId },
