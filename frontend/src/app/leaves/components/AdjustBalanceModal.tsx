@@ -4,6 +4,30 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { LeaveBalance } from '../types'
 
+interface FieldProps {
+  label: string
+  value: number
+  onChange: (val: number) => void
+  max: number
+}
+
+function Field({ label, value, onChange, max }: FieldProps) {
+  return (
+    <div>
+      <label className="mb-1 block text-[10px] text-slate-500">{label}</label>
+      <input
+        type="number"
+        min="0"
+        max={max}
+        value={value}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+        className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-slate-100"
+      />
+    </div>
+  )
+}
+
 interface Props {
   balance: LeaveBalance
   bsYear: number
@@ -40,20 +64,6 @@ export default function AdjustBalanceModal({ balance, bsYear, isNepali, onSave, 
     setSaving(false)
   }
 
-  const Field = ({ label, fieldKey, max }: { label: string; fieldKey: string; max: number }) => (
-    <div>
-      <label className="mb-1 block text-[10px] text-slate-500">{label}</label>
-      <input
-        type="number"
-        min="0"
-        max={max}
-        value={(form as any)[fieldKey]}
-        onChange={(e) => set(fieldKey, parseInt(e.target.value) || 0)}
-        className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-slate-100"
-      />
-    </div>
-  )
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
       <div className="w-full max-w-sm space-y-4 rounded-xl bg-white p-5 shadow-xl">
@@ -83,15 +93,22 @@ export default function AdjustBalanceModal({ balance, bsYear, isNepali, onSave, 
             <div className="grid grid-cols-3 gap-2">
               <Field
                 label={isNepali ? 'अधिकार' : 'Entitlement'}
-                fieldKey="annualEntitlement"
+                value={form.annualEntitlement}
+                onChange={(v) => set('annualEntitlement', v)}
                 max={90}
               />
               <Field
                 label={isNepali ? 'ल्याइएको' : 'Carried Over'}
-                fieldKey="annualCarriedOver"
+                value={form.annualCarriedOver}
+                onChange={(v) => set('annualCarriedOver', v)}
                 max={90}
               />
-              <Field label={isNepali ? 'प्रयोग' : 'Used'} fieldKey="annualUsed" max={90} />
+              <Field
+                label={isNepali ? 'प्रयोग' : 'Used'}
+                value={form.annualUsed}
+                onChange={(v) => set('annualUsed', v)}
+                max={90}
+              />
             </div>
           </div>
 
@@ -103,15 +120,22 @@ export default function AdjustBalanceModal({ balance, bsYear, isNepali, onSave, 
             <div className="grid grid-cols-3 gap-2">
               <Field
                 label={isNepali ? 'अधिकार' : 'Entitlement'}
-                fieldKey="sickEntitlement"
+                value={form.sickEntitlement}
+                onChange={(v) => set('sickEntitlement', v)}
                 max={45}
               />
               <Field
                 label={isNepali ? 'ल्याइएको' : 'Carried Over'}
-                fieldKey="sickCarriedOver"
+                value={form.sickCarriedOver}
+                onChange={(v) => set('sickCarriedOver', v)}
                 max={45}
               />
-              <Field label={isNepali ? 'प्रयोग' : 'Used'} fieldKey="sickUsed" max={45} />
+              <Field
+                label={isNepali ? 'प्रयोग' : 'Used'}
+                value={form.sickUsed}
+                onChange={(v) => set('sickUsed', v)}
+                max={45}
+              />
             </div>
           </div>
 
@@ -123,10 +147,16 @@ export default function AdjustBalanceModal({ balance, bsYear, isNepali, onSave, 
             <div className="grid grid-cols-2 gap-2">
               <Field
                 label={isNepali ? 'अधिकार' : 'Entitlement'}
-                fieldKey="casualEntitlement"
+                value={form.casualEntitlement}
+                onChange={(v) => set('casualEntitlement', v)}
                 max={60}
               />
-              <Field label={isNepali ? 'प्रयोग' : 'Used'} fieldKey="casualUsed" max={60} />
+              <Field
+                label={isNepali ? 'प्रयोग' : 'Used'}
+                value={form.casualUsed}
+                onChange={(v) => set('casualUsed', v)}
+                max={60}
+              />
             </div>
           </div>
 
