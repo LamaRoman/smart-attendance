@@ -10,4 +10,4 @@
 -- only be deployed after confirming the column is unused in the
 -- currently-running version (it has been since PR 6).
 
-ALTER TABLE "QRCode" DROP COLUMN IF EXISTS "signature";
+ALTER TABLE "qr_codes" DROP COLUMN IF EXISTS "signature";
