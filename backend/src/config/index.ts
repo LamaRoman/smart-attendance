@@ -9,9 +9,6 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().default('24h'),
 
-  // QR signing secret -- used for static/rotating QR codes, separate from JWT
-  QR_SECRET: z.string().min(32, 'QR_SECRET must be at least 32 characters'),
-
   // App
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('5001'),
@@ -37,6 +34,12 @@ const envSchema = z.object({
   // Email (optional -- password reset, notifications)
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default('noreply@zentaralabs.com'),
+
+  // Operational alerts (optional). When set, cron job failures are
+  // posted to this Slack incoming webhook. Without it, failures still
+  // log at warn level and are visible via your log aggregator —
+  // configuring this is strongly recommended for production.
+  SLACK_ALERT_WEBHOOK_URL: z.string().url().optional(),
 });
 
 function loadConfig() {

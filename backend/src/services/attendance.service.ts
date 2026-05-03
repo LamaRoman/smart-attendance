@@ -22,59 +22,20 @@ import {
 
 const log = createLogger('attendance-service');
 
-const SCAN_COOLDOWN_MINUTES = 2;
-
-// Once in, once out — max 2 actions per day (1 clock-in + 1 clock-out)
-const MAX_DAILY_SCANS = 2;
-
-const MAX_EDIT_WINDOW_DAYS = 90;
-
-/** Nepal timezone for consistent server-side formatting */
-const NPT: Intl.DateTimeFormatOptions = {
-  timeZone: 'Asia/Kathmandu',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: true,
-};
-
-function formatTimeNPT(date: Date): string {
-  return date.toLocaleTimeString('en-US', NPT);
-}
-
-/**
- * Get today's start and end in Nepal time (Asia/Kathmandu).
- * Requires TZ=Asia/Kathmandu set on the server (Railway env variable).
- */
-function getTodayRangeNPT(): { todayStart: Date; todayEnd: Date } {
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(now);
-  todayEnd.setHours(23, 59, 59, 999);
-  return { todayStart, todayEnd };
-}
-
-function validateTimestamp(raw: string, fieldName: string): Date {
-  const d = new Date(raw);
-  if (isNaN(d.getTime()))
-    throw new ValidationError(`${fieldName} is not a valid date`, 'INVALID_DATE');
-  const now = new Date();
-  if (d > now)
-    throw new ValidationError(`${fieldName} cannot be in the future`, 'FUTURE_DATE');
-  const cutoff = new Date(now.getTime() - MAX_EDIT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-  if (d < cutoff)
-    throw new ValidationError(
-      `${fieldName} cannot be more than ${MAX_EDIT_WINDOW_DAYS} days in the past`,
-      'DATE_TOO_OLD'
-    );
-  return d;
-}
+import {
+  SCAN_COOLDOWN_MINUTES,
+  MAX_DAILY_SCANS,
+  MAX_EDIT_WINDOW_DAYS,
+  formatTimeNPT,
+  getTodayRangeNPT,
+  validateTimestamp,
+} from './attendance.helpers';
 
 export class AttendanceService {
   // ======== QR / mobile scans ========
 
   async scanPublic(input: ScanPublicInput, ipAddress?: string, userAgent?: string) {
-    checkScanLockout(input.employeeId);
+    await checkScanLockout(input.employeeId);
 
     const qrOrgId = await this.validateQRPayloadAndGetOrg(input.qrPayload);
 
@@ -113,7 +74,7 @@ export class AttendanceService {
 
     const isPinValid = await verifyPassword(input.pin, membership.attendancePinHash);
     if (!isPinValid) {
-      recordFailedScanAttempt(input.employeeId);
+      await recordFailedScanAttempt(input.employeeId);
       await this.logAudit({
         employeeId: input.employeeId,
         userId: membership.user.id,
@@ -130,7 +91,7 @@ export class AttendanceService {
       throw new ValidationError('Invalid employee ID or QR code', 'INVALID_SCAN');
     }
 
-    clearFailedScanAttempts(input.employeeId);
+    await clearFailedScanAttempts(input.employeeId);
 
     await this.incrementQRScanCount(input.qrPayload);
 
@@ -216,7 +177,7 @@ export class AttendanceService {
   }
 
   async mobileCheckin(input: MobileCheckinInput, ipAddress?: string, userAgent?: string) {
-    checkScanLockout(input.employeeId);
+    await checkScanLockout(input.employeeId);
 
     if (!input.organizationId) {
       throw new ValidationError(
@@ -260,7 +221,7 @@ export class AttendanceService {
 
     const isPinValid = await verifyPassword(input.pin, membership.attendancePinHash);
     if (!isPinValid) {
-      recordFailedScanAttempt(input.employeeId);
+      await recordFailedScanAttempt(input.employeeId);
       await this.logAudit({
         employeeId: input.employeeId,
         userId: membership.user.id,
@@ -277,7 +238,7 @@ export class AttendanceService {
       throw new ValidationError('Invalid employee ID or PIN', 'INVALID_SCAN');
     }
 
-    clearFailedScanAttempts(input.employeeId);
+    await clearFailedScanAttempts(input.employeeId);
 
     const org = await prisma.organization.findUnique({
       where: { id: membership.organizationId },

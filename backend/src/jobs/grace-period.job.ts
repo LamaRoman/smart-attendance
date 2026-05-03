@@ -171,14 +171,13 @@ export async function runGracePeriodJob(): Promise<void> {
 
 // ── Schedule ─────────────────────────────────────────────────
 
+import { withJobAlerts } from './withJobAlerts';
+
 export function startGracePeriodJob(): void {
-  cron.schedule('45 2 * * *', async () => {
-    try {
-      await runGracePeriodJob();
-    } catch (err) {
-      log.error({ err }, 'Grace period job failed');
-    }
-  });
+  cron.schedule(
+    '45 2 * * *',
+    withJobAlerts('grace-period-job', runGracePeriodJob, { severity: 'critical' })
+  );
 
   log.info('Grace period job scheduled — runs daily at 08:30 NPT');
 }

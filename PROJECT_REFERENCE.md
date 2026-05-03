@@ -72,7 +72,6 @@ smart_attendance/
 ### Environment Variables (Railway)
 - `DATABASE_URL` — PostgreSQL connection string
 - `JWT_SECRET` — 64+ char hex string
-- `QR_SECRET` — 64+ char hex string
 - `NODE_ENV` — production
 - `TZ` — Asia/Kathmandu (required for midnight cron)
 - `CORS_ORIGINS` — comma-separated allowed origins

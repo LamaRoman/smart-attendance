@@ -100,7 +100,7 @@ router.post('/add-existing', requireOrgAdmin, enforceOrgIsolation, validate(addE
 });
 
 // PUT /api/users/:id
-router.put('/:id', validate(userIdParamSchema, 'params'), validate(updateUserSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/:id', enforceOrgIsolation, validate(userIdParamSchema, 'params'), validate(updateUserSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const isSelf = req.params.id === req.user!.userId;
     const isAdmin = req.user!.role === 'ORG_ADMIN' || req.user!.role === 'SUPER_ADMIN';

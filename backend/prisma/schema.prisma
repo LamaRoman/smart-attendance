@@ -315,10 +315,6 @@ model UserSession {
 model QRCode {
   id        String @id @default(uuid())
   token     String @unique
-  // Legacy HMAC signature of the token. Kept nullable for backward
-  // compatibility with rows created before PR 6 (QR semantics rework).
-  // No longer verified on scan; will be dropped in a follow-up PR.
-  signature String?
 
   status    QRCodeStatus @default(ACTIVE)
   scanCount Int          @default(0)

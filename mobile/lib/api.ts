@@ -19,7 +19,13 @@ const getDevBaseUrl = (): string => {
   return 'http://localhost:5001';
 };
 
-const BASE_URL = __DEV__ ? getDevBaseUrl() : 'https://api.zentaralabs.com';
+// Production base URL is supplied by EXPO_PUBLIC_API_URL at build time
+// (set per-profile in eas.json). The hardcoded fallback exists only so a
+// missing env var doesn't ship a broken build to the store; all real
+// builds should set the env var explicitly.
+const PROD_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.zentaralabs.com';
+
+const BASE_URL = __DEV__ ? getDevBaseUrl() : PROD_BASE_URL;
 // ─── Create instance ─────────────────────────────────────────────────────────
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
