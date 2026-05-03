@@ -179,3 +179,76 @@ If `pentest.sh` is configured against the staging URL, run it too — it covers 
 ---
 
 *Maintained alongside the codebase. If you change deploy infra, update this file in the same PR.*
+## Known limits & future work
+
+This section documents intentional simplifications that work fine at current
+scale but will need attention as the system grows. None of these are bugs;
+they're trade-offs with a clear migration path.
+
+### Rate limiter storage (in-memory)
+
+The middleware in `backend/src/middleware/rateLimiter.ts` uses
+`express-rate-limit`'s default in-memory store. All counters live in the Node
+process and reset on restart.
+
+**Current limits:**
+
+| Limiter   | Window | Max  | Applies to                         |
+|-----------|--------|------|------------------------------------|
+| auth      | 15 min | 10   | login, password reset (per IP)     |
+| scan      | 15 min | 500  | public QR/mobile scan (per IP)     |
+| general   | 15 min | 300  | everything else (per IP)           |
+
+**Why this is fine today:**
+
+- We run a single backend instance. Per-process counters are the same as
+  per-cluster counters.
+- The scan limit of 500/15 min covers a 500-employee office on a single WAN
+  IP during morning clock-in (~33 scans/min sustained). No org we have today
+  comes close.
+- The auth limit of 10/15 min is tight enough to make credential stuffing
+  expensive while not annoying real users (who don't fail login 10× in
+  15 min).
+
+**When to revisit:**
+
+- **Horizontal scale.** The moment we run more than one backend pod behind a
+  load balancer, per-IP limits become `max * podCount` in effect. Counters
+  in pod A don't see attempts to pod B.
+- **A single office >400 employees on one WAN IP.** Add headroom or move
+  to Redis-backed storage so the limit doesn't become a false positive
+  during shift changes.
+- **Any 429-related incident.** If we see legitimate traffic getting
+  rate-limited, that's the signal to migrate.
+
+**Migration path:**
+
+```bash
+npm install rate-limit-redis
+```
+
+Then on each limiter:
+
+```ts
+import RedisStore from 'rate-limit-redis';
+import { redisClient } from '../lib/redis';
+
+export const scanRateLimiter = rateLimit({
+  // ... existing options
+  store: new RedisStore({
+    sendCommand: (...args: string[]) => redisClient.sendCommand(args),
+  }),
+});
+```
+
+Redis is already a dependency (used by `lib/lockout.ts` and
+`lib/scan-lockout.ts`), so no new infrastructure is needed — just point the
+limiters at it.
+
+### What this doesn't cover
+
+- **DDoS / volumetric attacks.** Rate limiting per IP is useless against a
+  botnet. Front the API with Cloudflare or similar before going to scale.
+- **Distributed credential stuffing across many IPs.** Account-level
+  lockout (already implemented in `lib/lockout.ts`) is the defense for
+  this, not the IP rate limiter.

@@ -4,6 +4,34 @@ import { createLogger } from '../logger';
 const log = createLogger('rate-limiter');
 
 /**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Rate limiter notes (reviewed 2026-05)
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * All limiters below use express-rate-limit's default in-memory store. That
+ * means counters live in the Node process, not in shared storage. Two
+ * implications worth flagging:
+ *
+ *   1. Per-IP limits are per-process. If we ever run more than one backend
+ *      instance behind a load balancer, the effective limit becomes
+ *      `max * instanceCount`. Today we run a single instance, so this is fine.
+ *
+ *   2. Counters reset on restart. A deploy clears them. Acceptable trade-off
+ *      because deploys are infrequent enough that this isn't an attack vector.
+ *
+ * When to revisit:
+ *   - Scaling to >1 backend instance (horizontal scale, blue/green, etc.)
+ *   - Any single office exceeding ~400 employees sharing one WAN IP
+ *   - A real incident where the current ceilings cause false positives
+ *
+ * Migration path when needed: add `rate-limit-redis` as the `store` option
+ * on each limiter. Redis is already a dependency for scan-lockout and
+ * lockout. See DEPLOYMENT.md "Known limits & future work" for the full
+ * rationale.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
  * Strict rate limit for auth endpoints (login, password reset)
  * Prevents brute-force attacks
  */
@@ -26,11 +54,12 @@ export const authRateLimiter = rateLimit({
 
 /**
  * Rate limit for QR scan endpoint (public, unauthenticated)
- * 100 requests per 15 min per IP — covers 50 employees scanning from same office network
+ * 500 scans per 15 min per IP — supports a 500-employee office sharing one
+ * WAN IP during morning clock-in rush (~33 scans/min sustained).
  */
 export const scanRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // 500 scans per 15 min — supports 500 employees on same WiFi
+  max: 500,
   message: {
     error: {
       message: 'Too many scan attempts. Please try again later.',
